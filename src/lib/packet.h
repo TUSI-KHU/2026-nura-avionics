@@ -1,7 +1,7 @@
 #pragma once
-#include<stdint.h>
-#include<assert.h>
-#include<Arduino.h>
+#include <stdint.h>
+#include <assert.h>
+#include <Arduino.h>
 using namespace std;
 
 /*
@@ -15,7 +15,7 @@ Packet Architecture
 #define STX 0x06
 #define ETX 0x08
 
-//DATATYPE
+// DATATYPE
 #define SENSOR 0
 #define CMD 1
 #define STRING 2
@@ -25,13 +25,15 @@ Packet Architecture
 #define NULLPACKET 6
 #define ACK 7
 
-//MAX PACKET SIZE: 사용자 정의
+// MAX PACKET SIZE: 사용자 정의
 #define MAX_PACKET_SIZE 100000
 
-class Packet {
+class Packet
+{
 public:
-    //위성에서 지상국으로 데이터 전송 시, 사용하는 패킷 객체
-    Packet(uint8_t dtype, uint8_t D_LEN, uint8_t* data) {
+    // 위성에서 지상국으로 데이터 전송 시, 사용하는 패킷 객체
+    Packet(uint8_t dtype, uint8_t D_LEN, uint8_t *data)
+    {
         _dtype = dtype;
         _D_LEN = D_LEN;
 
@@ -45,7 +47,8 @@ public:
         _packet[2] = _D_LEN;
 
         int32_t idx = 3;
-        for (int i = 0; i < _D_LEN; i++) {
+        for (int i = 0; i < _D_LEN; i++)
+        {
             _packet[idx] = _data[i];
             idx++;
         }
@@ -54,11 +57,11 @@ public:
 
         _packet[idx++] = _checksum;
         _packet[idx] = ETX;
-
     }
 
-    //위성에서 받은 패킷 데이터를 바탕으로 지상국에서 객체 생성 과정
-    Packet(uint8_t* Packet, int32_t PacketSize) {
+    // 위성에서 받은 패킷 데이터를 바탕으로 지상국에서 객체 생성 과정
+    Packet(uint8_t *Packet, int32_t PacketSize)
+    {
         _PACKETSIZE = PacketSize;
         _copyPacket(Packet);
         _dtype = _packet[1];
@@ -68,7 +71,8 @@ public:
         _getCheckSum();
     }
 
-    Packet(){
+    Packet()
+    {
         _dtype = NULLPACKET;
         _D_LEN = 0;
 
@@ -86,34 +90,40 @@ public:
         _packet[idx] = uint8_t(ETX);
     }
 
-    ~Packet() {
+    ~Packet()
+    {
         delete[] _packet;
         delete[] _data;
     }
 
-    uint8_t getPacketData(int idx) {
+    uint8_t getPacketData(int idx)
+    {
         Serial.println(_packet[idx]);
         return _packet[idx];
     }
 
-    uint8_t* getData() {
+    uint8_t *getData()
+    {
         return _data;
     }
 
-    uint32_t getPacketSize() {
+    uint32_t getPacketSize()
+    {
         return _PACKETSIZE;
     }
 
-    int getDataSize() {
+    int getDataSize()
+    {
         return _D_LEN;
     }
 
-    uint8_t getDataType(){
+    uint8_t getDataType()
+    {
         return _packet[2];
     }
 
-
-    Packet& operator=(const Packet& obj) {
+    Packet &operator=(const Packet &obj)
+    {
         this->_dtype = obj._dtype;
         this->_D_LEN = obj._D_LEN;
         this->_checksum = obj._checksum;
@@ -121,43 +131,48 @@ public:
         this->_copyData(obj._data);
 
         this->_packet = new uint8_t[_PACKETSIZE];
-        for (int i = 0; i < this->_PACKETSIZE; i++) {
+        for (int i = 0; i < this->_PACKETSIZE; i++)
+        {
             this->_packet[i] = obj._packet[i];
         }
 
         return *this;
     }
 
-    template<class T>
-    float dataToNum(uint8_t start) {
+    template <class T>
+    float dataToNum(uint8_t start)
+    {
         float result;
         memcpy(&result, &_data[start], sizeof(float));
-        
+
         return result;
     }
 
-    void transmitPacket(){
+    void transmitPacket()
+    {
         float dataArray[9];
-        for(int i=0;i<9;i++){
-            dataArray[i] = dataToNum<float>(i*4);
+        for (int i = 0; i < 9; i++)
+        {
+            dataArray[i] = dataToNum<float>(i * 4);
             Serial.print(dataArray[i]);
             Serial.print(" ");
         }
         Serial.println();
         Serial.print("---------------------------------------------------------\n");
-        for(int i=0;i<_PACKETSIZE;i++){
+        for (int i = 0; i < _PACKETSIZE; i++)
+        {
             Serial.print(_packet[i]);
             Serial.print(" ");
             Serial3.write(_packet[i]);
         }
         Serial.println();
-        //Serial3.write(_packet, size_t(_PACKETSIZE));
+        // Serial3.write(_packet, size_t(_PACKETSIZE));
         Serial.print("---------------------------------------------------------\n");
     }
 
 private:
-    uint8_t* _packet;
-    uint8_t* _data;
+    uint8_t *_packet;
+    uint8_t *_data;
     uint8_t _dtype;
     uint8_t _D_LEN;
     uint8_t _checksum, _recived_checkSum;
@@ -165,32 +180,40 @@ private:
     // 데이터 사이즈는 최대 4바이트 정수 범위
     int _PACKETSIZE;
 
-    inline void _copyData(uint8_t* data) {
+    inline void _copyData(uint8_t *data)
+    {
         _data = new uint8_t[_D_LEN];
-        for (int i = 0; i < _D_LEN; i++) {
+        for (int i = 0; i < _D_LEN; i++)
+        {
             _data[i] = data[i];
         }
     }
 
-    inline void _copyPacket(uint8_t* packet) {
+    inline void _copyPacket(uint8_t *packet)
+    {
         _packet = new uint8_t[_PACKETSIZE];
-        for (int i = 0; i < _PACKETSIZE; i++) {
+        for (int i = 0; i < _PACKETSIZE; i++)
+        {
             _packet[i] = packet[i];
         }
     }
 
-    inline void _getPacketSize() {
-        //packet의 데이터 종류 5개 + 데이터 길이
+    inline void _getPacketSize()
+    {
+        // packet의 데이터 종류 5개 + 데이터 길이
         _PACKETSIZE = 5 + _D_LEN;
     }
 
-    inline void _getDataSize() {
+    inline void _getDataSize()
+    {
         _D_LEN = _PACKETSIZE - 5;
     }
 
-    inline void _getCheckSum() {
-        for (int i = 0; i < _PACKETSIZE - 2; i++) {
-            _checksum ^= _packet[i];//XOR 연산으로 parity 검사
+    inline void _getCheckSum()
+    {
+        for (int i = 0; i < _PACKETSIZE - 2; i++)
+        {
+            _checksum ^= _packet[i]; // XOR 연산으로 parity 검사
         }
         _checksum ^= ETX;
     }

@@ -16,15 +16,16 @@ Carnard canard(&pitch_motor1, &pitch_motor2, &yaw_motor1, &yaw_motor2, &bno);
 Parachute parachute(&parachute_motor);
 Transmit transmit(&bno, &alt, &gps, &xbee, &logger);
 UpdateSensor updatesensor(&bno, &alt, &gps);
-StageChecker stagecheck(&bno, &alt, &gps, &stage,&logger);
+StageChecker stagecheck(&bno, &alt, &gps, &stage, &logger);
 
 // 지상국 코드
 
-//Recieve recieve(&xbee);
+// Recieve recieve(&xbee);
 
-unsigned long initTime, currentTime; 
+unsigned long initTime, currentTime;
 
-void setup(){
+void setup()
+{
     initTime = millis();
     // 초기 stage INIT으로 초기화
     stage = INIT;
@@ -63,24 +64,27 @@ void setup(){
     digitalWrite(13, LOW);
 }
 
-void loop(){
+void loop()
+{
     // 지상국으로 부터 데이터 오는 지 확인, 있으면 해당 명령 수행
     Serial.print("Stage: ");
     Serial.println(stage);
 
-    if(Serial3.available()){
+    if (Serial3.available())
+    {
         Serial.println("Recieve");
         String command = Serial3.readStringUntil('\n');
         Serial.print("command: ");
         Serial.print(command);
         command.trim();
-        //delay(5000);
+        // delay(5000);
         delay(100);
         String logging = "command,";
-        logging += command+"\n";
+        logging += command + "\n";
         logger.writeData(logging);
-        if (command == "Ready"){
-            //센서 초기화
+        if (command == "Ready")
+        {
+            // 센서 초기화
 
             // stage 변경
             stage = READY;
@@ -89,9 +93,10 @@ void loop(){
             Serial3.println("Stage,Ready");
         }
 
-        else if(command == "Injection"){
+        else if (command == "Injection")
+        {
             // 낙하산 강제 사출
-            //parachute.run();
+            // parachute.run();
 
             // stage 변경
             stage = APOGEE;
@@ -100,7 +105,8 @@ void loop(){
             Serial3.println("Stage,APOGEE");
         }
 
-        else if(command == "StageChange"){
+        else if (command == "StageChange")
+        {
             String log;
             switch (stage)
             {
@@ -132,43 +138,46 @@ void loop(){
             default:
                 break;
             }
-
         }
 
-        else{
+        else
+        {
             Serial3.println("Undefined Command");
         }
     }
-    if(stage == INIT){
+    if (stage == INIT)
+    {
         updatesensor.run();
         transmit.sendSensorData();
     }
-    if(stage == READY){
+    if (stage == READY)
+    {
         // 텔레메트리 값 읽기 시작
-        //Serial.println("READY START");
+        // Serial.println("READY START");
         updatesensor.run();
         // 읽은 텔레메트리 값 전송 및 저장
-        //Serial.println("updateSensor");
+        // Serial.println("updateSensor");
         transmit.sendSensorData();
-        //Serial.println("Transmit");
-        // 만약 가속도 값이 크게 변화하면 상태 ASCENDING으로 바꿈 및 상태 변경 패킷 전송 및 저장
+        // Serial.println("Transmit");
+        //  만약 가속도 값이 크게 변화하면 상태 ASCENDING으로 바꿈 및 상태 변경 패킷 전송 및 저장
         stagecheck.run();
-        //Serial.println("REady finish");
+        // Serial.println("REady finish");
     }
-    else if(stage == ASCENDING){
+    else if (stage == ASCENDING)
+    {
         // 텔레메트리 값 읽기 시작
         updatesensor.run();
         // 텔레메트리 값 전송 및 저장
-        
+
         // 읽은 텔레메트리 값 전송 및 저장
         transmit.sendSensorData();
         // PID 제어
         canard.run();
 
         stagecheck.run();
-
     }
-    else if(stage == APOGEE){
+    else if (stage == APOGEE)
+    {
         // 텔레메트리 값 읽기 시작
         updatesensor.run();
         // 낙하산 사출
@@ -178,7 +187,8 @@ void loop(){
 
         stagecheck.run();
     }
-    else if(stage == DESCENDING){
+    else if (stage == DESCENDING)
+    {
         // 텔레메트리 값 읽기 시작
         updatesensor.run();
         // 텔레메트리 값 전송 및 저장

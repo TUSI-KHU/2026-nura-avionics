@@ -6,15 +6,19 @@
 #include <Wire.h>
 #include <Arduino.h>
 
-class IMU : public Sensor<float> {
+class IMU : public Sensor<float>
+{
 public:
     IMU(int8_t sensorMode, uint8_t dataLength)
-        : Sensor(sensorMode, dataLength){} // lastTime은 deltaTime 계산을 위해 사용.
+        : Sensor(sensorMode, dataLength) {} // lastTime은 deltaTime 계산을 위해 사용.
 
-    void init() { // setup() 함수의 기능
+    void init()
+    { // setup() 함수의 기능
         Serial.println("Bno start");
-        if (!bno.begin()) {
-            while (1);
+        if (!bno.begin())
+        {
+            while (1)
+                ;
         }
         bno.setAxisRemap(Adafruit_BNO055::adafruit_bno055_axis_remap_config_t(0x09));
         delay(1000);
@@ -23,35 +27,40 @@ public:
         bno.setExtCrystalUse(true);
         // 센서를 통해 얻은 데이터를 event 구조체에 저장
 
-        //bno.setAxisSign(Adafruit_BNO055::adafruit_bno055_axis_remap_sign_t(0x00));
+        // bno.setAxisSign(Adafruit_BNO055::adafruit_bno055_axis_remap_sign_t(0x00));
 
-        for(int i=0;i<10;i++){
+        for (int i = 0; i < 10; i++)
+        {
             readData();
             delay(100);
         }
-        
+
         delay(1000);
 
-        for(int i=0;i<6;i++){
+        for (int i = 0; i < 6; i++)
+        {
             _data[i] = 0.0;
         }
     }
 
-    void readData() { // loop() 함수의 기능
-        //Serial.println("bno 업데이트 시작");
-        if (!bno.getEvent(&event, Adafruit_BNO055::VECTOR_LINEARACCEL)) {
+    void readData()
+    { // loop() 함수의 기능
+        // Serial.println("bno 업데이트 시작");
+        if (!bno.getEvent(&event, Adafruit_BNO055::VECTOR_LINEARACCEL))
+        {
             return;
         }
-        //Serial.println("bno 가속도 데이터 업데이트 완료");
-        // 가속도 데이터
+        // Serial.println("bno 가속도 데이터 업데이트 완료");
+        //  가속도 데이터
         float accelX = (float)event.acceleration.x;
         float accelY = (float)event.acceleration.y;
         float accelZ = (float)event.acceleration.z;
 
-        //Serial.println("bno 가속도 데이터 변수에 업데이트 완료");
+        // Serial.println("bno 가속도 데이터 변수에 업데이트 완료");
 
         // 자이로 데이터 (초기 각도 보정)
-        if (!bno.getEvent(&event, Adafruit_BNO055::VECTOR_EULER)) {
+        if (!bno.getEvent(&event, Adafruit_BNO055::VECTOR_EULER))
+        {
             return;
         }
 
@@ -60,8 +69,8 @@ public:
         float gyroX = (float)event.orientation.x;
         float gyroY = (float)event.orientation.y;
         float gyroZ = (float)event.orientation.z;
-        //Serial.println("bno 자이로 데이터 변수에 업데이트 완료");
-        // 데이터를 센서 클래스의 data 배열에 저장
+        // Serial.println("bno 자이로 데이터 변수에 업데이트 완료");
+        //  데이터를 센서 클래스의 data 배열에 저장
 
         _data[0] = gyroX;
         _data[1] = gyroY;
@@ -71,7 +80,7 @@ public:
         _data[4] = accelY;
         _data[5] = accelZ;
 
-        //Serial.println("bno 데이터 배열에 업데이트 완료")
+        // Serial.println("bno 데이터 배열에 업데이트 완료")
     }
 
 private:
