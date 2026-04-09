@@ -16,5 +16,11 @@ public:
 
 private:
     const uint8_t kDrainBudget = 4;
+    const uint8_t kOutputFailThreshold = 3;
+
+    uint32_t lastQueueDroppedCount_ = 0;
+    uint32_t outputDroppedCount_ = 0;
+    uint8_t consecutiveOutputFails_ = 0;
+
     ILogOutput &output_;
 };

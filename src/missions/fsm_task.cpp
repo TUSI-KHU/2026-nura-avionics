@@ -9,7 +9,6 @@ bool FlightStateMachineTask::init(SystemContext &ctx)
 {
     ctx.state = State::BOOT;
     ctx.stateEnteredMs = 0;
-    nextBootPrintMs_ = 0;
     return true;
 }
 
@@ -26,7 +25,10 @@ bool FlightStateMachineTask::tick(SystemContext &ctx, uint32_t nowMs)
     switch (ctx.state)
     {
     case State::BOOT:
-        LOGD(ctx.logger, nowMs, "fsm", "boot state heartbeat");
+        if (healthy)
+        {
+            transitionTo(ctx, State::IDLE, nowMs);
+        }
         break;
 
     case State::IDLE:
@@ -66,6 +68,8 @@ void FlightStateMachineTask::transitionTo(SystemContext &ctx, State next, uint32
     {
         return;
     }
+
+    LOGI(ctx.logger, nowMs, "fsm", stateName(next));
 
     ctx.state = next;
     ctx.stateEnteredMs = nowMs;

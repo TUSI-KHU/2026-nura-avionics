@@ -8,5 +8,5 @@ class SerialLogOutput : public ILogOutput
 {
 public:
     void begin(unsigned long baudRate);
-    void write(const LogEntry &entry) override;
+    bool write(const LogEntry &entry) override;
 };

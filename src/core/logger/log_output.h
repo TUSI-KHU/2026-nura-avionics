@@ -6,5 +6,5 @@ class ILogOutput
 {
 public:
     virtual ~ILogOutput() = default;
-    virtual void write(const LogEntry &entry) = 0;
+    virtual bool write(const LogEntry &entry) = 0;
 };

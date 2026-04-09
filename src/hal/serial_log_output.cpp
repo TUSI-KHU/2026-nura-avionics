@@ -21,17 +21,17 @@ void SerialLogOutput::begin(unsigned long baudRate)
     Serial.begin(baudRate);
 }
 
-void SerialLogOutput::write(const LogEntry &entry)
+bool SerialLogOutput::write(const LogEntry &entry)
 {
     if (!Serial)
     {
-        return;
+        return false;
     }
 
     const char *logLevel = logToString(entry.level);
     if (logLevel == nullptr || entry.src == nullptr || entry.msg == nullptr)
     {
-        return;
+        return false;
     }
 
     const uint16_t tsLen = digits10_u32(entry.ts);
@@ -45,12 +45,12 @@ void SerialLogOutput::write(const LogEntry &entry)
 
     if (available < 0)
     {
-        return;
+        return false;
     }
 
     if (static_cast<uint16_t>(available) < bytesNeeded)
     {
-        return;
+        return false;
     }
 
     Serial.write('[');
@@ -62,4 +62,6 @@ void SerialLogOutput::write(const LogEntry &entry)
     Serial.write(": ");
     Serial.print(entry.msg);
     Serial.write("\r\n");
+
+    return true;
 }

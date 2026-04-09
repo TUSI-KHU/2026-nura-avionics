@@ -13,5 +13,4 @@ public:
 
 private:
     void transitionTo(SystemContext &ctx, State next, uint32_t nowMs);
-    uint32_t nextBootPrintMs_ = 0;
 };

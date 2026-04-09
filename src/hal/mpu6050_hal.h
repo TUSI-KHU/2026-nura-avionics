@@ -25,12 +25,15 @@ class MPU6050HAL
 public:
     bool begin(uint8_t i2cAddress = MPU6050_I2CADDR_DEFAULT, TwoWire &wire = Wire);
     bool read(Mpu6050Reading &out, uint32_t nowMs);
-    bool readZ(float &accelZMps2, float &gyroZDps);
     bool isReady() const;
 
 private:
     static float radPerSecToDegPerSec(float radPerSec);
+    bool probeDevice() const;
+    void configureSensor();
 
     Adafruit_MPU6050 sensor_;
+    TwoWire *wire_ = &Wire;
+    uint8_t i2cAddress_ = MPU6050_I2CADDR_DEFAULT;
     bool ready_ = false;
 };

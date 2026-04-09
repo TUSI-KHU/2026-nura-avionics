@@ -27,6 +27,8 @@ bool Scheduler::add(Task &task)
 
 bool Scheduler::init(SystemContext &ctx, uint32_t nowMs)
 {
+    ctx.health.schedulerOk = true;
+
     for (uint8_t i = 0; i < count_; ++i)
     {
         Entry &e = entries_[i];
@@ -37,6 +39,7 @@ bool Scheduler::init(SystemContext &ctx, uint32_t nowMs)
 
         if (!e.task->init(ctx))
         {
+            ctx.health.schedulerOk = false;
             return false;
         }
 
@@ -62,7 +65,10 @@ void Scheduler::tick(SystemContext &ctx, uint32_t nowMs)
         }
 
         const uint32_t period = e.task->periodMs();
-        e.task->tick(ctx, nowMs);
+        if (!e.task->tick(ctx, nowMs))
+        {
+            ctx.health.schedulerOk = false;
+        }
         e.nextRunMs += period;
 
         if ((int32_t)(nowMs - e.nextRunMs) >= 0)

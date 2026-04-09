@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 #include "core/contexts.h"
 #include "core/tasks.h"
 #include "hal/mpu6050_hal.h"
@@ -15,6 +17,10 @@ public:
     uint32_t periodMs() const override;
 
 private:
+    bool isSampleValid(const Mpu6050Reading &sample) const;
+
     MPU6050HAL &imu_;
-    bool lastReadOk_ = false;
+    uint32_t nextReconnectAttemptMs_ = 0U;
+
+    static const uint32_t kReconnectIntervalMs = 500U;
 };
