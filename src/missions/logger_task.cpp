@@ -19,7 +19,6 @@ bool LoggerTask::init(SystemContext &ctx)
 
 bool LoggerTask::tick(SystemContext &ctx, uint32_t nowMs)
 {
-    const bool prevLogOk = ctx.health.logOk;
     bool queueOverflowed = false;
 
     const uint32_t queueDropped = ctx.logger.droppedCount();
@@ -57,5 +56,5 @@ bool LoggerTask::tick(SystemContext &ctx, uint32_t nowMs)
 
 uint32_t LoggerTask::periodMs() const
 {
-    return 20;
+    return 20U;
 }

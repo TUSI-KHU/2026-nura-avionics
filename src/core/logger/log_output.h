@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/logger/logger.h"
+#include "logger.h"
 
 class ILogOutput
 {

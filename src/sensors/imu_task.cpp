@@ -2,14 +2,9 @@
 
 #include <math.h>
 
-namespace
-{
-constexpr float kMaxAccelAbsMps2 = 90.0f;
-constexpr float kMaxGyroAbsDps = 550.0f;
-}
-
 IMUTask::IMUTask(MPU6050HAL &imu)
-    : imu_(imu) {}
+    : RecoverableDevice(3U, 100U, 1000U),
+      imu_(imu) {}
 
 const char *IMUTask::name() const
 {
@@ -25,42 +20,32 @@ bool IMUTask::init(SystemContext &ctx)
     ctx.imu.gyroYDps = 0.0f;
     ctx.imu.gyroZDps = 0.0f;
     ctx.imu.lastUpdatedMs = 0U;
+    ctx.health.imuOk = false;
+    ctx.health.imuDevice = DeviceHealthInfo();
 
-    const bool ok = imu_.begin();
-    ctx.health.imuOk = ok;
-    nextReconnectAttemptMs_ = 0U;
+    const bool ok = imu_.begin(0x69);
 
-    if (ok)
-    {
-        LOGI(ctx.logger, 0U, "imu", "mpu6050 initialized");
-    }
-    else
+    if (!ok)
     {
         LOGE(ctx.logger, 0U, "imu", "mpu6050 init failed");
+        ctx.health.imuDevice.healthState = DeviceHealth::FAILED;
+        ctx.health.imuOk = false;
+        return false;
     }
+
+    markInitialized(ctx, 0U);
+    ctx.health.imuOk = true;
+    LOGI(ctx.logger, 0U, "imu", "mpu6050 initialized");
 
     return true;
 }
 
 bool IMUTask::tick(SystemContext &ctx, uint32_t nowMs)
 {
-    const bool previousImuOk = ctx.health.imuOk;
-
     Mpu6050Reading sample;
-    bool readOk = imu_.read(sample, nowMs);
+    const bool readOk = imu_.read(sample, nowMs);
 
-    if (!readOk && (int32_t)(nowMs - nextReconnectAttemptMs_) >= 0)
-    {
-        nextReconnectAttemptMs_ = nowMs + kReconnectIntervalMs;
-        if (imu_.begin())
-        {
-            readOk = imu_.read(sample, nowMs);
-        }
-    }
-
-    const bool sampleOk = readOk && isSampleValid(sample);
-
-    if (sampleOk)
+    if (readOk)
     {
         ctx.imu.accelXMps2 = sample.accelXMps2;
         ctx.imu.accelYMps2 = sample.accelYMps2;
@@ -69,25 +54,12 @@ bool IMUTask::tick(SystemContext &ctx, uint32_t nowMs)
         ctx.imu.gyroYDps = sample.gyroYDps;
         ctx.imu.gyroZDps = sample.gyroZDps;
         ctx.imu.lastUpdatedMs = sample.sampleMs;
+
+        markReadSuccess(ctx, sample.sampleMs);
     }
-
-    const bool imuHealthy = readOk && sampleOk;
-    ctx.health.imuOk = imuHealthy;
-
-    if (imuHealthy != previousImuOk)
+    else
     {
-        if (imuHealthy)
-        {
-            LOGW(ctx.logger, nowMs, "imu", "recovered");
-        }
-        else if (!readOk)
-        {
-            LOGW(ctx.logger, nowMs, "imu", "i2c read failed");
-        }
-        else
-        {
-            LOGW(ctx.logger, nowMs, "imu", "invalid");
-        }
+        markReadFailure(ctx, nowMs);
     }
 
     return true;
@@ -98,27 +70,22 @@ uint32_t IMUTask::periodMs() const
     return 10U;
 }
 
-bool IMUTask::isSampleValid(const Mpu6050Reading &sample) const
+const char *IMUTask::deviceName() const
 {
-    if (!isfinite(sample.accelXMps2) || !isfinite(sample.accelYMps2) || !isfinite(sample.accelZMps2))
-    {
-        return false;
-    }
+    return "imu";
+}
 
-    if (!isfinite(sample.gyroXDps) || !isfinite(sample.gyroYDps) || !isfinite(sample.gyroZDps))
-    {
-        return false;
-    }
+DeviceHealthInfo &IMUTask::health(SystemContext &ctx) const
+{
+    return ctx.health.imuDevice;
+}
 
-    if (fabsf(sample.accelXMps2) > kMaxAccelAbsMps2 || fabsf(sample.accelYMps2) > kMaxAccelAbsMps2 || fabsf(sample.accelZMps2) > kMaxAccelAbsMps2)
-    {
-        return false;
-    }
+bool IMUTask::recover(SystemContext &ctx, uint32_t nowMs)
+{
+    (void)ctx;
+    (void)nowMs;
 
-    if (fabsf(sample.gyroXDps) > kMaxGyroAbsDps || fabsf(sample.gyroYDps) > kMaxGyroAbsDps || fabsf(sample.gyroZDps) > kMaxGyroAbsDps)
-    {
-        return false;
-    }
+    const bool ok = imu_.begin();
 
-    return true;
+    return ok;
 }

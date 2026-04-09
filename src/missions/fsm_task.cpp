@@ -1,4 +1,5 @@
 #include "fsm_task.h"
+#include "core/fault.h"
 
 const char *FlightStateMachineTask::name() const
 {
@@ -16,6 +17,12 @@ bool FlightStateMachineTask::tick(SystemContext &ctx, uint32_t nowMs)
 {
     const bool healthy = ctx.health.imuOk;
 
+    if (ctx.abort.active && ctx.state != State::SAFE)
+    {
+        transitionTo(ctx, State::SAFE, nowMs);
+        return true;
+    }
+
     if (!healthy && ctx.state != State::BOOT)
     {
         transitionTo(ctx, State::SAFE, nowMs);
@@ -28,6 +35,10 @@ bool FlightStateMachineTask::tick(SystemContext &ctx, uint32_t nowMs)
         if (healthy)
         {
             transitionTo(ctx, State::IDLE, nowMs);
+        }
+        else
+        {
+            hang();
         }
         break;
 
@@ -59,7 +70,7 @@ bool FlightStateMachineTask::tick(SystemContext &ctx, uint32_t nowMs)
 
 uint32_t FlightStateMachineTask::periodMs() const
 {
-    return 100;
+    return 100U;
 }
 
 void FlightStateMachineTask::transitionTo(SystemContext &ctx, State next, uint32_t nowMs)
