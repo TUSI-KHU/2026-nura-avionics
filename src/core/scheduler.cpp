@@ -1,16 +1,20 @@
 #include "scheduler.h"
 
 Scheduler::Scheduler()
-    : count_(0) {
-    for (uint8_t i = 0; i < kMaxTasks; ++i) {
+    : count_(0)
+{
+    for (uint8_t i = 0; i < kMaxTasks; ++i)
+    {
         entries_[i].task = 0;
         entries_[i].nextRunMs = 0;
         entries_[i].active = false;
     }
 }
 
-bool Scheduler::add(Task& task) {
-    if (count_ >= kMaxTasks) {
+bool Scheduler::add(Task &task)
+{
+    if (count_ >= kMaxTasks)
+    {
         return false;
     }
 
@@ -21,14 +25,18 @@ bool Scheduler::add(Task& task) {
     return true;
 }
 
-bool Scheduler::init(SystemContext& ctx, uint32_t nowMs) {
-    for (uint8_t i = 0; i < count_; ++i) {
-        Entry& e = entries_[i];
-        if (!e.active || e.task == 0) {
+bool Scheduler::init(SystemContext &ctx, uint32_t nowMs)
+{
+    for (uint8_t i = 0; i < count_; ++i)
+    {
+        Entry &e = entries_[i];
+        if (!e.active || e.task == 0)
+        {
             continue;
         }
 
-        if (!e.task->init(ctx)) {
+        if (!e.task->init(ctx))
+        {
             return false;
         }
 
@@ -38,14 +46,18 @@ bool Scheduler::init(SystemContext& ctx, uint32_t nowMs) {
     return true;
 }
 
-void Scheduler::tick(SystemContext& ctx, uint32_t nowMs) {
-    for (uint8_t i = 0; i < count_; ++i) {
-        Entry& e = entries_[i];
-        if (!e.active || e.task == 0) {
+void Scheduler::tick(SystemContext &ctx, uint32_t nowMs)
+{
+    for (uint8_t i = 0; i < count_; ++i)
+    {
+        Entry &e = entries_[i];
+        if (!e.active || e.task == 0)
+        {
             continue;
         }
 
-        if ((int32_t)(nowMs - e.nextRunMs) < 0) {
+        if ((int32_t)(nowMs - e.nextRunMs) < 0)
+        {
             continue;
         }
 
@@ -53,7 +65,8 @@ void Scheduler::tick(SystemContext& ctx, uint32_t nowMs) {
         e.task->tick(ctx, nowMs);
         e.nextRunMs += period;
 
-        if ((int32_t)(nowMs - e.nextRunMs) >= 0) {
+        if ((int32_t)(nowMs - e.nextRunMs) >= 0)
+        {
             e.nextRunMs = nowMs + period;
         }
     }
