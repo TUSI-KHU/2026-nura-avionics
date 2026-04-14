@@ -15,7 +15,7 @@ bool FlightStateMachineTask::init(SystemContext &ctx)
 
 bool FlightStateMachineTask::tick(SystemContext &ctx, uint32_t nowMs)
 {
-    const bool healthy = ctx.health.imuOk;
+    const bool healthy = !ctx.abort.active;
 
     if (ctx.abort.active && ctx.state != State::SAFE)
     {

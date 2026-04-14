@@ -20,10 +20,10 @@ namespace
     SerialLogOutput g_logOutput;
 
     IMUTask g_imuTask(g_imuHal);
-    RecoverableDevice *const g_recoverableDevices[] = {
+    RecoverableTask *const g_recoverableDevices[] = {
         &g_imuTask,
     };
-    // WatchdogTask g_watchdogTask(g_recoverableDevices, sizeof(g_recoverableDevices) / sizeof(g_recoverableDevices[0]));
+    WatchdogTask g_watchdogTask(g_recoverableDevices, sizeof(g_recoverableDevices) / sizeof(g_recoverableDevices[0]));
     FlightStateMachineTask g_fsmTask;
     LoggerTask g_loggerTask(g_logOutput);
 }
@@ -33,7 +33,7 @@ void setup()
     g_logOutput.begin(115200);
 
     g_scheduler.add(g_imuTask);
-    // g_scheduler.add(g_watchdogTask);
+    g_scheduler.add(g_watchdogTask);
     g_scheduler.add(g_fsmTask);
     g_scheduler.add(g_loggerTask);
 

@@ -1,4 +1,6 @@
 #include "scheduler.h"
+#include <Arduino.h>
+
 
 Scheduler::Scheduler()
     : count_(0)
@@ -27,8 +29,6 @@ bool Scheduler::add(Task &task)
 
 bool Scheduler::init(SystemContext &ctx, uint32_t nowMs)
 {
-    ctx.health.schedulerOk = true;
-
     for (uint8_t i = 0; i < count_; ++i)
     {
         Entry &e = entries_[i];
@@ -39,7 +39,6 @@ bool Scheduler::init(SystemContext &ctx, uint32_t nowMs)
 
         if (!e.task->init(ctx))
         {
-            ctx.health.schedulerOk = false;
             return false;
         }
 
@@ -67,7 +66,7 @@ void Scheduler::tick(SystemContext &ctx, uint32_t nowMs)
         const uint32_t period = e.task->periodMs();
         if (!e.task->tick(ctx, nowMs))
         {
-            ctx.health.schedulerOk = false;
+            e.active = false;
         }
         e.nextRunMs += period;
 

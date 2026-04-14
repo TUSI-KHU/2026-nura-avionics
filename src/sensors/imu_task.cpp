@@ -3,7 +3,7 @@
 #include <math.h>
 
 IMUTask::IMUTask(MPU6050HAL &imu)
-    : RecoverableDevice(3U, 100U, 1000U),
+    : RecoverableTask(TaskCriticality::CRITICAL, 3U, 5U, 1000U),
       imu_(imu) {}
 
 const char *IMUTask::name() const
@@ -20,21 +20,17 @@ bool IMUTask::init(SystemContext &ctx)
     ctx.imu.gyroYDps = 0.0f;
     ctx.imu.gyroZDps = 0.0f;
     ctx.imu.lastUpdatedMs = 0U;
-    ctx.health.imuOk = false;
-    ctx.health.imuDevice = DeviceHealthInfo();
 
     const bool ok = imu_.begin(0x69);
 
     if (!ok)
     {
         LOGE(ctx.logger, 0U, "imu", "mpu6050 init failed");
-        ctx.health.imuDevice.healthState = DeviceHealth::FAILED;
-        ctx.health.imuOk = false;
+
         return false;
     }
 
-    markInitialized(ctx, 0U);
-    ctx.health.imuOk = true;
+    markInitialized();
     LOGI(ctx.logger, 0U, "imu", "mpu6050 initialized");
 
     return true;
@@ -55,11 +51,11 @@ bool IMUTask::tick(SystemContext &ctx, uint32_t nowMs)
         ctx.imu.gyroZDps = sample.gyroZDps;
         ctx.imu.lastUpdatedMs = sample.sampleMs;
 
-        markReadSuccess(ctx, sample.sampleMs);
+        markReadSuccess();
     }
     else
     {
-        markReadFailure(ctx, nowMs);
+        markReadFailure();
     }
 
     return true;
@@ -70,22 +66,11 @@ uint32_t IMUTask::periodMs() const
     return 10U;
 }
 
-const char *IMUTask::deviceName() const
+bool IMUTask::recover(uint32_t nowMs)
 {
-    return "imu";
-}
-
-DeviceHealthInfo &IMUTask::health(SystemContext &ctx) const
-{
-    return ctx.health.imuDevice;
-}
-
-bool IMUTask::recover(SystemContext &ctx, uint32_t nowMs)
-{
-    (void)ctx;
     (void)nowMs;
 
-    const bool ok = imu_.begin();
+    const bool ok = imu_.begin(0x69);
 
     return ok;
 }

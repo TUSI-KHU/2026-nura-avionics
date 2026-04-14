@@ -13,7 +13,6 @@ bool LoggerTask::init(SystemContext &ctx)
     lastQueueDroppedCount_ = ctx.logger.droppedCount();
     outputDroppedCount_ = 0;
     consecutiveOutputFails_ = 0;
-    ctx.health.logOk = true;
     return true;
 }
 
@@ -49,7 +48,8 @@ bool LoggerTask::tick(SystemContext &ctx, uint32_t nowMs)
     }
 
     const bool outputHealthy = consecutiveOutputFails_ < kOutputFailThreshold;
-    ctx.health.logOk = outputHealthy && !queueOverflowed;
+    (void)outputHealthy;
+    (void)queueOverflowed;
 
     return true;
 }

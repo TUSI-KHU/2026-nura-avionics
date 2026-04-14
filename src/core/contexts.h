@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-#include "core/recoverable_device/recoverable_device.h"
+#include "core/recoverable_task/recoverable_task.h"
 #include "logger/logger.h"
 #include "states.h"
 
@@ -18,19 +18,10 @@ struct ImuData
     uint32_t lastUpdatedMs = 0;
 };
 
-struct HealthFlags
-{
-    bool imuOk = false;
-    bool logOk = true;
-    bool schedulerOk = true;
-
-    DeviceHealthInfo imuDevice;
-};
-
 enum class AbortReason : uint8_t
 {
     NONE,
-    IMU_FAILED
+    CRITICAL_SENSOR_FAILURE
 };
 
 struct AbortStatus
@@ -47,7 +38,6 @@ struct SystemContext
 
     ImuData imu;
 
-    HealthFlags health;
     AbortStatus abort;
     Logger logger;
 };

@@ -1,72 +1,85 @@
-// #include "watchdog_task.h"
+#include "watchdog_task.h"
 
-// WatchdogTask::WatchdogTask(RecoverableDevice *const *devices, size_t deviceCount)
-//     : devices_(devices),
-//       deviceCount_(deviceCount) {}
+WatchdogTask::WatchdogTask(RecoverableTask *const *devices, size_t deviceCount)
+    : devices_(devices),
+      deviceCount_(deviceCount) {}
 
-// const char *WatchdogTask::name() const
-// {
-//     return "watchdog";
-// }
+const char *WatchdogTask::name() const
+{
+    return "watchdog";
+}
 
-// bool WatchdogTask::init(SystemContext &ctx)
-// {
-//     ctx.abort.active = false;
-//     ctx.abort.reason = AbortReason::NONE;
-//     ctx.abort.raisedMs = 0;
-//     syncHealthFlags(ctx);
-//     return true;
-// }
+bool WatchdogTask::init(SystemContext &ctx)
+{
+    ctx.abort.active = false;
+    ctx.abort.reason = AbortReason::NONE;
+    ctx.abort.raisedMs = 0;
+    return true;
+}
 
-// bool WatchdogTask::tick(SystemContext &ctx, uint32_t nowMs)
-// {
-//     for (size_t i = 0; i < deviceCount_; ++i)
-//     {
-//         RecoverableDevice *const device = devices_[i];
-//         if (device == 0)
-//         {
-//             continue;
-//         }
+bool WatchdogTask::tick(SystemContext &ctx, uint32_t nowMs)
+{
+    for (size_t i = 0; i < deviceCount_; ++i)
+    {
+        RecoverableTask *const device = devices_[i];
+        if (device == 0)
+        {
+            continue;
+        }
 
-//         handleRecovery(ctx, *device, nowMs);
-//         handleAbort(ctx, *device, nowMs);
-//     }
+        handleRecovery(ctx, *device, nowMs);
+        handleAbort(ctx, *device, nowMs);
+    }
 
-//     return true;
-// }
+    return true;
+}
 
-// uint32_t WatchdogTask::periodMs() const
-// {
-//     return 50U;
-// }
+uint32_t WatchdogTask::periodMs() const
+{
+    return 50U;
+}
 
-// void WatchdogTask::handleRecovery(SystemContext &ctx, RecoverableDevice &device, uint32_t nowMs) const
-// {
-//     if (!device.shouldRecover(ctx, nowMs))
-//     {
-//         return;
-//     }
+void WatchdogTask::handleRecovery(SystemContext &ctx, RecoverableTask &device, uint32_t nowMs) const
+{
+    if (device.shouldDegrade())
+    {
+        device.markDegraded();
+    }
 
-//     LOGW(ctx.logger, nowMs, "watchdog", "attempting recovery");
-//     device.markRecoveryAttempt(ctx, nowMs);
+    if (device.hasRecoveredRead())
+    {
+        device.markRecoverySuccess();
+        LOGI(ctx.logger, nowMs, "watchdog", "recovery succeeded");
+        return;
+    }
 
-//     if (device.recover(ctx, nowMs))
-//     {
-//         device.markRecoverySuccess(ctx, nowMs);
-//         LOGI(ctx.logger, nowMs, "watchdog", "recovery succeeded");
-//         return;
-//     }
+    if (!device.shouldRecover(nowMs))
+    {
+        return;
+    }
 
-//     device.markRecoveryFailure(ctx, nowMs);
-//     LOGE(ctx.logger, nowMs, "watchdog", "recovery failed");
-// }
+    LOGW(ctx.logger, nowMs, "watchdog", "attempting recovery");
+    device.markRecoveryAttempt(nowMs);
 
-// void WatchdogTask::handleAbort(SystemContext &ctx, RecoverableDevice &device, uint32_t nowMs) const
-// {
-//     if (ctx.abort.active || !device.isFailed(ctx))
-//     {
-//         return;
-//     }
+    if (device.recover(nowMs))
+    {
+        device.markRecoverySuccess();
+        LOGI(ctx.logger, nowMs, "watchdog", "recovery succeeded");
+        return;
+    }
 
-//     // TODO: Implement abort
-// }
+    device.markRecoveryFailure(nowMs);
+    LOGE(ctx.logger, nowMs, "watchdog", "recovery failed");
+}
+
+void WatchdogTask::handleAbort(SystemContext &ctx, RecoverableTask &device, uint32_t nowMs) const
+{
+    if (ctx.abort.active || !device.isFailed() || device.criticality() != TaskCriticality::CRITICAL)
+    {
+        return;
+    }
+
+    ctx.abort.active = true;
+    ctx.abort.reason = AbortReason::CRITICAL_SENSOR_FAILURE;
+    ctx.abort.raisedMs = nowMs;
+}
