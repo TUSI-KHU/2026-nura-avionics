@@ -25,6 +25,7 @@ bool MPU6050HAL::begin(uint8_t i2cAddress,
                        mpu6050_accel_range_t accelRange,
                        mpu6050_gyro_range_t gyroRange)
 {
+    // begin 성공 후에는 read가 사용할 I2C 주소와 스케일 값을 모두 준비한다.
     i2cAddress_ = i2cAddress;
     wire_ = &wire;
     accelRange_ = accelRange;
@@ -62,6 +63,7 @@ bool MPU6050HAL::begin(uint8_t i2cAddress,
 
 bool MPU6050HAL::read(Mpu6050Reading &out, uint32_t nowMs)
 {
+    // 필요한 14바이트를 한 번에 읽어 부분 읽기로 인한 불일치를 줄인다.
     if (wire_ == nullptr)
     {
         return false;
@@ -97,6 +99,7 @@ bool MPU6050HAL::read(Mpu6050Reading &out, uint32_t nowMs)
 
 bool MPU6050HAL::readBurst(uint8_t startReg, uint8_t *buffer, size_t length)
 {
+    // 주소 전송과 데이터 읽기 단계별 실패를 직접 확인해 false를 반환한다.
     if ((wire_ == nullptr) || (buffer == nullptr) || (length == 0U))
     {
         return false;

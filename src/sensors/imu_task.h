@@ -9,6 +9,7 @@
 class IMUTask : public RecoverableTask
 {
 public:
+    // MPU6050를 주기적으로 읽고 recoverable 정책을 적용하는 센서 태스크다
     explicit IMUTask(MPU6050HAL &imu);
 
     const char *name() const override;

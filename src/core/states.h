@@ -3,6 +3,7 @@
 
 enum class State : uint8_t
 {
+    // 비행 상태 머신의 상태 정의
     BOOT,
     IDLE,
     ARMED,
@@ -14,6 +15,7 @@ enum class State : uint8_t
 
 inline const char *stateName(State state)
 {
+    // 로그 출력을 위한 사람이 읽기 쉬운 상태 이름 변환 함수다.
     switch (state)
     {
     case State::BOOT:

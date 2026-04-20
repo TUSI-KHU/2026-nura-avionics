@@ -6,6 +6,7 @@
 class FlightStateMachineTask : public Task
 {
 public:
+    // 전체 시스템 상태 전이를 담당하는 상태 머신 태스크다.
     const char *name() const;
     bool init(SystemContext &ctx);
     bool tick(SystemContext &ctx, uint32_t nowMs);

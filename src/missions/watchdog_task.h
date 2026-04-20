@@ -9,6 +9,7 @@
 class WatchdogTask : public Task
 {
 public:
+    // 복구 가능한 태스크를 순회하며 health 전이와 abort 판단을 중앙에서 처리한다.
     WatchdogTask(RecoverableTask *const *devices, size_t deviceCount);
 
     const char *name() const override;

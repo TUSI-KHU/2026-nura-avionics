@@ -18,11 +18,13 @@ namespace
 
 void SerialLogOutput::begin(unsigned long baudRate)
 {
+    // UART 초기화는 명시적 begin 단계에서만 수행한다.
     Serial.begin(baudRate);
 }
 
 bool SerialLogOutput::write(const LogEntry &entry)
 {
+    // 시리얼 출력 버퍼가 부족하면 블로킹하지 않고 실패를 반환한다.
     if (!Serial)
     {
         return false;

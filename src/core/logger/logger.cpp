@@ -14,6 +14,7 @@ bool Logger::push(const LogEntry &e)
 
     if (count_ >= kMaxBufferSize)
     {
+        // 버퍼가 가득 차면 dropped 증가
         ++dropped_;
         return false;
     }
@@ -41,6 +42,7 @@ bool Logger::push(
 
 bool Logger::pop(LogEntry &out)
 {
+    // 큐 앞에서부터 FIFO 순서로 로그를 하나씩 꺼낸다.
     if (count_ == 0)
     {
         return false;

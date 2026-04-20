@@ -24,8 +24,8 @@ Our next step will definitely involve a tested and proven RTOS, but later in the
 ## Structure
 - `core/`: flight states, global context, scheduler, and common task interfaces.
 - `missions/`: mission-level tasks such as communication and flight state machine (FSM).
-- `sensors/` (planned): sensor acquisition and filtering tasks (for example, IMU fusion).
-- `hal/` (planned): Hardware Access Layer between drivers and higher-level tasks.
+- `sensors/` : sensor acquisition and filtering tasks (for example, IMU fusion).
+- `hal/` : Hardware Access Layer between drivers and higher-level tasks.
 - `main.cpp`: Arduino entry point that initializes the scheduler and tasks.
 
 ## Build and Upload

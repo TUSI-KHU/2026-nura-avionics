@@ -13,6 +13,7 @@ const char *IMUTask::name() const
 
 bool IMUTask::init(SystemContext &ctx)
 {
+    // 초기화 전 IMU 컨텍스트를 안전한 기본값으로 리셋한다.
     ctx.imu.accelXMps2 = 0.0f;
     ctx.imu.accelYMps2 = 0.0f;
     ctx.imu.accelZMps2 = 0.0f;
@@ -25,6 +26,7 @@ bool IMUTask::init(SystemContext &ctx)
 
     if (!ok)
     {
+        // 초기화 실패는 logger task가 돌기 전일 수 있어 부팅 단계에서 유실될 수 있다.
         LOGE(ctx.logger, 0U, "imu", "mpu6050 init failed");
 
         return false;
@@ -38,6 +40,7 @@ bool IMUTask::init(SystemContext &ctx)
 
 bool IMUTask::tick(SystemContext &ctx, uint32_t nowMs)
 {
+    // 센서 태스크는 읽기 성공/실패 관측만 기록하고 health 전이는 watchdog에 맡긴다.
     Mpu6050Reading sample;
     const bool readOk = imu_.read(sample, nowMs);
 
@@ -70,6 +73,7 @@ bool IMUTask::recover(uint32_t nowMs)
 {
     (void)nowMs;
 
+    // 센서 begin을 다시 시도
     const bool ok = imu_.begin(0x69);
 
     return ok;

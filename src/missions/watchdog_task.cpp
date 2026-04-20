@@ -19,6 +19,7 @@ bool WatchdogTask::init(SystemContext &ctx)
 
 bool WatchdogTask::tick(SystemContext &ctx, uint32_t nowMs)
 {
+    // 각 recoverable task를 독립적으로 검사해 복구와 중단 여부를 평가한다.
     for (size_t i = 0; i < deviceCount_; ++i)
     {
         RecoverableTask *const device = devices_[i];
@@ -41,11 +42,13 @@ uint32_t WatchdogTask::periodMs() const
 
 void WatchdogTask::handleRecovery(SystemContext &ctx, RecoverableTask &device, uint32_t nowMs) const
 {
+    // 읽기 실패가 임계치를 넘으면 watchdog가 health를 DEGRADED로 변경한다.
     if (device.shouldDegrade())
     {
         device.markDegraded();
     }
 
+    // 정상 읽기가 다시 들어오면 watchdog가 recovery success를 확정하고 로그를 남긴다.
     if (device.hasRecoveredRead())
     {
         device.markRecoverySuccess();
@@ -53,6 +56,7 @@ void WatchdogTask::handleRecovery(SystemContext &ctx, RecoverableTask &device, u
         return;
     }
 
+    // 능동 복구는 interval과 retry 예산 조건을 만족할 때만 시도한다.
     if (!device.shouldRecover(nowMs))
     {
         return;
@@ -61,6 +65,7 @@ void WatchdogTask::handleRecovery(SystemContext &ctx, RecoverableTask &device, u
     LOGW(ctx.logger, nowMs, "watchdog", "attempting recovery");
     device.markRecoveryAttempt(nowMs);
 
+    // recover 성공 시 health를 NORMAL로 되돌리고 성공 로그를 남긴다.
     if (device.recover(nowMs))
     {
         device.markRecoverySuccess();
@@ -74,6 +79,7 @@ void WatchdogTask::handleRecovery(SystemContext &ctx, RecoverableTask &device, u
 
 void WatchdogTask::handleAbort(SystemContext &ctx, RecoverableTask &device, uint32_t nowMs) const
 {
+    // 현재 정책은 critical 태스크가 FAILED일 때만 전역 abort를 올린다.
     if (ctx.abort.active || !device.isFailed() || device.criticality() != TaskCriticality::CRITICAL)
     {
         return;

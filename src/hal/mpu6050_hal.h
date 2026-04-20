@@ -10,6 +10,7 @@
 
 struct Mpu6050Reading
 {
+    // Global Context에 전달할 IMU 샘플 구조체다.
     float accelXMps2 = 0.0f;
     float accelYMps2 = 0.0f;
     float accelZMps2 = 0.0f;
@@ -25,6 +26,7 @@ struct Mpu6050Reading
 class MPU6050HAL
 {
 public:
+    // 센서를 초기화하고 이후 raw 변환에 사용할 설정을 내부에 저장한다.
     bool begin(uint8_t i2cAddress = MPU6050_I2CADDR_DEFAULT,
                TwoWire &wire = Wire,
                mpu6050_accel_range_t accelRange = MPU6050_RANGE_8_G,

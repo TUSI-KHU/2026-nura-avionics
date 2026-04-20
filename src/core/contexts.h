@@ -7,6 +7,7 @@
 
 struct ImuData
 {
+    // 마지막으로 정상 수집된 IMU 샘플을 시스템 전역에 공유한다.
     float accelXMps2 = 0.0f;
     float accelYMps2 = 0.0f;
     float accelZMps2 = 0.0f;
@@ -26,6 +27,7 @@ enum class AbortReason : uint8_t
 
 struct AbortStatus
 {
+    // watchdog가 올린 중단 상태를 FSM이 참조한다.
     bool active = false;
     AbortReason reason = AbortReason::NONE;
     uint32_t raisedMs = 0;
@@ -33,6 +35,7 @@ struct AbortStatus
 
 struct SystemContext
 {
+    // 태스크 사이를 오가는 컨텍스트
     State state = State::BOOT;
     uint32_t stateEnteredMs = 0;
 

@@ -15,6 +15,7 @@ bool FlightStateMachineTask::init(SystemContext &ctx)
 
 bool FlightStateMachineTask::tick(SystemContext &ctx, uint32_t nowMs)
 {
+    // 현재는 abort 활성 여부만으로 시스템 health를 단순 판단한다.
     const bool healthy = !ctx.abort.active;
 
     if (ctx.abort.active && ctx.state != State::SAFE)
@@ -32,6 +33,7 @@ bool FlightStateMachineTask::tick(SystemContext &ctx, uint32_t nowMs)
     switch (ctx.state)
     {
     case State::BOOT:
+        // 부팅 단계에서는 최소 health 조건을 만족해야 IDLE로 진입한다.
         if (healthy)
         {
             transitionTo(ctx, State::IDLE, nowMs);
@@ -75,6 +77,7 @@ uint32_t FlightStateMachineTask::periodMs() const
 
 void FlightStateMachineTask::transitionTo(SystemContext &ctx, State next, uint32_t nowMs)
 {
+    // 동일 상태 재전이는 무시하고, 실제 전이 시에만 로그를 남긴다.
     if (ctx.state == next)
     {
         return;

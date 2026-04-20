@@ -37,6 +37,7 @@ inline const char *logToString(LogLevel level)
 
 struct LogEntry
 {
+    // 로그는 문자열 포맷 결과가 아니라 경량 엔트리로 큐에 저장된다.
     uint32_t ts;
     LogLevel level;
     const char *src;
@@ -50,6 +51,7 @@ public:
 
     Logger();
 
+    // Task들은 push만 호출하고 실제 로그 출력은 LoggerTask가 담당한다.
     bool push(const LogEntry &e);
     bool push(
         uint32_t ts,

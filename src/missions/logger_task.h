@@ -7,6 +7,7 @@
 class LoggerTask : public Task
 {
 public:
+    // 로그 버퍼에 쌓인 로그를 실제 출력 장치로 배출하는 태스크다.
     explicit LoggerTask(ILogOutput &output);
 
     const char *name() const override;

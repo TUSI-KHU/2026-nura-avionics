@@ -3,6 +3,7 @@
 
 struct SystemContext;
 
+// 모든 주기성 작업이 따라야 하는 공통 인터페이스다.
 class Task
 {
 public:
