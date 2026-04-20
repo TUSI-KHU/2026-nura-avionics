@@ -1,5 +1,7 @@
 #include "logger.h"
 
+#include "log_output.h"
+
 Logger::Logger()
     : head_(0), tail_(0), count_(0), dropped_(0)
 {
@@ -52,6 +54,24 @@ bool Logger::pop(LogEntry &out)
     tail_ = nextIndex(tail_);
     --count_;
     return true;
+}
+
+LogFlushResult Logger::flushTo(ILogOutput &output, uint8_t budget)
+{
+    LogFlushResult result = {0U, 0U};
+    LogEntry entry;
+
+    while (result.drained < budget && pop(entry))
+    {
+        if (!output.write(entry) && result.outputFailures < 255U)
+        {
+            ++result.outputFailures;
+        }
+
+        ++result.drained;
+    }
+
+    return result;
 }
 
 bool Logger::empty() const

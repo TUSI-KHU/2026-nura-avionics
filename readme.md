@@ -7,7 +7,10 @@ This project is designed as an easy entry point for beginners in embedded system
 It currently includes:
 - cooperative task scheduler
 - basic flight state machine
-- shared system context for state, health, and sensor data
+- focused domain stores for flight state, abort state, and sensor data
+- constructor-injected task dependencies
+- interface-based application configuration for board and runtime constants
+- HAL-owned panic handling for fatal faults
 
 ## Why no FreeRTOS?
 FreeRTOS and preemptive scheduling are powerful and widely used. However, we intentionally use a simple scheduler on bare Arduino so beginners can understand the essentials first.
@@ -16,17 +19,34 @@ The goal is not to build a perfect production-grade flight controller yet, but t
 - periodic task execution
 - deterministic timing
 - explicit state transitions
-- shared data flow via global context
+- shared data flow via small domain stores
 - non-blocking flow (instead of `delay()`, unlike parts of the 2024 codebase)
 
 Our next step will definitely involve a tested and proven RTOS, but later in the learning path.
 
 ## Structure
-- `core/`: flight states, global context, scheduler, and common task interfaces.
-- `missions/`: mission-level tasks such as communication and flight state machine (FSM).
-- `sensors/` : sensor acquisition and filtering tasks (for example, IMU fusion).
-- `hal/` : Hardware Access Layer between drivers and higher-level tasks.
-- `main.cpp`: Arduino entry point that initializes the scheduler and tasks.
+- `app/`: composition root and application configuration.
+- `core/`: scheduler, logger, recoverable-task policy, and common task interfaces.
+- `state/`: focused stores for flight state, abort state, and sensor data.
+- `missions/`: mission-level tasks such as watchdog, logger drain, and flight state machine (FSM).
+- `sensors/`: sensor acquisition tasks.
+- `hal/`: hardware adapters such as IMU access, serial logging, digital output, and panic handling.
+- `main.cpp`: thin Arduino entry point that forwards to `FlightControllerApp`.
+
+## Runtime Model
+- `main.cpp` constructs a single `FlightControllerApp` and forwards `setup()` and `loop()` calls to it.
+- `FlightControllerApp` owns the scheduler, stores, HAL objects, config, and task instances.
+- Tasks are registered in a fixed order and executed cooperatively by `Scheduler` based on each task's `periodMs()`.
+- Shared state is stored in small domain structs instead of a single system-wide context object.
+
+## Configuration
+- `IAppConfig` defines board and runtime constants such as serial baud rate, IMU I2C address, task periods, retry limits, and panic LED settings.
+- `DefaultAppConfig` provides the current board configuration.
+- Tasks and HAL components receive config through constructor injection instead of using scattered literals.
+
+## Fault Handling
+- Fatal faults are handled by a HAL-owned `IPanicHandler` implementation.
+- The current implementation blinks the configured status LED forever using `BlinkingPanicHandler`.
 
 ## Build and Upload
 ### Build

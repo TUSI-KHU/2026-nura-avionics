@@ -1,23 +1,26 @@
 #include "watchdog_task.h"
 
-WatchdogTask::WatchdogTask(RecoverableTask *const *devices, size_t deviceCount)
+WatchdogTask::WatchdogTask(RecoverableTask *const *devices, size_t deviceCount, AbortState &abortState, Logger &logger, const IAppConfig &config)
     : devices_(devices),
-      deviceCount_(deviceCount) {}
+      deviceCount_(deviceCount),
+      abortState_(abortState),
+      logger_(logger),
+      config_(config) {}
 
 const char *WatchdogTask::name() const
 {
     return "watchdog";
 }
 
-bool WatchdogTask::init(SystemContext &ctx)
+bool WatchdogTask::init()
 {
-    ctx.abort.active = false;
-    ctx.abort.reason = AbortReason::NONE;
-    ctx.abort.raisedMs = 0;
+    abortState_.status.active = false;
+    abortState_.status.reason = AbortReason::NONE;
+    abortState_.status.raisedMs = 0;
     return true;
 }
 
-bool WatchdogTask::tick(SystemContext &ctx, uint32_t nowMs)
+bool WatchdogTask::tick(uint32_t nowMs)
 {
     // 각 recoverable task를 독립적으로 검사해 복구와 중단 여부를 평가한다.
     for (size_t i = 0; i < deviceCount_; ++i)
@@ -28,8 +31,8 @@ bool WatchdogTask::tick(SystemContext &ctx, uint32_t nowMs)
             continue;
         }
 
-        handleRecovery(ctx, *device, nowMs);
-        handleAbort(ctx, *device, nowMs);
+        handleRecovery(*device, nowMs);
+        handleAbort(*device, nowMs);
     }
 
     return true;
@@ -37,10 +40,10 @@ bool WatchdogTask::tick(SystemContext &ctx, uint32_t nowMs)
 
 uint32_t WatchdogTask::periodMs() const
 {
-    return 50U;
+    return config_.watchdogTaskPeriodMs();
 }
 
-void WatchdogTask::handleRecovery(SystemContext &ctx, RecoverableTask &device, uint32_t nowMs) const
+void WatchdogTask::handleRecovery(RecoverableTask &device, uint32_t nowMs) const
 {
     // 읽기 실패가 임계치를 넘으면 watchdog가 health를 DEGRADED로 변경한다.
     if (device.shouldDegrade())
@@ -52,7 +55,7 @@ void WatchdogTask::handleRecovery(SystemContext &ctx, RecoverableTask &device, u
     if (device.hasRecoveredRead())
     {
         device.markRecoverySuccess();
-        LOGI(ctx.logger, nowMs, "watchdog", "recovery succeeded");
+        LOGI(logger_, nowMs, "watchdog", "recovery succeeded");
         return;
     }
 
@@ -62,30 +65,30 @@ void WatchdogTask::handleRecovery(SystemContext &ctx, RecoverableTask &device, u
         return;
     }
 
-    LOGW(ctx.logger, nowMs, "watchdog", "attempting recovery");
+    LOGW(logger_, nowMs, "watchdog", "attempting recovery");
     device.markRecoveryAttempt(nowMs);
 
     // recover 성공 시 health를 NORMAL로 되돌리고 성공 로그를 남긴다.
     if (device.recover(nowMs))
     {
         device.markRecoverySuccess();
-        LOGI(ctx.logger, nowMs, "watchdog", "recovery succeeded");
+        LOGI(logger_, nowMs, "watchdog", "recovery succeeded");
         return;
     }
 
     device.markRecoveryFailure(nowMs);
-    LOGE(ctx.logger, nowMs, "watchdog", "recovery failed");
+    LOGE(logger_, nowMs, "watchdog", "recovery failed");
 }
 
-void WatchdogTask::handleAbort(SystemContext &ctx, RecoverableTask &device, uint32_t nowMs) const
+void WatchdogTask::handleAbort(RecoverableTask &device, uint32_t nowMs) const
 {
     // 현재 정책은 critical 태스크가 FAILED일 때만 전역 abort를 올린다.
-    if (ctx.abort.active || !device.isFailed() || device.criticality() != TaskCriticality::CRITICAL)
+    if (abortState_.status.active || !device.isFailed() || device.criticality() != TaskCriticality::CRITICAL)
     {
         return;
     }
 
-    ctx.abort.active = true;
-    ctx.abort.reason = AbortReason::CRITICAL_SENSOR_FAILURE;
-    ctx.abort.raisedMs = nowMs;
+    abortState_.status.active = true;
+    abortState_.status.reason = AbortReason::CRITICAL_SENSOR_FAILURE;
+    abortState_.status.raisedMs = nowMs;
 }

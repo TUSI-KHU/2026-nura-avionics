@@ -1,46 +1,56 @@
 #include "fsm_task.h"
-#include "core/fault.h"
+
+FlightStateMachineTask::FlightStateMachineTask(FlightState &flightState,
+                                               AbortState &abortState,
+                                               Logger &logger,
+                                               const IAppConfig &config,
+                                               IPanicHandler &panicHandler)
+    : flightState_(flightState),
+      abortState_(abortState),
+      logger_(logger),
+      config_(config),
+      panicHandler_(panicHandler) {}
 
 const char *FlightStateMachineTask::name() const
 {
     return "fsm";
 }
 
-bool FlightStateMachineTask::init(SystemContext &ctx)
+bool FlightStateMachineTask::init()
 {
-    ctx.state = State::BOOT;
-    ctx.stateEnteredMs = 0;
+    flightState_.state = State::BOOT;
+    flightState_.stateEnteredMs = 0;
     return true;
 }
 
-bool FlightStateMachineTask::tick(SystemContext &ctx, uint32_t nowMs)
+bool FlightStateMachineTask::tick(uint32_t nowMs)
 {
     // 현재는 abort 활성 여부만으로 시스템 health를 단순 판단한다.
-    const bool healthy = !ctx.abort.active;
+    const bool healthy = !abortState_.status.active;
 
-    if (ctx.abort.active && ctx.state != State::SAFE)
+    if (abortState_.status.active && flightState_.state != State::SAFE)
     {
-        transitionTo(ctx, State::SAFE, nowMs);
+        transitionTo(State::SAFE, nowMs);
         return true;
     }
 
-    if (!healthy && ctx.state != State::BOOT)
+    if (!healthy && flightState_.state != State::BOOT)
     {
-        transitionTo(ctx, State::SAFE, nowMs);
+        transitionTo(State::SAFE, nowMs);
         return true;
     }
 
-    switch (ctx.state)
+    switch (flightState_.state)
     {
     case State::BOOT:
         // 부팅 단계에서는 최소 health 조건을 만족해야 IDLE로 진입한다.
         if (healthy)
         {
-            transitionTo(ctx, State::IDLE, nowMs);
+            transitionTo(State::IDLE, nowMs);
         }
         else
         {
-            hang();
+            panicHandler_.panic();
         }
         break;
 
@@ -63,7 +73,7 @@ bool FlightStateMachineTask::tick(SystemContext &ctx, uint32_t nowMs)
         break;
 
     default:
-        transitionTo(ctx, State::SAFE, nowMs);
+        transitionTo(State::SAFE, nowMs);
         break;
     }
 
@@ -72,19 +82,19 @@ bool FlightStateMachineTask::tick(SystemContext &ctx, uint32_t nowMs)
 
 uint32_t FlightStateMachineTask::periodMs() const
 {
-    return 100U;
+    return config_.flightStateTaskPeriodMs();
 }
 
-void FlightStateMachineTask::transitionTo(SystemContext &ctx, State next, uint32_t nowMs)
+void FlightStateMachineTask::transitionTo(State next, uint32_t nowMs)
 {
     // 동일 상태 재전이는 무시하고, 실제 전이 시에만 로그를 남긴다.
-    if (ctx.state == next)
+    if (flightState_.state == next)
     {
         return;
     }
 
-    LOGI(ctx.logger, nowMs, "fsm", stateName(next));
+    LOGI(logger_, nowMs, "fsm", stateName(next));
 
-    ctx.state = next;
-    ctx.stateEnteredMs = nowMs;
+    flightState_.state = next;
+    flightState_.stateEnteredMs = nowMs;
 }

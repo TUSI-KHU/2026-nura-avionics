@@ -1,6 +1,8 @@
 #pragma once
 #include <stdint.h>
 
+class ILogOutput;
+
 #define LOGGER_LEVEL_ERROR 0
 #define LOGGER_LEVEL_WARN 1
 #define LOGGER_LEVEL_INFO 2
@@ -44,6 +46,12 @@ struct LogEntry
     const char *msg;
 };
 
+struct LogFlushResult
+{
+    uint8_t drained;
+    uint8_t outputFailures;
+};
+
 class Logger
 {
 public:
@@ -60,6 +68,8 @@ public:
         const char *msg);
 
     bool pop(LogEntry &out);
+
+    LogFlushResult flushTo(ILogOutput &output, uint8_t budget);
 
     bool empty() const;
     uint8_t size() const;

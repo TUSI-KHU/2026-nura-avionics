@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdint.h>
-#include "contexts.h"
 #include "tasks.h"
 
 class Scheduler
@@ -11,8 +10,8 @@ public:
 
     // 미리 확보된 고정 크기 버퍼에 태스크를 등록한다.
     bool add(Task &task);
-    bool init(SystemContext &ctx, uint32_t nowMs);
-    void tick(SystemContext &ctx, uint32_t nowMs);
+    bool init(uint32_t nowMs);
+    void tick(uint32_t nowMs);
 
 private:
     static const uint8_t kMaxTasks = 10;

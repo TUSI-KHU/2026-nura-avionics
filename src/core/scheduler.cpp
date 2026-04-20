@@ -28,7 +28,7 @@ bool Scheduler::add(Task &task)
     return true;
 }
 
-bool Scheduler::init(SystemContext &ctx, uint32_t nowMs)
+bool Scheduler::init(uint32_t nowMs)
 {
     // 모든 태스크의 init을 호출하고 첫 실행 기준 시각을 맞춘다.
     for (uint8_t i = 0; i < count_; ++i)
@@ -39,7 +39,7 @@ bool Scheduler::init(SystemContext &ctx, uint32_t nowMs)
             continue;
         }
 
-        if (!e.task->init(ctx))
+        if (!e.task->init())
         {
             return false;
         }
@@ -50,7 +50,7 @@ bool Scheduler::init(SystemContext &ctx, uint32_t nowMs)
     return true;
 }
 
-void Scheduler::tick(SystemContext &ctx, uint32_t nowMs)
+void Scheduler::tick(uint32_t nowMs)
 {
     // 주기가 도래한 태스크만 실행해 cooperative scheduler처럼 동작한다.
     for (uint8_t i = 0; i < count_; ++i)
@@ -67,7 +67,7 @@ void Scheduler::tick(SystemContext &ctx, uint32_t nowMs)
         }
 
         const uint32_t period = e.task->periodMs();
-        if (!e.task->tick(ctx, nowMs))
+        if (!e.task->tick(nowMs))
         {
             // tick 실패 태스크는 반복 에러를 막기 위해 비활성화한다.
             e.active = false;
