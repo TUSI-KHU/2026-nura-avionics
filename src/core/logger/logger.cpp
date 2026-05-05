@@ -3,7 +3,7 @@
 #include "log_output.h"
 
 Logger::Logger()
-    : head_(0), tail_(0), count_(0), dropped_(0)
+    : buffer_(), head_(0), tail_(0), count_(0), dropped_(0)
 {
 }
 
