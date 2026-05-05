@@ -63,3 +63,6 @@ pio run -t upload
 ```bash
 pio device monitor -b 115200
 ```
+
+### project architecture
+<img src="./project-architecture.svg">
