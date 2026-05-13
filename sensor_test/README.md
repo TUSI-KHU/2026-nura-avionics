@@ -6,10 +6,11 @@ Most files target Teensy 4.1. The LoRa sketch targets Arduino Nano by default.
 Usage:
 
 1. Open one `.ino` file at a time.
-2. Edit the `PIN MAP / USER CONFIG` macros at the top of that file.
-3. Upload to the target board named in the sketch.
-4. Open Serial Monitor at `115200`.
-5. Check `PASS`, `WARN`, and `FAIL` lines.
+2. Edit sensor pins in `../include/board_pinmap.h` if the wiring changes.
+3. Edit non-pin test settings in the `PIN MAP / USER CONFIG` block if needed.
+4. Upload to the target board named in the sketch.
+5. Open Serial Monitor at `115200`.
+6. Check `PASS`, `WARN`, and `FAIL` lines.
 
 These sketches are for breakout bring-up and defect screening before PCB integration.
 They do not replace full calibration, environmental testing, or flight qualification.

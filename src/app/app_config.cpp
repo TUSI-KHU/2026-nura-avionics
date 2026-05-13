@@ -1,5 +1,7 @@
 #include "app/app_config.h"
 
+#include "board_pinmap.h"
+
 // EEPROM이나 SPI Flash 등을 사용하지 않고 콘픽을 하드코딩
 // 해두는 단계이기 때문에 전역 Private Namespace에서 값을 리턴하는
 // 식으로 클래스를 구성했다.
@@ -8,7 +10,7 @@
 namespace
 {
     constexpr unsigned long kSerialBaudRate = 115200UL;
-    constexpr uint8_t kStatusIndicatorPin = LED_BUILTIN;
+    constexpr uint8_t kStatusIndicatorPin = BoardPinMap::StatusIndicator::pin;
     constexpr uint16_t kFaultBlinkIntervalMs = 1000U;
 
     constexpr uint8_t kImuI2cAddress = 0x68U;

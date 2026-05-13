@@ -5,10 +5,12 @@
 // ==================== PIN MAP / USER CONFIG ====================
 #define SERIAL_BAUD 115200
 // Arduino Nano hardware SPI pins are fixed:
-// SCK=D13, MISO=D12, MOSI=D11. Wire the LoRa module to these pins.
+// MOSI=D11, MISO=D12, SCK=D13. Wire the LoRa module to these pins.
+#define LORA_MOSI_PIN 11
+#define LORA_MISO_PIN 12
+#define LORA_SCK_PIN 13
 #define LORA_SS_PIN 10
 #define LORA_RESET_PIN 9
-#define LORA_LIBRARY_RESET_PIN -1
 #define LORA_DIO0_PIN 2
 // RA-01 / SX1278 development modules are commonly 433 MHz.
 // Use 915000000L for RFM95W/RFM96W 915 MHz hardware.
@@ -74,6 +76,10 @@ void runSpiModeDiagnostic()
     {
         Serial.println("DIAG: radio answers only with SPI_MODE1; check level shifting/wiring/SCK-MISO timing");
     }
+    else if (mode0Version != LORA_EXPECTED_VERSION)
+    {
+        Serial.println("DIAG: expected SX127x RegVersion 0x12; 0x00/0xFF usually means NSS/MISO/MOSI/SCK or power wiring");
+    }
 }
 
 void resetRadioForDiagnostic()
@@ -111,7 +117,7 @@ bool configureRadio()
     }
 
     SPI.begin();
-    LoRa.setPins(LORA_SS_PIN, LORA_LIBRARY_RESET_PIN, LORA_DIO0_PIN);
+    LoRa.setPins(LORA_SS_PIN, LORA_RESET_PIN, LORA_DIO0_PIN);
     LoRa.setSPIFrequency(LORA_SPI_FREQUENCY_HZ);
     resetRadioForDiagnostic();
     runSpiModeDiagnostic();
@@ -120,6 +126,7 @@ bool configureRadio()
     if (!LoRa.begin(LORA_FREQUENCY_HZ))
     {
         Serial.println("FAIL: SX127x/RFM9x/RA-01 not found over SPI");
+        Serial.println("CHECK: Nano wiring must be NSS=D10, RST=D9, DIO0=D2, MOSI=D11, MISO=D12, SCK=D13");
         return false;
     }
 
@@ -134,6 +141,24 @@ bool configureRadio()
     Serial.print("idle_rssi=");
     Serial.println(LoRa.rssi());
     return true;
+}
+
+void printPinMap()
+{
+    Serial.print("pinmap: nss=");
+    Serial.print(LORA_SS_PIN);
+    Serial.print(" rst=");
+    Serial.print(LORA_RESET_PIN);
+    Serial.print(" dio0=");
+    Serial.print(LORA_DIO0_PIN);
+    Serial.print(" mosi=");
+    Serial.print(LORA_MOSI_PIN);
+    Serial.print(" miso=");
+    Serial.print(LORA_MISO_PIN);
+    Serial.print(" sck=");
+    Serial.print(LORA_SCK_PIN);
+    Serial.print(" freq_hz=");
+    Serial.println(LORA_FREQUENCY_HZ);
 }
 
 void receivePacketIfAvailable()
@@ -192,7 +217,8 @@ void setup()
     }
 
     Serial.println();
-    Serial.println("SX127x / RFM95W / RFM96W / RA-01 LoRa defect test");
+    Serial.println("SX1278 / RA-01 LoRa defect test on Arduino Nano");
+    printPinMap();
 
     if (!configureRadio())
     {

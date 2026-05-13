@@ -1,12 +1,13 @@
 #include <Arduino.h>
+#include "../include/board_pinmap.h"
 #include <TinyGPS++.h>
 
 // ==================== PIN MAP / USER CONFIG ====================
 #define SERIAL_BAUD 115200
-#define GNSS_SERIAL Serial1
-#define GNSS_BAUD 9600
-#define GNSS_RX_PIN 0
-#define GNSS_TX_PIN 1
+#define GNSS_SERIAL BoardPinMap::UbloxM6::serial()
+#define GNSS_BAUD BoardPinMap::UbloxM6::baud
+#define GNSS_RX_PIN BoardPinMap::UbloxM6::rxPin
+#define GNSS_TX_PIN BoardPinMap::UbloxM6::txPin
 #define GNSS_TEST_WINDOW_MS 60000UL
 // ================================================================
 

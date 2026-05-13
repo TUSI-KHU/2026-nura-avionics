@@ -1,14 +1,15 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include "../include/board_pinmap.h"
 #include <Adafruit_LIS3MDL.h>
 #include <Adafruit_Sensor.h>
 #include <math.h>
 
 // ==================== PIN MAP / USER CONFIG ====================
 #define SERIAL_BAUD 115200
-#define I2C_SDA_PIN 18
-#define I2C_SCL_PIN 19
-#define LIS3MDL_I2C_ADDR 0x1C
+#define I2C_SDA_PIN BoardPinMap::LIS3MDL::sdaPin
+#define I2C_SCL_PIN BoardPinMap::LIS3MDL::sclPin
+#define LIS3MDL_I2C_ADDR BoardPinMap::LIS3MDL::i2cAddress
 #define LIS3MDL_SAMPLE_COUNT 80
 #define LIS3MDL_SAMPLE_DELAY_MS 20
 // ================================================================

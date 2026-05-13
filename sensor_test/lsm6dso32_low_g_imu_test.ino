@@ -1,14 +1,15 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include "../include/board_pinmap.h"
 #include <Adafruit_LSM6DSO32.h>
 #include <Adafruit_Sensor.h>
 #include <math.h>
 
 // ==================== PIN MAP / USER CONFIG ====================
 #define SERIAL_BAUD 115200
-#define I2C_SDA_PIN 18
-#define I2C_SCL_PIN 19
-#define LSM6DSO32_I2C_ADDR 0x6A
+#define I2C_SDA_PIN BoardPinMap::LSM6DSO32::sdaPin
+#define I2C_SCL_PIN BoardPinMap::LSM6DSO32::sclPin
+#define LSM6DSO32_I2C_ADDR BoardPinMap::LSM6DSO32::i2cAddress
 #define LSM6DSO32_SAMPLE_COUNT 80
 #define LSM6DSO32_SAMPLE_DELAY_MS 20
 // ================================================================
