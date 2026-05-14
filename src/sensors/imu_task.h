@@ -23,7 +23,6 @@ public:
 
 private:
     bool initializeDevice(uint32_t logTs);
-
     MPU6050HAL &imu_;
     ImuState &imuState_;
     Logger &logger_;
