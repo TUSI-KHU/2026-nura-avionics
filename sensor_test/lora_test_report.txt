@@ -94,3 +94,5 @@
 [18:34:01]   last_rx=nura-lora 13
 [18:34:01]   matched_payloads=nura-lora 7, nura-lora 8, nura-lora 9, nura-lora 10, nura-lora 13
 [18:34:01] RESULT: PASS - TX payloads were received exactly
+
+완 ㅎ
