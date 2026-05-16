@@ -64,4 +64,4 @@ pio run -t upload
 pio device monitor -b 115200
 ```
 ### project architecture
-<img src="./project-architecture.svg">
+<img src="./documents/project-architecture.svg">
