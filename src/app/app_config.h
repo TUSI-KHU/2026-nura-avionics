@@ -18,6 +18,13 @@ public:
     virtual uint8_t imuMaxRecoveryAttempts() const = 0;
     virtual uint32_t imuRecoveryIntervalMs() const = 0;
     virtual uint32_t imuTaskPeriodMs() const = 0;
+
+    virtual uint8_t magI2cAddress() const = 0;
+    virtual uint8_t magReadFailureThreshold() const = 0;
+    virtual uint8_t magMaxRecoveryAttempts() const = 0;
+    virtual uint32_t magRecoveryIntervalMs() const = 0;
+    virtual uint32_t magTaskPeriodMs() const = 0;
+
     virtual uint32_t barometerTaskPeriodMs() const = 0;
     virtual uint32_t barometerRecoveryIntervalMs() const = 0;
     virtual uint32_t gnssTaskPeriodMs() const = 0;
@@ -60,6 +67,13 @@ public:
     uint8_t imuMaxRecoveryAttempts() const override;
     uint32_t imuRecoveryIntervalMs() const override;
     uint32_t imuTaskPeriodMs() const override;
+
+    uint8_t magI2cAddress() const override;
+    uint8_t magReadFailureThreshold() const override;
+    uint8_t magMaxRecoveryAttempts() const override;
+    uint32_t magRecoveryIntervalMs() const override;
+    uint32_t magTaskPeriodMs() const override;
+
     uint32_t barometerTaskPeriodMs() const override;
     uint32_t barometerRecoveryIntervalMs() const override;
     uint32_t gnssTaskPeriodMs() const override;
