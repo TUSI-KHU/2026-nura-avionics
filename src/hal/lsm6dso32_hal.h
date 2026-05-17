@@ -4,7 +4,9 @@
 
 #include <Adafruit_LSM6DSO32.h>
 #include <Adafruit_Sensor.h>
-#include <Wire.h>
+#include <SPI.h>
+
+#include "board_pinmap.h"
 
 struct Lsm6dso32Reading
 {
@@ -42,8 +44,9 @@ struct Lsm6dso32Calibration
 class LSM6DSO32HAL
 {
 public:
-    bool begin(uint8_t i2cAddress = LSM6DS_I2CADDR_DEFAULT,
-               TwoWire &wire = Wire,
+    bool begin(uint8_t chipSelectPin = BoardPinMap::LSM6DSO32::chipSelectPin,
+               SPIClass &spi = SPI,
+               uint32_t spiFrequencyHz = BoardPinMap::LSM6DSO32::spiFrequencyHz,
                lsm6dso32_accel_range_t accelRange = LSM6DSO32_ACCEL_RANGE_16_G,
                lsm6ds_gyro_range_t gyroRange = LSM6DS_GYRO_RANGE_2000_DPS,
                lsm6ds_data_rate_t dataRate = LSM6DS_RATE_416_HZ);

@@ -13,7 +13,6 @@ namespace
     constexpr uint8_t kStatusIndicatorPin = BoardPinMap::StatusIndicator::pin;
     constexpr uint16_t kFaultBlinkIntervalMs = 1000U;
 
-    constexpr uint8_t kImuI2cAddress = 0x68U;
     constexpr uint8_t kImuReadFailureThreshold = 3U;
     constexpr uint8_t kImuMaxRecoveryAttempts = 5U;
     constexpr uint32_t kImuRecoveryIntervalMs = 1000U;
@@ -40,11 +39,6 @@ uint8_t DefaultAppConfig::statusIndicatorPin() const
 uint16_t DefaultAppConfig::faultBlinkIntervalMs() const
 {
     return kFaultBlinkIntervalMs;
-}
-
-uint8_t DefaultAppConfig::imuI2cAddress() const
-{
-    return kImuI2cAddress;
 }
 
 uint8_t DefaultAppConfig::imuReadFailureThreshold() const

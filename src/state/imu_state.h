@@ -13,6 +13,18 @@ struct ImuData
     float gyroYDps = 0.0f;
     float gyroZDps = 0.0f;
 
+    float temperatureC = 0.0f;
+
+    int16_t rawAccelX = 0;
+    int16_t rawAccelY = 0;
+    int16_t rawAccelZ = 0;
+    int16_t rawGyroX = 0;
+    int16_t rawGyroY = 0;
+    int16_t rawGyroZ = 0;
+
+    bool connected = false;
+    bool hasNewData = false;
+
     uint32_t lastUpdatedMs = 0;
 };
 

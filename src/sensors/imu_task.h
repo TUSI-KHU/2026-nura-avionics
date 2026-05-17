@@ -6,13 +6,12 @@
 #include "core/logger/logger.h"
 #include "core/recoverable_task/recoverable_task.h"
 #include "state/imu_state.h"
-#include "hal/mpu6050_hal.h"
+#include "hal/lsm6dso32_hal.h"
 
 class IMUTask : public RecoverableTask
 {
 public:
-    // MPU6050를 주기적으로 읽고 recoverable 정책을 적용하는 센서 태스크다
-    IMUTask(MPU6050HAL &imu, ImuState &imuState, Logger &logger, const IAppConfig &config);
+    IMUTask(LSM6DSO32HAL &imu, ImuState &imuState, Logger &logger, const IAppConfig &config);
 
     const char *name() const override;
     bool init() override;
@@ -23,8 +22,13 @@ public:
 
 private:
     bool initializeDevice(uint32_t logTs);
-    MPU6050HAL &imu_;
+    void resetState();
+    void updateState(const Lsm6dso32Reading &sample);
+    void logSample(uint32_t nowMs);
+
+    LSM6DSO32HAL &imu_;
     ImuState &imuState_;
     Logger &logger_;
     const IAppConfig &config_;
+    uint32_t lastSampleLogMs_ = 0U;
 };

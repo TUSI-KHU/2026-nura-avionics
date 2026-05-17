@@ -11,9 +11,11 @@ struct StatusIndicator final
 
 struct LSM6DSO32 final
 {
-    static constexpr uint8_t sdaPin = 18U;
-    static constexpr uint8_t sclPin = 19U;
-    static constexpr uint8_t i2cAddress = 0x6AU;
+    static constexpr uint8_t sckPin = 13U;
+    static constexpr uint8_t misoPin = 12U;
+    static constexpr uint8_t mosiPin = 11U;
+    static constexpr uint8_t chipSelectPin = 6U;
+    static constexpr uint32_t spiFrequencyHz = 1000000UL;
 };
 
 struct LSM6DSOX final

@@ -1,13 +1,11 @@
 #include "imu_task.h"
 
-#include <math.h>
-
 namespace
 {
-    constexpr uint8_t kAlternateImuI2cAddress = 0x69U;
+    constexpr uint32_t kSampleLogIntervalMs = 1000U;
 }
 
-IMUTask::IMUTask(MPU6050HAL &imu, ImuState &imuState, Logger &logger, const IAppConfig &config)
+IMUTask::IMUTask(LSM6DSO32HAL &imu, ImuState &imuState, Logger &logger, const IAppConfig &config)
     : RecoverableTask(TaskCriticality::CRITICAL,
                       config.imuReadFailureThreshold(),
                       config.imuMaxRecoveryAttempts(),
@@ -24,23 +22,16 @@ const char *IMUTask::name() const
 
 bool IMUTask::init()
 {
-    // 초기화 전 IMU 컨텍스트를 안전한 기본값으로 리셋한다.
-    imuState_.data.accelXMps2 = 0.0f;
-    imuState_.data.accelYMps2 = 0.0f;
-    imuState_.data.accelZMps2 = 0.0f;
-    imuState_.data.gyroXDps = 0.0f;
-    imuState_.data.gyroYDps = 0.0f;
-    imuState_.data.gyroZDps = 0.0f;
-    imuState_.data.lastUpdatedMs = 0U;
+    resetState();
 
     if (!initializeDevice(0U))
     {
-        LOGE(logger_, 0U, "imu", "mpu6050 init failed");
+        LOGE(logger_, 0U, "imu", "lsm6dso32 init failed");
         return false;
     }
 
     markInitialized();
-    LOGI(logger_, 0U, "imu", "mpu6050 initialized");
+    LOGI(logger_, 0U, "imu", "lsm6dso32 initialized");
 
     return true;
 }
@@ -48,23 +39,19 @@ bool IMUTask::init()
 bool IMUTask::tick(uint32_t nowMs)
 {
     // 센서 태스크는 읽기 성공/실패 관측만 기록하고 health 전이는 watchdog에 맡긴다.
-    Mpu6050Reading sample;
+    Lsm6dso32Reading sample;
     const bool readOk = imu_.read(sample, nowMs);
 
     if (readOk)
     {
-        imuState_.data.accelXMps2 = sample.accelXMps2;
-        imuState_.data.accelYMps2 = sample.accelYMps2;
-        imuState_.data.accelZMps2 = sample.accelZMps2;
-        imuState_.data.gyroXDps = sample.gyroXDps;
-        imuState_.data.gyroYDps = sample.gyroYDps;
-        imuState_.data.gyroZDps = sample.gyroZDps;
-        imuState_.data.lastUpdatedMs = sample.sampleMs;
-
+        updateState(sample);
+        logSample(nowMs);
         markReadSuccess();
     }
     else
     {
+        imuState_.data.connected = false;
+        imuState_.data.hasNewData = false;
         markReadFailure();
     }
 
@@ -84,22 +71,84 @@ bool IMUTask::recover(uint32_t nowMs)
 
 bool IMUTask::initializeDevice(uint32_t logTs)
 {
-    const uint8_t configuredAddress = config_.imuI2cAddress();
-    if (imu_.begin(configuredAddress))
+    const bool ok = imu_.begin();
+    imuState_.data.connected = ok;
+    imuState_.data.hasNewData = false;
+
+    if (!ok)
     {
-        return true;
+        LOGW(logger_, logTs, "imu", "lsm6dso32 begin failed");
     }
 
-    if (configuredAddress == kAlternateImuI2cAddress)
+    return ok;
+}
+
+void IMUTask::resetState()
+{
+    imuState_.set_data(ImuData{});
+    lastSampleLogMs_ = 0U;
+}
+
+void IMUTask::updateState(const Lsm6dso32Reading &sample)
+{
+    ImuData data;
+    data.accelXMps2 = sample.accelXMps2;
+    data.accelYMps2 = sample.accelYMps2;
+    data.accelZMps2 = sample.accelZMps2;
+    data.gyroXDps = sample.gyroXDps;
+    data.gyroYDps = sample.gyroYDps;
+    data.gyroZDps = sample.gyroZDps;
+    data.temperatureC = sample.temperatureC;
+    data.rawAccelX = sample.rawAccelX;
+    data.rawAccelY = sample.rawAccelY;
+    data.rawAccelZ = sample.rawAccelZ;
+    data.rawGyroX = sample.rawGyroX;
+    data.rawGyroY = sample.rawGyroY;
+    data.rawGyroZ = sample.rawGyroZ;
+    data.connected = true;
+    data.hasNewData = true;
+    data.lastUpdatedMs = sample.sampleMs;
+
+    imuState_.set_data(data);
+}
+
+void IMUTask::logSample(uint32_t nowMs)
+{
+    if ((nowMs - lastSampleLogMs_) < kSampleLogIntervalMs)
     {
-        return false;
+        return;
     }
 
-    if (!imu_.begin(kAlternateImuI2cAddress))
+    lastSampleLogMs_ = nowMs;
+
+    if (!Serial)
     {
-        return false;
+        return;
     }
 
-    LOGW(logger_, logTs, "imu", "mpu6050 using fallback address");
-    return true;
+    const ImuData &data = imuState_.data;
+    Serial.print("[");
+    Serial.print(nowMs);
+    Serial.print("] low_g_imu raw_accel=");
+    Serial.print(data.rawAccelX);
+    Serial.print(",");
+    Serial.print(data.rawAccelY);
+    Serial.print(",");
+    Serial.print(data.rawAccelZ);
+    Serial.print(" accel_mps2=");
+    Serial.print(data.accelXMps2, 3);
+    Serial.print(",");
+    Serial.print(data.accelYMps2, 3);
+    Serial.print(",");
+    Serial.print(data.accelZMps2, 3);
+    Serial.print(" gyro_dps=");
+    Serial.print(data.gyroXDps, 3);
+    Serial.print(",");
+    Serial.print(data.gyroYDps, 3);
+    Serial.print(",");
+    Serial.print(data.gyroZDps, 3);
+    Serial.print(" temp_c=");
+    Serial.print(data.temperatureC, 2);
+    Serial.print(" connected=");
+    Serial.println(data.connected ? "true" : "false");
 }

@@ -13,7 +13,6 @@ public:
     virtual uint8_t statusIndicatorPin() const = 0;
     virtual uint16_t faultBlinkIntervalMs() const = 0;
 
-    virtual uint8_t imuI2cAddress() const = 0;
     virtual uint8_t imuReadFailureThreshold() const = 0;
     virtual uint8_t imuMaxRecoveryAttempts() const = 0;
     virtual uint32_t imuRecoveryIntervalMs() const = 0;
@@ -34,7 +33,6 @@ public:
     uint8_t statusIndicatorPin() const override;
     uint16_t faultBlinkIntervalMs() const override;
 
-    uint8_t imuI2cAddress() const override;
     uint8_t imuReadFailureThreshold() const override;
     uint8_t imuMaxRecoveryAttempts() const override;
     uint32_t imuRecoveryIntervalMs() const override;

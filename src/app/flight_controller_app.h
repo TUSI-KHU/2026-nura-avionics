@@ -7,7 +7,7 @@
 #include "state/abort_state.h"
 #include "state/flight_state.h"
 #include "state/imu_state.h"
-#include "hal/mpu6050_hal.h"
+#include "hal/lsm6dso32_hal.h"
 #include "hal/panic_handler.h"
 #include "hal/serial_log_output.h"
 #include "missions/fsm_task.h"
@@ -30,7 +30,7 @@ private:
     AbortState abortState_;
     Logger logger_;
     Scheduler scheduler_;
-    MPU6050HAL imuHal_;
+    LSM6DSO32HAL imuHal_;
     BlinkingPanicHandler panicHandler_{config_};
     SerialLogOutput logOutput_;
     IMUTask imuTask_{imuHal_, imuState_, logger_, config_};
