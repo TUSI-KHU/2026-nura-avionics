@@ -1,15 +1,16 @@
 #include <Arduino.h>
-#include <Wire.h>
-#include "../include/board_pinmap.h"
+#include <SPI.h>
+#include "board_pinmap.h"
 #include <Adafruit_LSM6DSO32.h>
 #include <Adafruit_Sensor.h>
 #include <math.h>
 
 // ==================== PIN MAP / USER CONFIG ====================
 #define SERIAL_BAUD 115200
-#define I2C_SDA_PIN BoardPinMap::LSM6DSO32::sdaPin
-#define I2C_SCL_PIN BoardPinMap::LSM6DSO32::sclPin
-#define LSM6DSO32_I2C_ADDR BoardPinMap::LSM6DSO32::i2cAddress
+#define SPI_MOSI_PIN BoardPinMap::SpiBus::mosiPin
+#define SPI_MISO_PIN BoardPinMap::SpiBus::misoPin
+#define SPI_SCK_PIN BoardPinMap::SpiBus::sckPin
+#define LSM6DSO32_CS_PIN BoardPinMap::LSM6DSO32::csPin
 #define LSM6DSO32_SAMPLE_COUNT 80
 #define LSM6DSO32_SAMPLE_DELAY_MS 20
 // ================================================================
@@ -125,13 +126,16 @@ void setup()
     Serial.println();
     Serial.println("LSM6DSO32 low-g IMU defect test");
 
-    Wire.setSDA(I2C_SDA_PIN);
-    Wire.setSCL(I2C_SCL_PIN);
-    Wire.begin();
+    pinMode(LSM6DSO32_CS_PIN, OUTPUT);
+    digitalWrite(LSM6DSO32_CS_PIN, HIGH);
+    SPI.setMOSI(SPI_MOSI_PIN);
+    SPI.setMISO(SPI_MISO_PIN);
+    SPI.setSCK(SPI_SCK_PIN);
+    SPI.begin();
 
-    if (!imu.begin_I2C(LSM6DSO32_I2C_ADDR, &Wire))
+    if (!imu.begin_SPI(LSM6DSO32_CS_PIN, &SPI))
     {
-        Serial.println("FAIL: LSM6DSO32 not found on configured I2C address");
+        Serial.println("FAIL: LSM6DSO32 not found on configured SPI bus/CS pin");
         return;
     }
 

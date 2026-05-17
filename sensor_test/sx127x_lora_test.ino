@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <SPI.h>
+#include "board_pinmap.h"
 #define private public
 #include <LoRa.h>
 #undef private
@@ -8,20 +9,20 @@
 #define SERIAL_BAUD 115200
 // Teensy 4.1 default SPI pins:
 // MOSI=D11, MISO=D12, SCK=D13. Wire the LoRa module to these pins.
-#define LORA_MOSI_PIN 11
-#define LORA_MISO_PIN 12
-#define LORA_SCK_PIN 13
-#define LORA_SS_PIN 10
-#define LORA_RESET_PIN 9
-#define LORA_LIBRARY_RESET_PIN -1
-#define LORA_DIO0_PIN 2
+#define LORA_MOSI_PIN BoardPinMap::SpiBus::mosiPin
+#define LORA_MISO_PIN BoardPinMap::SpiBus::misoPin
+#define LORA_SCK_PIN BoardPinMap::SpiBus::sckPin
+#define LORA_SS_PIN BoardPinMap::Ra01DevelopmentLoRa::ssPin
+#define LORA_RESET_PIN BoardPinMap::Ra01DevelopmentLoRa::resetPin
+#define LORA_LIBRARY_RESET_PIN BoardPinMap::Ra01DevelopmentLoRa::libraryResetPin
+#define LORA_DIO0_PIN BoardPinMap::Ra01DevelopmentLoRa::dio0Pin
 // RA-01 / SX1278 development modules are commonly 433 MHz.
 // Use 915000000L for RFM95W/RFM96W 915 MHz hardware.
 #define LORA_FREQUENCY_HZ 433000000L
 #define LORA_SPI_FREQUENCY_HZ 125000UL
 #define LORA_SPI_MODE SPI_MODE1
 #define LORA_TX_POWER_DBM 17
-#define LORA_SPREADING_FACTOR 7d
+#define LORA_SPREADING_FACTOR 7
 #define LORA_SIGNAL_BANDWIDTH_HZ 125000L
 #define LORA_CODING_RATE_DENOMINATOR 5
 #define LORA_SYNC_WORD 0x12
