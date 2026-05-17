@@ -19,4 +19,12 @@ struct ImuData
 struct ImuState
 {
     ImuData data;
+
+    void set_data(const ImuData &input) {
+        data = input;
+    }
+
+    [[nodiscard]] ImuData get_data() const {
+        return data;
+    }
 };

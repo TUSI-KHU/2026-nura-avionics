@@ -1,12 +1,13 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include "board_pinmap.h"
 #include <Adafruit_MPL3115A2.h>
 #include <math.h>
 
 // ==================== PIN MAP / USER CONFIG ====================
 #define SERIAL_BAUD 115200
-#define I2C_SDA_PIN 18
-#define I2C_SCL_PIN 19
+#define I2C_SDA_PIN BoardPinMap::MPL3115A2::sdaPin
+#define I2C_SCL_PIN BoardPinMap::MPL3115A2::sclPin
 #define MPL3115A2_SAMPLE_COUNT 40
 #define MPL3115A2_CONVERSION_TIMEOUT_MS 150
 #define MPL3115A2_SEA_LEVEL_HPA 1013.25f

@@ -8,15 +8,15 @@ namespace
     constexpr float kRadToDeg = 57.2957795f;
 }
 
-bool LSM6DSO32HAL::begin(uint8_t i2cAddress,
-                         TwoWire &wire,
+bool LSM6DSO32HAL::begin(uint8_t csPin,
+                         SPIClass &spi,
                          lsm6dso32_accel_range_t accelRange,
                          lsm6ds_gyro_range_t gyroRange,
                          lsm6ds_data_rate_t dataRate)
 {
     initialized_ = false;
 
-    if (!sensor_.begin_I2C(i2cAddress, &wire))
+    if (!sensor_.begin_SPI(csPin, &spi))
     {
         return false;
     }

@@ -1,15 +1,27 @@
 # Sensor Defect Test Sketches
 
 Each `.ino` file in this folder is a standalone bring-up sketch for one sensor/module.
-Most files target Teensy 4.1. The LoRa sketch targets Arduino Nano by default.
+The active bring-up sketches target Teensy 4.1.
+
+Shared SPI wiring for H3LIS331DL, the low-g IMU, and LoRa:
+
+- MOSI: 11
+- MISO: 12
+- SCK: 13
+- Low-g IMU CS: 6
+- H3LIS331DL CS: 7
+- LoRa NSS/SS: 10
+- LoRa RST: 9
+- LoRa DIO0: 2
 
 Usage:
 
 1. Open one `.ino` file at a time.
-2. Edit the `PIN MAP / USER CONFIG` macros at the top of that file.
-3. Upload to the target board named in the sketch.
-4. Open Serial Monitor at `115200`.
-5. Check `PASS`, `WARN`, and `FAIL` lines.
+2. Edit sensor pins in `include/board_pinmap.h` if the wiring changes.
+3. Edit non-pin test settings in the `PIN MAP / USER CONFIG` block if needed.
+4. Upload to the target board named in the sketch.
+5. Open Serial Monitor at `115200`.
+6. Check `PASS`, `WARN`, and `FAIL` lines.
 
 These sketches are for breakout bring-up and defect screening before PCB integration.
 They do not replace full calibration, environmental testing, or flight qualification.
@@ -34,4 +46,4 @@ Files:
 - `ms5611_baro_test.ino`
 - `mpl3115a2_baro_test.ino`
 - `ublox_m6_gnss_test.ino`
-- `sx127x_lora_test.ino` - Arduino Nano default pin map, RA-01/SX1278 433 MHz default frequency.
+- `sx127x_lora_test.ino` - Teensy SPI pin map, RA-01/SX1278 433 MHz default frequency.

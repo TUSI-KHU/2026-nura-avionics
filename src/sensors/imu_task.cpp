@@ -2,12 +2,7 @@
 
 #include <math.h>
 
-namespace
-{
-    constexpr uint8_t kAlternateImuI2cAddress = 0x69U;
-}
-
-IMUTask::IMUTask(MPU6050HAL &imu, ImuState &imuState, Logger &logger, const IAppConfig &config)
+IMUTask::IMUTask(LSM6DSO32HAL &imu, ImuState &imuState, Logger &logger, const IAppConfig &config)
     : RecoverableTask(TaskCriticality::CRITICAL,
                       config.imuReadFailureThreshold(),
                       config.imuMaxRecoveryAttempts(),
@@ -35,12 +30,12 @@ bool IMUTask::init()
 
     if (!initializeDevice(0U))
     {
-        LOGE(logger_, 0U, "imu", "mpu6050 init failed");
+        LOGE(logger_, 0U, "imu", "lsm6dso32 spi init failed");
         return false;
     }
 
     markInitialized();
-    LOGI(logger_, 0U, "imu", "mpu6050 initialized");
+    LOGI(logger_, 0U, "imu", "lsm6dso32 spi initialized");
 
     return true;
 }
@@ -48,7 +43,7 @@ bool IMUTask::init()
 bool IMUTask::tick(uint32_t nowMs)
 {
     // 센서 태스크는 읽기 성공/실패 관측만 기록하고 health 전이는 watchdog에 맡긴다.
-    Mpu6050Reading sample;
+    Lsm6dso32Reading sample;
     const bool readOk = imu_.read(sample, nowMs);
 
     if (readOk)
@@ -84,22 +79,12 @@ bool IMUTask::recover(uint32_t nowMs)
 
 bool IMUTask::initializeDevice(uint32_t logTs)
 {
-    const uint8_t configuredAddress = config_.imuI2cAddress();
-    if (imu_.begin(configuredAddress))
+    (void)logTs;
+
+    if (imu_.begin(config_.imuCsPin()))
     {
         return true;
     }
 
-    if (configuredAddress == kAlternateImuI2cAddress)
-    {
-        return false;
-    }
-
-    if (!imu_.begin(kAlternateImuI2cAddress))
-    {
-        return false;
-    }
-
-    LOGW(logger_, logTs, "imu", "mpu6050 using fallback address");
-    return true;
+    return false;
 }

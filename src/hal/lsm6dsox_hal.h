@@ -4,7 +4,7 @@
 
 #include <Adafruit_LSM6DSOX.h>
 #include <Adafruit_Sensor.h>
-#include <Wire.h>
+#include <SPI.h>
 
 struct Lsm6dsoxReading
 {
@@ -42,8 +42,8 @@ struct Lsm6dsoxCalibration
 class LSM6DSOXHAL
 {
 public:
-    bool begin(uint8_t i2cAddress = LSM6DS_I2CADDR_DEFAULT,
-               TwoWire &wire = Wire,
+    bool begin(uint8_t csPin,
+               SPIClass &spi = SPI,
                lsm6ds_accel_range_t accelRange = LSM6DS_ACCEL_RANGE_16_G,
                lsm6ds_gyro_range_t gyroRange = LSM6DS_GYRO_RANGE_2000_DPS,
                lsm6ds_data_rate_t dataRate = LSM6DS_RATE_416_HZ);

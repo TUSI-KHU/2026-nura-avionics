@@ -1,14 +1,16 @@
 #include <Arduino.h>
-#include <Wire.h>
+#include <SPI.h>
+#include "board_pinmap.h"
 #include <Adafruit_LSM6DSOX.h>
 #include <Adafruit_Sensor.h>
 #include <math.h>
 
 // ==================== PIN MAP / USER CONFIG ====================
 #define SERIAL_BAUD 115200
-#define I2C_SDA_PIN 18
-#define I2C_SCL_PIN 19
-#define LSM6DSOX_I2C_ADDR 0x6A
+#define SPI_MOSI_PIN BoardPinMap::SpiBus::mosiPin
+#define SPI_MISO_PIN BoardPinMap::SpiBus::misoPin
+#define SPI_SCK_PIN BoardPinMap::SpiBus::sckPin
+#define LSM6DSOX_CS_PIN BoardPinMap::LSM6DSOX::csPin
 #define LSM6DSOX_SAMPLE_COUNT 80
 #define LSM6DSOX_SAMPLE_DELAY_MS 20
 // ================================================================
@@ -124,13 +126,16 @@ void setup()
     Serial.println();
     Serial.println("LSM6DSOX low-g IMU defect test");
 
-    Wire.setSDA(I2C_SDA_PIN);
-    Wire.setSCL(I2C_SCL_PIN);
-    Wire.begin();
+    pinMode(LSM6DSOX_CS_PIN, OUTPUT);
+    digitalWrite(LSM6DSOX_CS_PIN, HIGH);
+    SPI.setMOSI(SPI_MOSI_PIN);
+    SPI.setMISO(SPI_MISO_PIN);
+    SPI.setSCK(SPI_SCK_PIN);
+    SPI.begin();
 
-    if (!imu.begin_I2C(LSM6DSOX_I2C_ADDR, &Wire))
+    if (!imu.begin_SPI(LSM6DSOX_CS_PIN, &SPI))
     {
-        Serial.println("FAIL: LSM6DSOX not found on configured I2C address");
+        Serial.println("FAIL: LSM6DSOX not found on configured SPI bus/CS pin");
         return;
     }
 

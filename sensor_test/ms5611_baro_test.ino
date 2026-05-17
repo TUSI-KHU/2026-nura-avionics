@@ -1,13 +1,14 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include "board_pinmap.h"
 #include <MS5611.h>
 #include <math.h>
 
 // ==================== PIN MAP / USER CONFIG ====================
 #define SERIAL_BAUD 115200
-#define I2C_SDA_PIN 18
-#define I2C_SCL_PIN 19
-#define MS5611_I2C_ADDR 0x77
+#define I2C_SDA_PIN BoardPinMap::MS5611::sdaPin
+#define I2C_SCL_PIN BoardPinMap::MS5611::sclPin
+#define MS5611_I2C_ADDR BoardPinMap::MS5611::i2cAddress
 #define MS5611_SAMPLE_COUNT 40
 #define MS5611_SAMPLE_DELAY_MS 50
 #define MS5611_SEA_LEVEL_MBAR 1013.25f

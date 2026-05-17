@@ -1,11 +1,12 @@
 #include <Arduino.h>
+#include "board_pinmap.h"
 #include <math.h>
 
 // ==================== PIN MAP / USER CONFIG ====================
 #define SERIAL_BAUD 115200
-#define ADXL377_PIN_X A0
-#define ADXL377_PIN_Y A1
-#define ADXL377_PIN_Z A2
+#define ADXL377_PIN_X BoardPinMap::ADXL377::xPin
+#define ADXL377_PIN_Y BoardPinMap::ADXL377::yPin
+#define ADXL377_PIN_Z BoardPinMap::ADXL377::zPin
 #define ADC_RESOLUTION_BITS 12
 #define ADC_REFERENCE_VOLTAGE 3.3f
 #define ADXL377_ZERO_G_VOLTAGE (ADC_REFERENCE_VOLTAGE * 0.5f)
