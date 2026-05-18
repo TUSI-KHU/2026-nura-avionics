@@ -618,4 +618,3 @@ inline uint8_t flightStateFromStatus(uint16_t status)
     return static_cast<uint8_t>((status >> 8) & 0x0FU);
 }
 } // namespace nura
-

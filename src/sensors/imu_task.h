@@ -23,8 +23,13 @@ public:
 
 private:
     bool initializeDevice(uint32_t logTs);
+    void resetState();
+    void updateState(const Lsm6dso32Reading &sample);
+    void logSample(uint32_t nowMs);
+
     LSM6DSO32HAL &imu_;
     ImuState &imuState_;
     Logger &logger_;
     const IAppConfig &config_;
+    uint32_t lastSampleLogMs_ = 0U;
 };

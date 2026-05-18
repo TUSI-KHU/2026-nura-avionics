@@ -1,9 +1,9 @@
 # NURA LoRa Packet Protocol V1 Lite
 
-Status: Draft for implementation  
-Target vehicle: 2026 NURA avionics, sub-1 km class university rocket  
-Target radios: Semtech SX1276/SX1278 family, with SX1276/RFM95-class 920 MHz hardware preferred for flight  
-Target controller: Teensy 4.1  
+Status: Draft for implementation
+Target vehicle: 2026 NURA avionics, sub-1 km class university rocket
+Target radios: Semtech SX1276/SX1278 family, with SX1276/RFM95-class 920 MHz hardware preferred for flight
+Target controller: Teensy 4.1
 
 This document defines the NURA V1 Lite application-layer packet format carried inside a LoRa PHY packet. V1 Lite intentionally removes nonessential packet classes so the radio spends less time transmitting and more time available for uplink commands.
 
@@ -208,7 +208,7 @@ Use saturating encode. If a value exceeds the valid range, clamp to the nearest 
 
 FAST_TLM carries the minimum high-rate flight state.
 
-Payload length: 22 bytes  
+Payload length: 22 bytes
 Frame length: 29 bytes
 
 | Offset | Type | Field | Unit / encoding |
@@ -280,7 +280,7 @@ High-g acceleration is intentionally not included in FAST_TLM V1 Lite. The high-
 
 GPS_TLM carries recovery-critical location at slow rate.
 
-Payload length: 18 bytes  
+Payload length: 18 bytes
 Frame length: 25 bytes
 
 | Offset | Type | Field | Unit / encoding |
@@ -315,7 +315,7 @@ Transmit GPS_TLM at the scheduled slow rate even when there is no fix. Use inval
 
 CONTROL is a fixed-length union packet. It carries both uplink commands and downlink ACKs.
 
-Payload length: 24 bytes  
+Payload length: 24 bytes
 Frame length: 31 bytes
 
 | Offset | Type | Field | CMD meaning | ACK meaning |
@@ -582,4 +582,3 @@ Phase 4: Flight-like validation
 - The Things Network regional parameter summary, South Korea KR920-923. https://www.thethingsnetwork.org/docs/lorawan/regional-parameters/other/
 - Altus Metrum AltOS telemetry design: fixed-size rocket telemetry packet classes and separate sensor/GPS rates. https://altusmetrum.org/AltOS/doc/telemetry.html
 - MAVLink serialization and command protocol: sequence, message ID, CRC, ACK/retry model, and signing concepts. https://mavlink.io/en/guide/serialization.html and https://mavlink.io/en/services/command.html
-

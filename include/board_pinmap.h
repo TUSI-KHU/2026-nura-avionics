@@ -18,9 +18,14 @@ struct SpiBus final
 
 struct LSM6DSO32 final
 {
+    static constexpr uint8_t sckPin = SpiBus::sckPin;
+    static constexpr uint8_t misoPin = SpiBus::misoPin;
+    static constexpr uint8_t mosiPin = SpiBus::mosiPin;
     static constexpr uint8_t csPin = 6U;
+    static constexpr uint8_t chipSelectPin = csPin;
     static constexpr uint8_t int1Pin = 5U;
     static constexpr uint8_t int2Pin = 4U;
+    static constexpr uint32_t spiFrequencyHz = 1000000UL;
 };
 
 struct LSM6DSOX final

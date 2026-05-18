@@ -10,13 +10,18 @@ namespace
 
 bool LSM6DSO32HAL::begin(uint8_t csPin,
                          SPIClass &spi,
+                         uint32_t spiFrequencyHz,
                          lsm6dso32_accel_range_t accelRange,
                          lsm6ds_gyro_range_t gyroRange,
                          lsm6ds_data_rate_t dataRate)
 {
     initialized_ = false;
 
-    if (!sensor_.begin_SPI(csPin, &spi))
+    pinMode(csPin, OUTPUT);
+    digitalWrite(csPin, HIGH);
+    spi.begin();
+
+    if (!sensor_.begin_SPI(csPin, &spi, 0, spiFrequencyHz))
     {
         return false;
     }
