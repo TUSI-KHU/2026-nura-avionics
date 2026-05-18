@@ -20,6 +20,13 @@ namespace
     constexpr uint8_t kImuMaxRecoveryAttempts = 5U;
     constexpr uint32_t kImuRecoveryIntervalMs = 1000U;
     constexpr uint32_t kImuTaskPeriodMs = 10U;
+
+    constexpr uint8_t kMagI2cAddress = BoardPinMap::LIS3MDL::i2cAddress;
+    constexpr uint8_t kMagReadFailureThreshold = 3U;
+    constexpr uint8_t kMagMaxRecoveryAttempts = 5U;
+    constexpr uint32_t kMagRecoveryIntervalMs = 1000U;
+    constexpr uint32_t kMagTaskPeriodMs = 20U;
+
     constexpr uint32_t kBarometerTaskPeriodMs = 50U;
     constexpr uint32_t kBarometerRecoveryIntervalMs = 1000U;
     constexpr uint32_t kGnssTaskPeriodMs = 50U;
@@ -97,6 +104,31 @@ uint32_t DefaultAppConfig::imuRecoveryIntervalMs() const
 uint32_t DefaultAppConfig::imuTaskPeriodMs() const
 {
     return kImuTaskPeriodMs;
+}
+
+uint8_t DefaultAppConfig::magI2cAddress() const
+{
+    return kMagI2cAddress;
+}
+
+uint8_t DefaultAppConfig::magReadFailureThreshold() const
+{
+    return kMagReadFailureThreshold;
+}
+
+uint8_t DefaultAppConfig::magMaxRecoveryAttempts() const
+{
+    return kMagMaxRecoveryAttempts;
+}
+
+uint32_t DefaultAppConfig::magRecoveryIntervalMs() const
+{
+    return kMagRecoveryIntervalMs;
+}
+
+uint32_t DefaultAppConfig::magTaskPeriodMs() const
+{
+    return kMagTaskPeriodMs;
 }
 
 uint32_t DefaultAppConfig::barometerTaskPeriodMs() const
