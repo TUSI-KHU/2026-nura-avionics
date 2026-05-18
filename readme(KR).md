@@ -65,4 +65,4 @@ pio device monitor -b 115200
 ```
 
 ### 프로젝트 아키텍처
-<img src="./documents/project-architecture_KR.svg">
+<img src="./documents/project-architecture_KR.png">
