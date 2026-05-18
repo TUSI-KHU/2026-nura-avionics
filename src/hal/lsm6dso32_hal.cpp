@@ -8,7 +8,7 @@ namespace
     constexpr float kRadToDeg = 57.2957795f;
 }
 
-bool LSM6DSO32HAL::begin(uint8_t chipSelectPin,
+bool LSM6DSO32HAL::begin(uint8_t csPin,
                          SPIClass &spi,
                          uint32_t spiFrequencyHz,
                          lsm6dso32_accel_range_t accelRange,
@@ -17,11 +17,11 @@ bool LSM6DSO32HAL::begin(uint8_t chipSelectPin,
 {
     initialized_ = false;
 
-    pinMode(chipSelectPin, OUTPUT);
-    digitalWrite(chipSelectPin, HIGH);
+    pinMode(csPin, OUTPUT);
+    digitalWrite(csPin, HIGH);
     spi.begin();
 
-    if (!sensor_.begin_SPI(chipSelectPin, &spi, 0, spiFrequencyHz))
+    if (!sensor_.begin_SPI(csPin, &spi, 0, spiFrequencyHz))
     {
         return false;
     }

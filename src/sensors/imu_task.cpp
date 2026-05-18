@@ -26,12 +26,12 @@ bool IMUTask::init()
 
     if (!initializeDevice(0U))
     {
-        LOGE(logger_, 0U, "imu", "lsm6dso32 init failed");
+        LOGE(logger_, 0U, "imu", "lsm6dso32 spi init failed");
         return false;
     }
 
     markInitialized();
-    LOGI(logger_, 0U, "imu", "lsm6dso32 initialized");
+    LOGI(logger_, 0U, "imu", "lsm6dso32 spi initialized");
 
     return true;
 }
@@ -71,7 +71,7 @@ bool IMUTask::recover(uint32_t nowMs)
 
 bool IMUTask::initializeDevice(uint32_t logTs)
 {
-    const bool ok = imu_.begin();
+    const bool ok = imu_.begin(config_.imuCsPin());
     imuState_.data.connected = ok;
     imuState_.data.hasNewData = false;
 

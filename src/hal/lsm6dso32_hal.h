@@ -44,7 +44,7 @@ struct Lsm6dso32Calibration
 class LSM6DSO32HAL
 {
 public:
-    bool begin(uint8_t chipSelectPin = BoardPinMap::LSM6DSO32::chipSelectPin,
+    bool begin(uint8_t csPin = BoardPinMap::LSM6DSO32::csPin,
                SPIClass &spi = SPI,
                uint32_t spiFrequencyHz = BoardPinMap::LSM6DSO32::spiFrequencyHz,
                lsm6dso32_accel_range_t accelRange = LSM6DSO32_ACCEL_RANGE_16_G,

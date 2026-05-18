@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "../include/board_pinmap.h"
+#include "board_pinmap.h"
 #include <math.h>
 
 // ==================== PIN MAP / USER CONFIG ====================

@@ -11,6 +11,7 @@
 class IMUTask : public RecoverableTask
 {
 public:
+    // SPI low-g IMU를 주기적으로 읽고 recoverable 정책을 적용하는 센서 태스크다.
     IMUTask(LSM6DSO32HAL &imu, ImuState &imuState, Logger &logger, const IAppConfig &config);
 
     const char *name() const override;

@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include "../include/board_pinmap.h"
+#include "board_pinmap.h"
 #include <Adafruit_MPL3115A2.h>
 #include <math.h>
 

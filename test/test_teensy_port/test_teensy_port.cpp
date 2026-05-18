@@ -2,6 +2,7 @@
 #include <unity.h>
 
 #include "app/app_config.h"
+#include "board_pinmap.h"
 #include "core/logger/log_output.h"
 #include "core/logger/logger.h"
 
@@ -39,7 +40,7 @@ void test_default_config_uses_teensy_safe_defaults()
 
     TEST_ASSERT_EQUAL_UINT32(115200UL, config.serialBaudRate());
     TEST_ASSERT_EQUAL_UINT8(LED_BUILTIN, config.statusIndicatorPin());
-    TEST_ASSERT_EQUAL_UINT8(0x68U, config.imuI2cAddress());
+    TEST_ASSERT_EQUAL_UINT8(BoardPinMap::LSM6DSO32::csPin, config.imuCsPin());
     TEST_ASSERT_EQUAL_UINT32(10U, config.imuTaskPeriodMs());
 }
 

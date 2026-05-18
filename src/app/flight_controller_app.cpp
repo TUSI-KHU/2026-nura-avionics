@@ -1,14 +1,42 @@
 #include "app/flight_controller_app.h"
 
+#include <SPI.h>
+#include <Wire.h>
+
+#include "board_pinmap.h"
+
 bool FlightControllerApp::setup(uint32_t nowMs)
 {
     // 로그 출력용 시리얼을 먼저 연다.
     logOutput_.begin(config_.serialBaudRate());
 
+    pinMode(BoardPinMap::LSM6DSO32::csPin, OUTPUT);
+    pinMode(BoardPinMap::H3LIS331DL::csPin, OUTPUT);
+    pinMode(BoardPinMap::Ra01DevelopmentLoRa::ssPin, OUTPUT);
+    digitalWrite(BoardPinMap::LSM6DSO32::csPin, HIGH);
+    digitalWrite(BoardPinMap::H3LIS331DL::csPin, HIGH);
+    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, HIGH);
+    SPI.setMOSI(BoardPinMap::SpiBus::mosiPin);
+    SPI.setMISO(BoardPinMap::SpiBus::misoPin);
+    SPI.setSCK(BoardPinMap::SpiBus::sckPin);
+    SPI.begin();
+#if !defined(NURA_MOCK_TELEMETRY)
+    Wire.setSDA(BoardPinMap::MS5611::sdaPin);
+    Wire.setSCL(BoardPinMap::MS5611::sclPin);
+    Wire.begin();
+#endif
+
     // 태스크 등록 순서는 실제 실행 순서에도 영향을 준다.
+#if defined(NURA_MOCK_TELEMETRY)
+    scheduler_.add(mockTelemetrySourceTask_);
+#else
     scheduler_.add(imuTask_);
+    scheduler_.add(barometerTask_);
+    scheduler_.add(gnssTask_);
+#endif
     scheduler_.add(watchdogTask_);
     scheduler_.add(fsmTask_);
+    scheduler_.add(telemetryTask_);
     scheduler_.add(loggerTask_);
 
     if (!scheduler_.init(nowMs))

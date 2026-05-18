@@ -1,16 +1,16 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include "../include/board_pinmap.h"
+#include "board_pinmap.h"
 #include <Adafruit_LSM6DSO32.h>
 #include <Adafruit_Sensor.h>
 #include <math.h>
 
 // ==================== PIN MAP / USER CONFIG ====================
 #define SERIAL_BAUD 115200
-#define SPI_SCK_PIN BoardPinMap::LSM6DSO32::sckPin
-#define SPI_MISO_PIN BoardPinMap::LSM6DSO32::misoPin
-#define SPI_MOSI_PIN BoardPinMap::LSM6DSO32::mosiPin
-#define LSM6DSO32_CS_PIN BoardPinMap::LSM6DSO32::chipSelectPin
+#define SPI_MOSI_PIN BoardPinMap::SpiBus::mosiPin
+#define SPI_MISO_PIN BoardPinMap::SpiBus::misoPin
+#define SPI_SCK_PIN BoardPinMap::SpiBus::sckPin
+#define LSM6DSO32_CS_PIN BoardPinMap::LSM6DSO32::csPin
 #define LSM6DSO32_SPI_HZ BoardPinMap::LSM6DSO32::spiFrequencyHz
 #define LSM6DSO32_SAMPLE_DELAY_MS 10U
 #define LSM6DSO32_REPORT_INTERVAL 100U
@@ -117,6 +117,13 @@ void setup()
     Serial.print(LSM6DSO32_CS_PIN);
     Serial.print(" spi_hz=");
     Serial.println(LSM6DSO32_SPI_HZ);
+
+    pinMode(LSM6DSO32_CS_PIN, OUTPUT);
+    digitalWrite(LSM6DSO32_CS_PIN, HIGH);
+    SPI.setMOSI(SPI_MOSI_PIN);
+    SPI.setMISO(SPI_MISO_PIN);
+    SPI.setSCK(SPI_SCK_PIN);
+    SPI.begin();
 
     if (!imu.begin_SPI(LSM6DSO32_CS_PIN, &SPI, 0, LSM6DSO32_SPI_HZ))
     {

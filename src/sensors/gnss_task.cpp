@@ -21,7 +21,10 @@ const char *GNSSTask::name() const
 bool GNSSTask::init()
 {
     gpsState_.data = GpsData{};
-    return gnss_.begin(BoardPinMap::UbloxM6::serial(),
+    auto &serial = BoardPinMap::UbloxM6::serial();
+    serial.setRX(BoardPinMap::UbloxM6::rxPin);
+    serial.setTX(BoardPinMap::UbloxM6::txPin);
+    return gnss_.begin(serial,
                        BoardPinMap::UbloxM6::baud,
                        kGnssMaxFixAgeMs);
 }

@@ -1,0 +1,592 @@
+#include <Arduino.h>
+#include <SPI.h>
+
+#include "board_pinmap.h"
+#include "nura_protocol_v1_lite.h"
+
+#define private public
+#include <LoRa.h>
+#undef private
+
+namespace
+{
+constexpr unsigned long kSerialBaud = 115200UL;
+constexpr long kLoraFrequencyHz = 433000000L;
+constexpr uint32_t kLoraSpiFrequencyHz = 125000UL;
+constexpr int kLoraTxPowerDbm = 10;
+constexpr int kLoraSpreadingFactor = 7;
+constexpr long kLoraSignalBandwidthHz = 125000L;
+constexpr int kLoraCodingRateDenominator = 5;
+constexpr int kLoraSyncWord = 0x12;
+constexpr uint8_t kLoraRegVersion = 0x42U;
+constexpr uint8_t kLoraExpectedVersion = 0x12U;
+constexpr uint8_t kLoraInitAttempts = 5U;
+
+constexpr uint32_t kCommandRetryIntervalMs = 250UL;
+constexpr uint8_t kCommandMaxAttempts = 8U;
+
+constexpr uint8_t kAuthKey[16] = {
+    0x4e, 0x55, 0x52, 0x41, 0x2d, 0x56, 0x31, 0x4c,
+    0x49, 0x54, 0x45, 0x2d, 0x54, 0x45, 0x53, 0x54};
+
+uint8_t selectedSpiMode = SPI_MODE0;
+uint8_t selectedSpiModeNumber = 0U;
+bool radioReady = false;
+uint16_t uplinkFrameSeq = 0U;
+uint16_t nextCommandSeq = 1U;
+nura::Parser parser;
+uint32_t fastRxCount = 0UL;
+uint32_t gpsRxCount = 0UL;
+uint32_t controlAckRxCount = 0UL;
+bool forceDeployDone = false;
+bool deprecatedAbortDone = false;
+bool completionPrinted = false;
+uint32_t forceDeployDoneMs = 0UL;
+
+struct PendingCommand
+{
+    bool active = false;
+    uint8_t commandId = 0U;
+    uint16_t commandSeq = 0U;
+    uint16_t frameSeq = 0U;
+    uint32_t nonce = 0UL;
+    int16_t param0 = 0;
+    int16_t param1 = 0;
+    uint8_t attempts = 0U;
+    uint32_t lastTxMs = 0UL;
+};
+
+PendingCommand pending;
+
+void beginSpi()
+{
+#if defined(CORE_TEENSY)
+    SPI.setMOSI(BoardPinMap::SpiBus::mosiPin);
+    SPI.setMISO(BoardPinMap::SpiBus::misoPin);
+    SPI.setSCK(BoardPinMap::SpiBus::sckPin);
+#endif
+    SPI.begin();
+}
+
+void printHexByte(uint8_t value)
+{
+    Serial.print("0x");
+    if (value < 16U)
+    {
+        Serial.print('0');
+    }
+    Serial.print(value, HEX);
+}
+
+uint8_t readLoraRegisterRaw(uint8_t address, uint8_t spiMode)
+{
+    SPISettings settings(kLoraSpiFrequencyHz, MSBFIRST, spiMode);
+    pinMode(BoardPinMap::Ra01DevelopmentLoRa::ssPin, OUTPUT);
+    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, HIGH);
+    SPI.beginTransaction(settings);
+    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, LOW);
+    delayMicroseconds(20);
+    SPI.transfer(address & 0x7FU);
+    const uint8_t value = SPI.transfer(0x00U);
+    delayMicroseconds(20);
+    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, HIGH);
+    SPI.endTransaction();
+    return value;
+}
+
+void resetRadio()
+{
+    pinMode(BoardPinMap::Ra01DevelopmentLoRa::ssPin, OUTPUT);
+    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, HIGH);
+    pinMode(BoardPinMap::Ra01DevelopmentLoRa::resetPin, OUTPUT);
+    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::resetPin, LOW);
+    delay(50);
+    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::resetPin, HIGH);
+    delay(500);
+}
+
+bool beginRadio()
+{
+    LoRa.setPins(BoardPinMap::Ra01DevelopmentLoRa::ssPin,
+                 BoardPinMap::Ra01DevelopmentLoRa::libraryResetPin,
+                 BoardPinMap::Ra01DevelopmentLoRa::dio0Pin);
+    LoRa.setSPIFrequency(kLoraSpiFrequencyHz);
+
+    for (uint8_t attempt = 1U; attempt <= kLoraInitAttempts; ++attempt)
+    {
+        beginSpi();
+        resetRadio();
+
+        const uint8_t mode0Version = readLoraRegisterRaw(kLoraRegVersion, SPI_MODE0);
+        const uint8_t mode1Version = readLoraRegisterRaw(kLoraRegVersion, SPI_MODE1);
+        const uint8_t mode2Version = readLoraRegisterRaw(kLoraRegVersion, SPI_MODE2);
+        const uint8_t mode3Version = readLoraRegisterRaw(kLoraRegVersion, SPI_MODE3);
+
+        Serial.print("init_attempt=");
+        Serial.print(attempt);
+        Serial.print(" m0=");
+        printHexByte(mode0Version);
+        Serial.print(" m1=");
+        printHexByte(mode1Version);
+        Serial.print(" m2=");
+        printHexByte(mode2Version);
+        Serial.print(" m3=");
+        printHexByte(mode3Version);
+        Serial.println();
+
+        if (mode1Version == kLoraExpectedVersion)
+        {
+            selectedSpiMode = SPI_MODE1;
+            selectedSpiModeNumber = 1U;
+        }
+        else if (mode0Version == kLoraExpectedVersion)
+        {
+            selectedSpiMode = SPI_MODE0;
+            selectedSpiModeNumber = 0U;
+        }
+        else if (mode2Version == kLoraExpectedVersion)
+        {
+            selectedSpiMode = SPI_MODE2;
+            selectedSpiModeNumber = 2U;
+        }
+        else if (mode3Version == kLoraExpectedVersion)
+        {
+            selectedSpiMode = SPI_MODE3;
+            selectedSpiModeNumber = 3U;
+        }
+        else
+        {
+            delay(250);
+            continue;
+        }
+
+        LoRa._spiSettings = SPISettings(kLoraSpiFrequencyHz, MSBFIRST, selectedSpiMode);
+        Serial.print("selected_spi_mode=");
+        Serial.println(selectedSpiModeNumber);
+        Serial.print("library_reg_version=");
+        printHexByte(LoRa.readRegister(kLoraRegVersion));
+        Serial.println();
+
+        if (LoRa.begin(kLoraFrequencyHz))
+        {
+            LoRa._spiSettings = SPISettings(kLoraSpiFrequencyHz, MSBFIRST, selectedSpiMode);
+            LoRa.setTxPower(kLoraTxPowerDbm);
+            LoRa.setSpreadingFactor(kLoraSpreadingFactor);
+            LoRa.setSignalBandwidth(kLoraSignalBandwidthHz);
+            LoRa.setCodingRate4(kLoraCodingRateDenominator);
+            LoRa.setSyncWord(kLoraSyncWord);
+            LoRa.enableCrc();
+            LoRa.receive();
+            return true;
+        }
+
+        LoRa.end();
+        delay(250);
+    }
+
+    return false;
+}
+
+const char *commandName(uint8_t commandId)
+{
+    switch (commandId)
+    {
+    case nura::COMMAND_FORCE_DEPLOY_RECOVERY:
+        return "FORCE_DEPLOY";
+    case nura::COMMAND_ABORT_PROPULSION_DEPRECATED:
+        return "ABORT_PROPULSION_DEPRECATED";
+    case nura::COMMAND_SET_TELEMETRY_PROFILE:
+        return "SET_TELEMETRY_PROFILE";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+const char *stageName(uint8_t stage)
+{
+    switch (stage)
+    {
+    case nura::ACK_RECEIVED:
+        return "RECEIVED";
+    case nura::ACK_ACCEPTED:
+        return "ACCEPTED";
+    case nura::ACK_EXECUTED:
+        return "EXECUTED";
+    case nura::ACK_REJECTED:
+        return "REJECTED";
+    case nura::ACK_DUPLICATE:
+        return "DUPLICATE";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+const char *resultName(uint8_t result)
+{
+    switch (result)
+    {
+    case nura::RESULT_OK:
+        return "OK";
+    case nura::RESULT_AUTH_FAILED:
+        return "AUTH_FAILED";
+    case nura::RESULT_EXPIRED:
+        return "EXPIRED";
+    case nura::RESULT_BAD_FORMAT:
+        return "BAD_FORMAT";
+    case nura::RESULT_BAD_STATE:
+        return "BAD_STATE";
+    case nura::RESULT_NOT_ARMED:
+        return "NOT_ARMED";
+    case nura::RESULT_ALREADY_DONE:
+        return "ALREADY_DONE";
+    case nura::RESULT_NOT_SUPPORTED:
+        return "NOT_SUPPORTED";
+    case nura::RESULT_ACTUATOR_FAULT:
+        return "ACTUATOR_FAULT";
+    case nura::RESULT_INTERNAL_ERROR:
+        return "INTERNAL_ERROR";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+const char *reasonName(uint8_t reason)
+{
+    switch (reason)
+    {
+    case nura::REJECT_NONE:
+        return "NONE";
+    case nura::REJECT_COMMAND_EXPIRED:
+        return "COMMAND_EXPIRED";
+    case nura::REJECT_UNKNOWN_COMMAND:
+        return "UNKNOWN_COMMAND";
+    case nura::REJECT_AUTH_TAG_MISMATCH:
+        return "AUTH_TAG_MISMATCH";
+    case nura::REJECT_DUPLICATE_OLDER_COMMAND:
+        return "DUPLICATE_OLDER_COMMAND";
+    case nura::REJECT_DEPLOYMENT_INHIBITED:
+        return "DEPLOYMENT_INHIBITED";
+    case nura::REJECT_CONTINUITY_BAD:
+        return "CONTINUITY_BAD";
+    case nura::REJECT_STATE_REJECTED:
+        return "STATE_REJECTED";
+    case nura::REJECT_DEPRECATED_COMMAND:
+        return "DEPRECATED_COMMAND";
+    case nura::REJECT_PROFILE_REJECTED:
+        return "PROFILE_REJECTED";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+bool sendControlCommand(PendingCommand &cmd)
+{
+    nura::ControlPayload control;
+    control.subtype = nura::CONTROL_CMD;
+    control.commandId = cmd.commandId;
+    control.commandSeq = cmd.commandSeq;
+    control.nonce = cmd.nonce;
+    control.validUntilMs = 0UL;
+    control.param0 = cmd.param0;
+    control.param1 = cmd.param1;
+    nura::makeControlAuthTag(control, cmd.frameSeq, kAuthKey, control.authOrAck);
+
+    uint8_t payload[nura::kControlPayloadLen];
+    uint8_t frame[nura::kMaxFrameLen];
+    nura::encodeControlPayload(control, payload, sizeof(payload));
+    const size_t frameLen = nura::encodeFrame(nura::MESSAGE_CONTROL,
+                                              cmd.frameSeq,
+                                              payload,
+                                              nura::kControlPayloadLen,
+                                              frame,
+                                              sizeof(frame));
+    if (frameLen == 0U)
+    {
+        Serial.println("FAIL: control_encode");
+        return false;
+    }
+
+    LoRa._spiSettings = SPISettings(kLoraSpiFrequencyHz, MSBFIRST, selectedSpiMode);
+    LoRa.idle();
+    delay(2);
+    if (!LoRa.beginPacket())
+    {
+        LoRa.receive();
+        Serial.println("FAIL: control_beginPacket");
+        return false;
+    }
+    const size_t written = LoRa.write(frame, frameLen);
+    const bool ok = written == frameLen && LoRa.endPacket() == 1;
+    LoRa.receive();
+
+    ++cmd.attempts;
+    cmd.lastTxMs = millis();
+
+    Serial.print("cmd tx command=");
+    Serial.print(commandName(cmd.commandId));
+    Serial.print(" command_seq=");
+    Serial.print(cmd.commandSeq);
+    Serial.print(" frame_seq=");
+    Serial.print(cmd.frameSeq);
+    Serial.print(" attempt=");
+    Serial.print(cmd.attempts);
+    Serial.print(" len=");
+    Serial.println(frameLen);
+    if (!ok)
+    {
+        Serial.println("FAIL: control_tx");
+    }
+    return ok;
+}
+
+void startCommand(uint8_t commandId, int16_t param0, int16_t param1)
+{
+    pending = PendingCommand{};
+    pending.active = true;
+    pending.commandId = commandId;
+    pending.commandSeq = nextCommandSeq++;
+    pending.frameSeq = uplinkFrameSeq++;
+    pending.nonce = 0x4E550000UL ^ (static_cast<uint32_t>(pending.commandSeq) << 8) ^ millis();
+    pending.param0 = param0;
+    pending.param1 = param1;
+    pending.lastTxMs = 0UL;
+    pending.attempts = 0U;
+
+    Serial.print("cmd start command=");
+    Serial.print(commandName(commandId));
+    Serial.print(" command_seq=");
+    Serial.println(pending.commandSeq);
+    sendControlCommand(pending);
+}
+
+void serviceCommandSender()
+{
+    if (!pending.active)
+    {
+        if (!forceDeployDone && fastRxCount >= 10UL && gpsRxCount >= 1UL && millis() > 3000UL)
+        {
+            startCommand(nura::COMMAND_FORCE_DEPLOY_RECOVERY, 0, 0);
+        }
+        else if (forceDeployDone && !deprecatedAbortDone && (millis() - forceDeployDoneMs) > 1500UL)
+        {
+            startCommand(nura::COMMAND_ABORT_PROPULSION_DEPRECATED, 0, 0);
+        }
+        return;
+    }
+
+    if (pending.attempts >= kCommandMaxAttempts)
+    {
+        Serial.print("FAIL: command_timeout command=");
+        Serial.print(commandName(pending.commandId));
+        Serial.print(" command_seq=");
+        Serial.println(pending.commandSeq);
+        pending.active = false;
+        return;
+    }
+
+    if ((millis() - pending.lastTxMs) >= kCommandRetryIntervalMs)
+    {
+        sendControlCommand(pending);
+    }
+}
+
+void handleFast(const nura::ParsedFrame &frame)
+{
+    nura::FastTelemetry fast;
+    if (!nura::decodeFastPayload(frame.payload, frame.payloadLen, fast))
+    {
+        Serial.println("FAIL: fast_decode");
+        return;
+    }
+    ++fastRxCount;
+
+    Serial.print("rx type=FAST seq=");
+    Serial.print(frame.seq);
+    Serial.print(" boot_ms=");
+    Serial.print(static_cast<unsigned long>(fast.bootMs));
+    Serial.print(" state=");
+    Serial.print(nura::flightStateFromStatus(fast.statusWord));
+    Serial.print(" baro_dp_2pa=");
+    Serial.print(fast.baroDp2Pa);
+    Serial.print(" batt_mv=");
+    Serial.print(fast.battMv);
+    Serial.print(" rssi=");
+    Serial.print(LoRa.packetRssi());
+    Serial.print(" snr=");
+    Serial.println(LoRa.packetSnr());
+}
+
+void handleGps(const nura::ParsedFrame &frame)
+{
+    nura::GpsTelemetry gps;
+    if (!nura::decodeGpsPayload(frame.payload, frame.payloadLen, gps))
+    {
+        Serial.println("FAIL: gps_decode");
+        return;
+    }
+    ++gpsRxCount;
+
+    Serial.print("rx type=GPS seq=");
+    Serial.print(frame.seq);
+    Serial.print(" fix=");
+    Serial.print((gps.fixFlags & 0x01U) != 0U ? "yes" : "no");
+    Serial.print(" lat_e7=");
+    Serial.print(static_cast<long>(gps.latitudeE7));
+    Serial.print(" lon_e7=");
+    Serial.print(static_cast<long>(gps.longitudeE7));
+    Serial.print(" sats=");
+    Serial.print(gps.satellites);
+    Serial.print(" rssi=");
+    Serial.print(LoRa.packetRssi());
+    Serial.print(" snr=");
+    Serial.println(LoRa.packetSnr());
+}
+
+void handleControl(const nura::ParsedFrame &frame)
+{
+    nura::ControlPayload control;
+    if (!nura::decodeControlPayload(frame.payload, frame.payloadLen, control))
+    {
+        Serial.println("FAIL: control_decode");
+        return;
+    }
+    if (control.subtype != nura::CONTROL_ACK)
+    {
+        return;
+    }
+
+    ++controlAckRxCount;
+    const uint8_t stage = control.authOrAck[0];
+    const uint8_t result = control.authOrAck[1];
+    const uint8_t reason = control.authOrAck[2];
+
+    Serial.print("rx type=CONTROL subtype=ACK command=");
+    Serial.print(commandName(control.commandId));
+    Serial.print(" command_seq=");
+    Serial.print(control.commandSeq);
+    Serial.print(" frame_seq=");
+    Serial.print(frame.seq);
+    Serial.print(" stage=");
+    Serial.print(stageName(stage));
+    Serial.print(" result=");
+    Serial.print(resultName(result));
+    Serial.print(" reason=");
+    Serial.println(reasonName(reason));
+
+    if (!pending.active || control.commandSeq != pending.commandSeq || control.commandId != pending.commandId)
+    {
+        return;
+    }
+
+    if (pending.commandId == nura::COMMAND_FORCE_DEPLOY_RECOVERY &&
+        stage == nura::ACK_EXECUTED &&
+        result == nura::RESULT_OK)
+    {
+        forceDeployDone = true;
+        forceDeployDoneMs = millis();
+        pending.active = false;
+        Serial.println("PASS: force_deploy_ack_executed");
+    }
+    else if (pending.commandId == nura::COMMAND_ABORT_PROPULSION_DEPRECATED &&
+             stage == nura::ACK_REJECTED &&
+             result == nura::RESULT_NOT_SUPPORTED)
+    {
+        deprecatedAbortDone = true;
+        pending.active = false;
+        Serial.println("PASS: deprecated_abort_rejected");
+    }
+    else if (stage == nura::ACK_REJECTED)
+    {
+        pending.active = false;
+    }
+}
+
+void receiveFrames()
+{
+    const int packetSize = LoRa.parsePacket();
+    if (packetSize <= 0)
+    {
+        return;
+    }
+
+    while (LoRa.available())
+    {
+        const int value = LoRa.read();
+        if (value < 0)
+        {
+            break;
+        }
+
+        nura::ParsedFrame frame;
+        if (!parser.feed(static_cast<uint8_t>(value), frame))
+        {
+            continue;
+        }
+
+        switch (frame.type)
+        {
+        case nura::MESSAGE_FAST_TLM:
+            handleFast(frame);
+            break;
+        case nura::MESSAGE_GPS_TLM:
+            handleGps(frame);
+            break;
+        case nura::MESSAGE_CONTROL:
+            handleControl(frame);
+            break;
+        default:
+            break;
+        }
+    }
+}
+
+void printCompletionIfReady()
+{
+    if (completionPrinted || !forceDeployDone || !deprecatedAbortDone)
+    {
+        return;
+    }
+    completionPrinted = true;
+    Serial.print("PASS: v1_lite_pair_test_complete fast=");
+    Serial.print(static_cast<unsigned long>(fastRxCount));
+    Serial.print(" gps=");
+    Serial.print(static_cast<unsigned long>(gpsRxCount));
+    Serial.print(" control_ack=");
+    Serial.println(static_cast<unsigned long>(controlAckRxCount));
+}
+} // namespace
+
+void setup()
+{
+    Serial.begin(kSerialBaud);
+    while (!Serial && millis() < 4000UL)
+    {
+    }
+
+    Serial.println();
+    Serial.println("NURA V1 Lite receiver GCS emulator");
+    Serial.println("role=receiver board=teensy41 protocol=v1_lite");
+    Serial.println("packet_set=FAST,GPS,CONTROL");
+    Serial.println("rf=freq433_sf7_bw125_cr45_dev");
+
+    radioReady = beginRadio();
+    if (!radioReady)
+    {
+        Serial.println("FAIL: receiver radio init failed");
+        return;
+    }
+
+    Serial.println("PASS: receiver radio init OK");
+}
+
+void loop()
+{
+    if (!radioReady)
+    {
+        return;
+    }
+
+    receiveFrames();
+    serviceCommandSender();
+    printCompletionIfReady();
+}

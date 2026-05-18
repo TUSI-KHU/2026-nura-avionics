@@ -1,17 +1,18 @@
 #include <Arduino.h>
 #include <SPI.h>
+#include "board_pinmap.h"
 #define private public
 #include <LoRa.h>
 #undef private
 
 #define SERIAL_BAUD 115200
-#define LORA_MOSI_PIN 11
-#define LORA_MISO_PIN 12
-#define LORA_SCK_PIN 13
-#define LORA_SS_PIN 10
-#define LORA_RESET_PIN 9
-#define LORA_LIBRARY_RESET_PIN -1
-#define LORA_DIO0_PIN 2
+#define LORA_MOSI_PIN BoardPinMap::SpiBus::mosiPin
+#define LORA_MISO_PIN BoardPinMap::SpiBus::misoPin
+#define LORA_SCK_PIN BoardPinMap::SpiBus::sckPin
+#define LORA_SS_PIN BoardPinMap::Ra01DevelopmentLoRa::ssPin
+#define LORA_RESET_PIN BoardPinMap::Ra01DevelopmentLoRa::resetPin
+#define LORA_LIBRARY_RESET_PIN BoardPinMap::Ra01DevelopmentLoRa::libraryResetPin
+#define LORA_DIO0_PIN BoardPinMap::Ra01DevelopmentLoRa::dio0Pin
 
 #define LORA_FREQUENCY_HZ 433000000L
 #define LORA_SPI_FREQUENCY_HZ 125000UL

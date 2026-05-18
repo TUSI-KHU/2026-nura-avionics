@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include "../include/board_pinmap.h"
+#include "board_pinmap.h"
 #include <MS5611.h>
 #include <math.h>
 
