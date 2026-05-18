@@ -1,24 +1,31 @@
 #pragma once
 
 #include "app/app_config.h"
+#include "board_pinmap.h"
 #include "core/logger/logger.h"
 #include "core/recoverable_task/recoverable_task.h"
 #include "core/scheduler.h"
 #include "state/abort_state.h"
 #include "state/flight_state.h"
 #include "state/gps_state.h"
+#include "state/high_g_imu_state.h"
 #include "state/imu_state.h"
+#include "state/magnetometer_state.h"
 #include "state/telemetry_state.h"
 #if defined(NURA_MOCK_TELEMETRY)
 #include "hal/mock_flight_data_hal.h"
 #include "missions/mock_telemetry_source_task.h"
 #else
+#include "hal/h3lis331dl_hal.h"
+#include "hal/lis3mdl_hal.h"
 #include "hal/lsm6dso32_hal.h"
-#include "hal/ms5611_hal.h"
+#include "hal/mpl3115a2_hal.h"
 #include "hal/ublox_m6_gnss_hal.h"
 #include "sensors/barometer_task.h"
 #include "sensors/gnss_task.h"
+#include "sensors/high_g_imu_task.h"
 #include "sensors/imu_task.h"
+#include "sensors/magnetometer_task.h"
 #endif
 #include "hal/panic_handler.h"
 #include "hal/serial_log_output.h"
@@ -41,6 +48,8 @@ private:
     FlightState flightState_;
     GpsState gpsState_;
     ImuState imuState_;
+    HighGImuState highGImuState_;
+    MagnetometerState magnetometerState_;
     AbortState abortState_;
     TelemetryState telemetryState_;
     Logger logger_;
@@ -49,7 +58,9 @@ private:
     MockFlightDataHAL mockDataHal_;
 #else
     LSM6DSO32HAL imuHal_;
-    MS5611HAL barometerHal_;
+    H3LIS331DLHAL highGImuHal_;
+    LIS3MDLHAL magnetometerHal_;
+    MPL3115A2HAL barometerHal_;
     UbloxM6GNSSHAL gnssHal_;
 #endif
     Sx127xLoRaHAL loraHal_;
@@ -62,10 +73,20 @@ private:
     };
 #else
     IMUTask imuTask_{imuHal_, imuState_, logger_, config_};
+    HighGImuTask highGImuTask_{highGImuHal_,
+                               highGImuState_,
+                               telemetryState_,
+                               logger_,
+                               config_,
+                               BoardPinMap::H3LIS331DL::csPin,
+                               H3LIS331DLRange::RANGE_200G};
+    MagnetometerTask magnetometerTask_{magnetometerHal_, magnetometerState_, telemetryState_, logger_, config_};
     BarometerTask barometerTask_{barometerHal_, telemetryState_, logger_, config_};
     GNSSTask gnssTask_{gnssHal_, gpsState_};
-    RecoverableTask *const recoverableDevices_[1] = {
+    RecoverableTask *const recoverableDevices_[3] = {
         &imuTask_,
+        &highGImuTask_,
+        &magnetometerTask_,
     };
 #endif
     WatchdogTask watchdogTask_{recoverableDevices_, sizeof(recoverableDevices_) / sizeof(recoverableDevices_[0]), abortState_, logger_, config_};

@@ -8,8 +8,9 @@
 #define SERIAL_BAUD 115200
 #define I2C_SDA_PIN BoardPinMap::MPL3115A2::sdaPin
 #define I2C_SCL_PIN BoardPinMap::MPL3115A2::sclPin
+#define I2C_BUS Wire1
 #define MPL3115A2_SAMPLE_COUNT 40
-#define MPL3115A2_CONVERSION_TIMEOUT_MS 150
+#define MPL3115A2_CONVERSION_TIMEOUT_MS 700
 #define MPL3115A2_SEA_LEVEL_HPA 1013.25f
 // MPL3115A2 fixed I2C address is 0x60.
 // ================================================================
@@ -109,11 +110,12 @@ void setup()
     Serial.println();
     Serial.println("MPL3115A2 barometer defect test");
 
-    Wire.setSDA(I2C_SDA_PIN);
-    Wire.setSCL(I2C_SCL_PIN);
-    Wire.begin();
+    I2C_BUS.setSDA(I2C_SDA_PIN);
+    I2C_BUS.setSCL(I2C_SCL_PIN);
+    I2C_BUS.begin();
+    I2C_BUS.setClock(BoardPinMap::I2cBus::clockHz);
 
-    if (!baro.begin(&Wire))
+    if (!baro.begin(&I2C_BUS))
     {
         Serial.println("FAIL: MPL3115A2 not found on fixed I2C address 0x60");
         return;

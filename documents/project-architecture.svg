@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
-  <title id="title">2026 NURA Avionics project architecture</title>
-  <desc id="desc">GitHub style overview diagram for the Teensy 4.1 Arduino flight controller project structure.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="920" viewBox="0 0 1400 920" role="img" aria-labelledby="title desc">
+  <title id="title">2026 NURA Avionics firmware architecture</title>
+  <desc id="desc">Current Teensy 4.1 flight-computer architecture with scheduler, HAL, sensor state, LoRa telemetry, mock telemetry, and standalone sender receiver tests.</desc>
   <defs>
     <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#0969da"/>
     </marker>
     <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f883d"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a7f37"/>
     </marker>
     <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#cf222e"/>
@@ -14,116 +14,178 @@
     <style>
       .bg { fill: #ffffff; }
       .panel { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1.5; }
-      .card { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.3; }
+      .card { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.2; }
       .card-blue { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.4; }
       .card-green { fill: #dafbe1; stroke: #4ac26b; stroke-width: 1.4; }
-      .card-red { fill: #ffebe9; stroke: #ff8182; stroke-width: 1.4; }
       .card-yellow { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.4; }
+      .card-red { fill: #ffebe9; stroke: #ff8182; stroke-width: 1.4; }
       .title { fill: #24292f; font-family: Arial, sans-serif; font-size: 34px; font-weight: 700; }
       .subtitle { fill: #57606a; font-family: Arial, sans-serif; font-size: 16px; }
       .section { fill: #24292f; font-family: Arial, sans-serif; font-size: 15px; font-weight: 700; }
-      .label { fill: #24292f; font-family: Arial, sans-serif; font-size: 14px; font-weight: 700; }
-      .body { fill: #57606a; font-family: Arial, sans-serif; font-size: 12.5px; }
-      .mono { fill: #24292f; font-family: monospace; font-size: 12.5px; font-weight: 700; }
+      .label { fill: #24292f; font-family: Arial, sans-serif; font-size: 13px; font-weight: 700; }
+      .body { fill: #57606a; font-family: Arial, sans-serif; font-size: 12px; }
+      .mono { fill: #24292f; font-family: monospace; font-size: 12px; font-weight: 700; }
+      .note { fill: #57606a; font-family: monospace; font-size: 11.5px; }
       .badge { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1; }
       .badge-text { fill: #24292f; font-family: monospace; font-size: 12px; font-weight: 700; }
-      .note { fill: #57606a; font-family: monospace; font-size: 11.5px; }
       .arrow-blue { fill: none; stroke: #0969da; stroke-width: 2; marker-end: url(#arrow-blue); }
-      .arrow-green { fill: none; stroke: #1f883d; stroke-width: 2; marker-end: url(#arrow-green); }
+      .arrow-green { fill: none; stroke: #1a7f37; stroke-width: 2; marker-end: url(#arrow-green); }
       .arrow-red { fill: none; stroke: #cf222e; stroke-width: 2; marker-end: url(#arrow-red); }
       .line { fill: none; stroke: #8c959f; stroke-width: 1.5; stroke-dasharray: 5 5; }
     </style>
   </defs>
 
-  <rect class="bg" x="0" y="0" width="1200" height="760"/>
+  <rect class="bg" x="0" y="0" width="1400" height="920"/>
 
-  <rect class="panel" x="32" y="28" width="1136" height="112" rx="8"/>
-  <text class="title" x="58" y="75">2026 NURA Avionics</text>
-  <text class="subtitle" x="60" y="104">Teensy 4.1 + Arduino flight controller with cooperative scheduling, explicit state stores, and HAL boundaries</text>
-  <rect class="badge" x="827" y="53" width="106" height="28" rx="14"/>
-  <text class="badge-text" x="846" y="72">teensy41</text>
-  <rect class="badge" x="946" y="53" width="93" height="28" rx="14"/>
-  <text class="badge-text" x="965" y="72">Arduino</text>
-  <rect class="badge" x="1052" y="53" width="86" height="28" rx="14"/>
-  <text class="badge-text" x="1070" y="72">PIO</text>
+  <rect class="panel" x="32" y="28" width="1336" height="120" rx="8"/>
+  <text class="title" x="58" y="76">2026 NURA Avionics</text>
+  <text class="subtitle" x="60" y="106">Teensy 4.1 flight computer: cooperative scheduler, HAL-owned hardware access, explicit states, and LoRa telemetry/control</text>
+  <rect class="badge" x="978" y="55" width="106" height="28" rx="14"/>
+  <text class="badge-text" x="997" y="74">teensy41</text>
+  <rect class="badge" x="1098" y="55" width="93" height="28" rx="14"/>
+  <text class="badge-text" x="1117" y="74">Arduino</text>
+  <rect class="badge" x="1204" y="55" width="86" height="28" rx="14"/>
+  <text class="badge-text" x="1222" y="74">PIO</text>
 
-  <rect class="panel" x="50" y="170" width="260" height="292" rx="8"/>
-  <text class="section" x="72" y="202">Entry &amp; Composition</text>
-  <rect class="card-blue" x="72" y="224" width="216" height="70" rx="6"/>
-  <text class="mono" x="92" y="252">src/main.cpp</text>
-  <text class="body" x="92" y="274">forwards setup()/loop()</text>
-  <rect class="card" x="72" y="328" width="216" height="96" rx="6"/>
-  <text class="mono" x="92" y="356">FlightControllerApp</text>
-  <text class="body" x="92" y="378">owns config, scheduler,</text>
-  <text class="body" x="92" y="397">states, HALs, and tasks</text>
+  <rect class="panel" x="44" y="180" width="268" height="284" rx="8"/>
+  <text class="section" x="66" y="212">Entry and Composition</text>
+  <rect class="card-blue" x="66" y="234" width="224" height="64" rx="6"/>
+  <text class="mono" x="86" y="260">src/main.cpp</text>
+  <text class="body" x="86" y="281">Arduino setup()/loop()</text>
+  <rect class="card" x="66" y="322" width="224" height="102" rx="6"/>
+  <text class="mono" x="86" y="350">FlightControllerApp</text>
+  <text class="body" x="86" y="372">owns config, scheduler,</text>
+  <text class="body" x="86" y="391">states, HALs, and tasks</text>
+  <text class="note" x="66" y="448">composition root</text>
 
-  <rect class="panel" x="356" y="170" width="294" height="292" rx="8"/>
-  <text class="section" x="378" y="202">Core Runtime</text>
-  <rect class="card-green" x="378" y="224" width="250" height="72" rx="6"/>
-  <text class="mono" x="398" y="252">Scheduler</text>
-  <text class="body" x="398" y="274">fixed task table, periodic tick</text>
-  <rect class="card" x="378" y="316" width="118" height="62" rx="6"/>
-  <text class="mono" x="398" y="343">Task</text>
-  <text class="body" x="398" y="362">common API</text>
-  <rect class="card" x="510" y="316" width="118" height="62" rx="6"/>
-  <text class="mono" x="530" y="343">Logger</text>
-  <text class="body" x="530" y="362">ring buffer</text>
-  <rect class="card" x="378" y="394" width="250" height="44" rx="6"/>
-  <text class="mono" x="398" y="422">RecoverableTask health policy</text>
+  <rect class="panel" x="348" y="180" width="276" height="284" rx="8"/>
+  <text class="section" x="370" y="212">Core Runtime</text>
+  <rect class="card-green" x="370" y="234" width="232" height="66" rx="6"/>
+  <text class="mono" x="390" y="260">Scheduler</text>
+  <text class="body" x="390" y="281">cooperative periodic tasks</text>
+  <rect class="card" x="370" y="320" width="106" height="58" rx="6"/>
+  <text class="mono" x="390" y="345">Task</text>
+  <text class="body" x="390" y="364">common API</text>
+  <rect class="card" x="496" y="320" width="106" height="58" rx="6"/>
+  <text class="mono" x="516" y="345">Logger</text>
+  <text class="body" x="516" y="364">ring buffer</text>
+  <rect class="card" x="370" y="398" width="232" height="44" rx="6"/>
+  <text class="mono" x="390" y="425">RecoverableTask policy</text>
 
-  <rect class="panel" x="696" y="170" width="454" height="292" rx="8"/>
-  <text class="section" x="718" y="202">Scheduled Tasks</text>
-  <rect class="card-blue" x="718" y="224" width="190" height="72" rx="6"/>
-  <text class="mono" x="738" y="252">IMUTask</text>
-  <text class="body" x="738" y="274">samples MPU6050</text>
-  <rect class="card-yellow" x="932" y="224" width="190" height="72" rx="6"/>
-  <text class="mono" x="952" y="252">WatchdogTask</text>
-  <text class="body" x="952" y="274">recovery + abort</text>
-  <rect class="card" x="718" y="328" width="190" height="72" rx="6"/>
-  <text class="mono" x="738" y="356">LoggerTask</text>
-  <text class="body" x="738" y="378">drains log queue</text>
-  <rect class="card-red" x="932" y="328" width="190" height="72" rx="6"/>
-  <text class="mono" x="952" y="356">FSMTask</text>
-  <text class="body" x="952" y="378">BOOT to SAFE states</text>
-  <text class="note" x="720" y="432">registered order: imu -> watchdog -> fsm -> logger</text>
+  <rect class="panel" x="660" y="180" width="696" height="284" rx="8"/>
+  <text class="section" x="682" y="212">Scheduled Tasks</text>
+  <rect class="card-blue" x="682" y="234" width="148" height="62" rx="6"/>
+  <text class="mono" x="702" y="260">IMUTask</text>
+  <text class="body" x="702" y="280">LSM6DSO32</text>
+  <rect class="card-blue" x="848" y="234" width="148" height="62" rx="6"/>
+  <text class="mono" x="868" y="260">BarometerTask</text>
+  <text class="body" x="868" y="280">MS5611</text>
+  <rect class="card-blue" x="1014" y="234" width="148" height="62" rx="6"/>
+  <text class="mono" x="1034" y="260">GNSSTask</text>
+  <text class="body" x="1034" y="280">u-blox M6</text>
+  <rect class="card-yellow" x="1180" y="234" width="148" height="62" rx="6"/>
+  <text class="mono" x="1200" y="260">WatchdogTask</text>
+  <text class="body" x="1200" y="280">health policy</text>
+  <rect class="card-red" x="682" y="324" width="148" height="62" rx="6"/>
+  <text class="mono" x="702" y="350">FSMTask</text>
+  <text class="body" x="702" y="370">flight state</text>
+  <rect class="card-green" x="848" y="324" width="148" height="62" rx="6"/>
+  <text class="mono" x="868" y="350">TelemetryTask</text>
+  <text class="body" x="868" y="370">LoRa frames</text>
+  <rect class="card" x="1014" y="324" width="148" height="62" rx="6"/>
+  <text class="mono" x="1034" y="350">LoggerTask</text>
+  <text class="body" x="1034" y="370">serial drain</text>
+  <rect class="card" x="1180" y="324" width="148" height="62" rx="6"/>
+  <text class="mono" x="1200" y="350">MockSource</text>
+  <text class="body" x="1200" y="370">mock_test only</text>
+  <text class="note" x="682" y="430">production order: imu -> baro -> gnss -> watchdog -> fsm -> telemetry -> logger</text>
 
-  <rect class="panel" x="50" y="520" width="520" height="168" rx="8"/>
-  <text class="section" x="72" y="552">State Stores</text>
-  <rect class="card" x="72" y="574" width="142" height="72" rx="6"/>
-  <text class="mono" x="92" y="602">ImuState</text>
-  <text class="body" x="92" y="624">latest sensor sample</text>
-  <rect class="card" x="238" y="574" width="142" height="72" rx="6"/>
-  <text class="mono" x="258" y="602">AbortState</text>
-  <text class="body" x="258" y="624">global abort flag</text>
-  <rect class="card" x="404" y="574" width="142" height="72" rx="6"/>
-  <text class="mono" x="424" y="602">FlightState</text>
-  <text class="body" x="424" y="624">mission phase</text>
-  <text class="note" x="72" y="668">small structs shared by tasks instead of one global context</text>
+  <rect class="panel" x="44" y="520" width="612" height="214" rx="8"/>
+  <text class="section" x="66" y="552">State Stores</text>
+  <rect class="card" x="66" y="574" width="122" height="66" rx="6"/>
+  <text class="mono" x="86" y="600">ImuState</text>
+  <text class="body" x="86" y="620">low-g IMU</text>
+  <rect class="card" x="206" y="574" width="122" height="66" rx="6"/>
+  <text class="mono" x="226" y="600">GpsState</text>
+  <text class="body" x="226" y="620">GNSS fix</text>
+  <rect class="card" x="346" y="574" width="122" height="66" rx="6"/>
+  <text class="mono" x="366" y="600">TelemetryState</text>
+  <text class="body" x="366" y="620">baro/power</text>
+  <rect class="card" x="486" y="574" width="122" height="66" rx="6"/>
+  <text class="mono" x="506" y="600">FlightState</text>
+  <text class="body" x="506" y="620">mission phase</text>
+  <rect class="card" x="66" y="660" width="122" height="46" rx="6"/>
+  <text class="mono" x="86" y="688">AbortState</text>
+  <rect class="card" x="206" y="660" width="172" height="46" rx="6"/>
+  <text class="mono" x="226" y="688">HighGImuState</text>
+  <text class="note" x="66" y="720">small structs shared by task references, not one global context</text>
 
-  <rect class="panel" x="620" y="520" width="530" height="168" rx="8"/>
-  <text class="section" x="642" y="552">Hardware Abstraction Layer</text>
-  <rect class="card" x="642" y="574" width="150" height="72" rx="6"/>
-  <text class="mono" x="662" y="602">MPU6050HAL</text>
-  <text class="body" x="662" y="624">Wire / I2C burst read</text>
-  <rect class="card" x="816" y="574" width="150" height="72" rx="6"/>
-  <text class="mono" x="836" y="602">SerialLogOutput</text>
-  <text class="body" x="836" y="624">USB serial logs</text>
-  <rect class="card" x="990" y="574" width="138" height="72" rx="6"/>
-  <text class="mono" x="1010" y="602">PanicHandler</text>
-  <text class="body" x="1010" y="624">status LED blink</text>
-  <text class="note" x="642" y="668">board constants come from DefaultAppConfig</text>
+  <rect class="panel" x="696" y="520" width="660" height="214" rx="8"/>
+  <text class="section" x="718" y="552">Hardware Abstraction Layer</text>
+  <rect class="card" x="718" y="574" width="138" height="58" rx="6"/>
+  <text class="mono" x="738" y="599">LSM6DSO32HAL</text>
+  <text class="body" x="738" y="618">SPI IMU</text>
+  <rect class="card" x="874" y="574" width="138" height="58" rx="6"/>
+  <text class="mono" x="894" y="599">MS5611HAL</text>
+  <text class="body" x="894" y="618">I2C baro</text>
+  <rect class="card" x="1030" y="574" width="138" height="58" rx="6"/>
+  <text class="mono" x="1050" y="599">UbloxM6HAL</text>
+  <text class="body" x="1050" y="618">Serial GNSS</text>
+  <rect class="card" x="1186" y="574" width="138" height="58" rx="6"/>
+  <text class="mono" x="1206" y="599">Sx127xHAL</text>
+  <text class="body" x="1206" y="618">LoRa radio</text>
+  <rect class="card" x="718" y="654" width="138" height="46" rx="6"/>
+  <text class="mono" x="738" y="682">H3LIS331DL</text>
+  <rect class="card" x="874" y="654" width="138" height="46" rx="6"/>
+  <text class="mono" x="894" y="682">SerialLog</text>
+  <rect class="card" x="1030" y="654" width="138" height="46" rx="6"/>
+  <text class="mono" x="1050" y="682">PanicHandler</text>
+  <rect class="card" x="1186" y="654" width="138" height="46" rx="6"/>
+  <text class="mono" x="1206" y="682">MockFlightData</text>
+  <text class="note" x="718" y="720">board pins live in include/board_pinmap.h; runtime constants live in DefaultAppConfig</text>
 
-  <path class="arrow-blue" d="M 180 294 L 180 326"/>
-  <path class="arrow-blue" d="M 288 376 C 322 376 322 260 376 260"/>
-  <path class="arrow-blue" d="M 628 260 C 654 260 668 260 696 260"/>
+  <rect class="panel" x="44" y="784" width="416" height="94" rx="8"/>
+  <text class="section" x="66" y="816">Protocol and Test Firmware</text>
+  <rect class="card-green" x="66" y="834" width="172" height="30" rx="6"/>
+  <text class="mono" x="82" y="854">NURA V1 Lite</text>
+  <rect class="card" x="256" y="834" width="172" height="30" rx="6"/>
+  <text class="mono" x="272" y="854">sender/receiver</text>
 
-  <path class="arrow-green" d="M 820 462 C 820 492 310 492 310 520"/>
-  <path class="arrow-green" d="M 1016 462 C 1016 492 476 492 476 520"/>
-  <path class="arrow-red" d="M 980 462 C 980 494 886 494 886 520"/>
+  <rect class="panel" x="500" y="784" width="412" height="94" rx="8"/>
+  <text class="section" x="522" y="816">LoRa Packet Classes</text>
+  <rect class="card" x="522" y="834" width="104" height="30" rx="6"/>
+  <text class="mono" x="540" y="854">FAST_TLM</text>
+  <rect class="card" x="644" y="834" width="104" height="30" rx="6"/>
+  <text class="mono" x="666" y="854">GPS_TLM</text>
+  <rect class="card" x="766" y="834" width="104" height="30" rx="6"/>
+  <text class="mono" x="790" y="854">CONTROL</text>
 
-  <path class="line" d="M 503 296 L 503 394"/>
-  <rect class="bg" x="590" y="477" width="232" height="18" rx="9"/>
-  <text class="note" x="598" y="490">sensor data / aborts / flight phase</text>
-  <rect class="bg" x="954" y="481" width="70" height="18" rx="9"/>
-  <text class="note" x="962" y="494">HAL calls</text>
+  <rect class="panel" x="952" y="784" width="404" height="94" rx="8"/>
+  <text class="section" x="974" y="816">Build Targets</text>
+  <rect class="card" x="974" y="834" width="72" height="30" rx="6"/>
+  <text class="mono" x="990" y="854">build</text>
+  <rect class="card" x="1060" y="834" width="72" height="30" rx="6"/>
+  <text class="mono" x="1076" y="854">debug</text>
+  <rect class="card" x="1146" y="834" width="92" height="30" rx="6"/>
+  <text class="mono" x="1162" y="854">mock_test</text>
+  <rect class="card" x="1248" y="834" width="90" height="30" rx="6"/>
+  <text class="mono" x="1260" y="854">gnss_state</text>
+
+  <path class="arrow-blue" d="M 178 298 L 178 320"/>
+  <path class="arrow-blue" d="M 290 372 C 322 372 328 268 368 268"/>
+  <path class="arrow-blue" d="M 602 268 C 630 268 640 268 660 268"/>
+
+  <path class="arrow-green" d="M 838 464 L 838 492 L 350 492 L 350 520"/>
+  <rect class="bg" x="474" y="480" width="158" height="20" rx="10"/>
+  <text class="note" x="486" y="494">state reads/writes</text>
+
+  <path class="arrow-red" d="M 1170 464 L 1170 492 L 1026 492 L 1026 520"/>
+  <rect class="bg" x="1046" y="480" width="78" height="20" rx="10"/>
+  <text class="note" x="1058" y="494">HAL calls</text>
+
+  <path class="arrow-blue" d="M 922 386 L 922 492 L 678 492 L 678 770 L 706 770 L 706 784"/>
+  <rect class="bg" x="698" y="480" width="138" height="20" rx="10"/>
+  <text class="note" x="710" y="494">encoded LoRa frames</text>
+
+  <path class="line" d="M 1238 386 L 1238 520"/>
 </svg>

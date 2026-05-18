@@ -29,14 +29,20 @@
 
 #include <Wire.h>
 
+#define I2C_BUS Wire1
+#define I2C_SDA_PIN 17U
+#define I2C_SCL_PIN 16U
 
 void setup()
 {
-  Wire.begin();
+  I2C_BUS.setSDA(I2C_SDA_PIN);
+  I2C_BUS.setSCL(I2C_SCL_PIN);
+  I2C_BUS.begin();
+  I2C_BUS.setClock(100000UL);
 
   Serial.begin(9600);
   while (!Serial);             // Leonardo: wait for serial monitor
-  Serial.println("\nI2C Scanner");
+  Serial.println("\nI2C Scanner Wire1 17/16");
 }
 
 
@@ -53,8 +59,8 @@ void loop()
     // The i2c_scanner uses the return value of
     // the Write.endTransmisstion to see if
     // a device did acknowledge to the address.
-    Wire.beginTransmission(address);
-    error = Wire.endTransmission();
+    I2C_BUS.beginTransmission(address);
+    error = I2C_BUS.endTransmission();
 
     if (error == 0)
     {

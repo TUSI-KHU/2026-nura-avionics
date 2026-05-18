@@ -38,7 +38,7 @@ class LIS3MDLHAL
 {
 public:
     bool begin(uint8_t i2cAddress = LIS3MDL_I2CADDR_DEFAULT,
-               TwoWire &wire = Wire,
+               TwoWire &wire = Wire1,
                lis3mdl_range_t range = LIS3MDL_RANGE_16_GAUSS,
                lis3mdl_dataRate_t dataRate = LIS3MDL_DATARATE_155_HZ,
                lis3mdl_performancemode_t performanceMode = LIS3MDL_ULTRAHIGHMODE);

@@ -72,7 +72,7 @@ void setup()
 
     Serial.println();
     Serial.println("# GNSS HAL -> Task -> State test");
-    Serial.println("# GPS TX should be wired to Teensy pin 0 RX1.");
+    Serial.println("# GPS TX should be wired to Teensy pin 15 RX3.");
     Serial.println("# PASS means pass_checksum increases; GPS fix may need sky view.");
 
     if (gnssTask.init())

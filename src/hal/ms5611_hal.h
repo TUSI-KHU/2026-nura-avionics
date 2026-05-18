@@ -20,7 +20,7 @@ class MS5611HAL
 {
 public:
     bool begin(uint8_t i2cAddress = MS5611_DEFAULT_ADDRESS,
-               TwoWire &wire = Wire,
+               TwoWire &wire = Wire1,
                osr_t oversampling = OSR_HIGH,
                float seaLevelPressureMbar = 1013.25f);
     bool read(Ms5611Reading &out, uint32_t nowMs);

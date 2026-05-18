@@ -1,11 +1,95 @@
 #include "lsm6dso32_hal.h"
 
+#include <Adafruit_BusIO_Register.h>
 #include <Arduino.h>
 #include <math.h>
 
 namespace
 {
     constexpr float kRadToDeg = 57.2957795f;
+    constexpr uint8_t kWhoAmIRegister = 0x0FU;
+    constexpr uint8_t kExpectedWhoAmI = 0x6CU;
+    constexpr uint8_t kNoSpiMode = 0xFFU;
+    constexpr uint32_t kProbeSpiHz = 1000000UL;
+
+    uint8_t readRawRegister(uint8_t csPin, SPIClass &spi, uint8_t spiMode, uint8_t reg)
+    {
+        SPISettings settings(kProbeSpiHz, MSBFIRST, spiMode);
+        pinMode(csPin, OUTPUT);
+        digitalWrite(csPin, HIGH);
+        spi.beginTransaction(settings);
+        digitalWrite(csPin, LOW);
+        delayMicroseconds(20);
+        spi.transfer(reg | 0x80U);
+        const uint8_t value = spi.transfer(0x00U);
+        delayMicroseconds(20);
+        digitalWrite(csPin, HIGH);
+        spi.endTransaction();
+        return value;
+    }
+
+    uint8_t detectSpiMode(uint8_t csPin, SPIClass &spi)
+    {
+        const uint8_t modes[4] = {SPI_MODE0, SPI_MODE1, SPI_MODE2, SPI_MODE3};
+        for (uint8_t i = 0U; i < 4U; ++i)
+        {
+            if (readRawRegister(csPin, spi, modes[i], kWhoAmIRegister) == kExpectedWhoAmI)
+            {
+                return modes[i];
+            }
+        }
+        return kNoSpiMode;
+    }
+}
+
+bool LSM6DSO32Device::beginSpiWithMode(uint8_t csPin,
+                                       SPIClass *spi,
+                                       uint8_t spiMode,
+                                       int32_t sensorId,
+                                       uint32_t frequency)
+{
+    i2c_dev = nullptr;
+    delete spi_dev;
+    spi_dev = new Adafruit_SPIDevice(csPin,
+                                     frequency,
+                                     SPI_BITORDER_MSBFIRST,
+                                     spiMode,
+                                     spi);
+    if (!spi_dev->begin())
+    {
+        return false;
+    }
+
+    return initDso32(sensorId);
+}
+
+bool LSM6DSO32Device::initDso32(int32_t sensorId)
+{
+    Adafruit_BusIO_Register chipId = Adafruit_BusIO_Register(
+        i2c_dev, spi_dev, ADDRBIT8_HIGH_TOREAD, LSM6DS_WHOAMI);
+    if (chipId.read() != LSM6DSO32_CHIP_ID)
+    {
+        return false;
+    }
+
+    _sensorid_accel = sensorId;
+    _sensorid_gyro = sensorId + 1;
+    _sensorid_temp = sensorId + 2;
+
+    reset();
+
+    Adafruit_BusIO_Register ctrl3 = Adafruit_BusIO_Register(
+        i2c_dev, spi_dev, ADDRBIT8_HIGH_TOREAD, LSM6DSOX_CTRL3_C);
+    Adafruit_BusIO_RegisterBits bdu = Adafruit_BusIO_RegisterBits(&ctrl3, 1, 6);
+    bdu.write(true);
+
+    Adafruit_BusIO_Register ctrl9 = Adafruit_BusIO_Register(
+        i2c_dev, spi_dev, ADDRBIT8_HIGH_TOREAD, LSM6DSOX_CTRL9_XL);
+    Adafruit_BusIO_RegisterBits i3cDisable = Adafruit_BusIO_RegisterBits(&ctrl9, 1, 1);
+    i3cDisable.write(true);
+
+    Adafruit_LSM6DS::_init(sensorId);
+    return true;
 }
 
 bool LSM6DSO32HAL::begin(uint8_t csPin,
@@ -16,7 +100,17 @@ bool LSM6DSO32HAL::begin(uint8_t csPin,
 {
     initialized_ = false;
 
-    if (!sensor_.begin_SPI(csPin, &spi))
+    pinMode(csPin, OUTPUT);
+    digitalWrite(csPin, HIGH);
+    spi.begin();
+
+    const uint8_t spiMode = detectSpiMode(csPin, spi);
+    if (spiMode == kNoSpiMode)
+    {
+        return false;
+    }
+
+    if (!sensor_.beginSpiWithMode(csPin, &spi, spiMode))
     {
         return false;
     }

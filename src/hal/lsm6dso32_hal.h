@@ -6,6 +6,19 @@
 #include <Adafruit_Sensor.h>
 #include <SPI.h>
 
+class LSM6DSO32Device : public Adafruit_LSM6DSO32
+{
+public:
+    bool beginSpiWithMode(uint8_t csPin,
+                          SPIClass *spi,
+                          uint8_t spiMode,
+                          int32_t sensorId = 0,
+                          uint32_t frequency = 1000000UL);
+
+private:
+    bool initDso32(int32_t sensorId);
+};
+
 struct Lsm6dso32Reading
 {
     // LSM6DSO32 IMU sample. Default setup still uses 16 g unless configured otherwise.
@@ -62,7 +75,7 @@ private:
     static bool validGyroEvent(const sensors_event_t &event);
     static bool validTempEvent(const sensors_event_t &event);
 
-    Adafruit_LSM6DSO32 sensor_;
+    LSM6DSO32Device sensor_;
     Lsm6dso32Calibration calibration_;
     bool initialized_ = false;
 };

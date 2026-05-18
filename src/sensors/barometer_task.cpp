@@ -1,8 +1,10 @@
 #include "barometer_task.h"
 
+#include <Wire.h>
+
 #include "board_pinmap.h"
 
-BarometerTask::BarometerTask(MS5611HAL &barometer, TelemetryState &telemetryState, Logger &logger, const IAppConfig &config)
+BarometerTask::BarometerTask(MPL3115A2HAL &barometer, TelemetryState &telemetryState, Logger &logger, const IAppConfig &config)
     : barometer_(barometer),
       telemetryState_(telemetryState),
       logger_(logger),
@@ -33,7 +35,7 @@ bool BarometerTask::tick(uint32_t nowMs)
         return true;
     }
 
-    Ms5611Reading sample;
+    Mpl3115a2Reading sample;
     if (!barometer_.read(sample, nowMs))
     {
         clearReading(nowMs);
@@ -60,14 +62,14 @@ uint32_t BarometerTask::periodMs() const
 bool BarometerTask::initialize(uint32_t nowMs)
 {
     lastInitAttemptMs_ = nowMs;
-    const bool ok = barometer_.begin(BoardPinMap::MS5611::i2cAddress);
+    const bool ok = barometer_.begin(BoardPinMap::I2cBus::wire());
     if (ok)
     {
-        LOGI(logger_, nowMs, "baro", "ms5611 initialized");
+        LOGI(logger_, nowMs, "baro", "mpl3115a2 initialized");
     }
     else
     {
-        LOGW(logger_, nowMs, "baro", "ms5611 init failed");
+        LOGW(logger_, nowMs, "baro", "mpl3115a2 init failed");
     }
     return ok;
 }

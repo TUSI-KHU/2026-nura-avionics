@@ -8,13 +8,14 @@
 #define SERIAL_BAUD 115200
 #define I2C_SDA_PIN BoardPinMap::MS5611::sdaPin
 #define I2C_SCL_PIN BoardPinMap::MS5611::sclPin
+#define I2C_BUS Wire1
 #define MS5611_I2C_ADDR BoardPinMap::MS5611::i2cAddress
 #define MS5611_SAMPLE_COUNT 40
 #define MS5611_SAMPLE_DELAY_MS 50
 #define MS5611_SEA_LEVEL_MBAR 1013.25f
 // ================================================================
 
-MS5611 baro(MS5611_I2C_ADDR, &Wire);
+MS5611 baro(MS5611_I2C_ADDR, &I2C_BUS);
 
 static bool pressureLooksValid(float pressurePa)
 {
@@ -105,9 +106,10 @@ void setup()
     Serial.println();
     Serial.println("MS5611 barometer defect test");
 
-    Wire.setSDA(I2C_SDA_PIN);
-    Wire.setSCL(I2C_SCL_PIN);
-    Wire.begin();
+    I2C_BUS.setSDA(I2C_SDA_PIN);
+    I2C_BUS.setSCL(I2C_SCL_PIN);
+    I2C_BUS.begin();
+    I2C_BUS.setClock(BoardPinMap::I2cBus::clockHz);
 
     if (!baro.begin())
     {

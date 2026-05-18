@@ -9,8 +9,8 @@
 #define SERIAL_BAUD 115200
 #define I2C_SDA_PIN BoardPinMap::LIS3MDL::sdaPin
 #define I2C_SCL_PIN BoardPinMap::LIS3MDL::sclPin
-#define I2C1_SDA_PIN 17
-#define I2C1_SCL_PIN 16
+#define I2C1_SDA_PIN BoardPinMap::I2cBus::sdaPin
+#define I2C1_SCL_PIN BoardPinMap::I2cBus::sclPin
 #define I2C2_SDA_PIN 25
 #define I2C2_SCL_PIN 24
 #define LIS3MDL_I2C_ADDR BoardPinMap::LIS3MDL::i2cAddress
@@ -22,8 +22,8 @@
 // ================================================================
 
 Adafruit_LIS3MDL mag;
-static TwoWire *lisWire = &Wire;
-static const char *detectedBusName = "Wire";
+static TwoWire *lisWire = &Wire1;
+static const char *detectedBusName = "Wire1";
 static uint8_t detectedLisAddress = 0U;
 static bool lisReady = false;
 
@@ -239,8 +239,6 @@ static bool bitbangReadI2cRegister(const I2cPinPair &pair, uint8_t address, uint
 static bool bitbangDetectLis3mdl()
 {
     const I2cPinPair pairs[] = {
-        {"Wire normal", I2C_SDA_PIN, I2C_SCL_PIN},
-        {"Wire swapped", I2C_SCL_PIN, I2C_SDA_PIN},
         {"Wire1 normal", I2C1_SDA_PIN, I2C1_SCL_PIN},
         {"Wire1 swapped", I2C1_SCL_PIN, I2C1_SDA_PIN},
         {"Wire2 normal", I2C2_SDA_PIN, I2C2_SCL_PIN},
@@ -360,11 +358,6 @@ static void beginI2cBuses()
     pinMode(I2C2_SCL_PIN, INPUT_PULLUP);
     delay(10);
 
-    Wire.setSDA(I2C_SDA_PIN);
-    Wire.setSCL(I2C_SCL_PIN);
-    Wire.begin();
-    Wire.setClock(10000UL);
-
     Wire1.setSDA(I2C1_SDA_PIN);
     Wire1.setSCL(I2C1_SCL_PIN);
     Wire1.begin();
@@ -378,15 +371,13 @@ static void beginI2cBuses()
 
 static void scanAllI2c()
 {
-    scanI2c(Wire, "Wire", I2C_SDA_PIN, I2C_SCL_PIN);
     scanI2c(Wire1, "Wire1", I2C1_SDA_PIN, I2C1_SCL_PIN);
     scanI2c(Wire2, "Wire2", I2C2_SDA_PIN, I2C2_SCL_PIN);
 }
 
 static bool detectLis3mdl()
 {
-    return detectLis3mdlOnBus(Wire, "Wire") ||
-           detectLis3mdlOnBus(Wire1, "Wire1") ||
+    return detectLis3mdlOnBus(Wire1, "Wire1") ||
            detectLis3mdlOnBus(Wire2, "Wire2");
 }
 

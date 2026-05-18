@@ -21,9 +21,11 @@ bool FlightControllerApp::setup(uint32_t nowMs)
     SPI.setSCK(BoardPinMap::SpiBus::sckPin);
     SPI.begin();
 #if !defined(NURA_MOCK_TELEMETRY)
-    Wire.setSDA(BoardPinMap::MS5611::sdaPin);
-    Wire.setSCL(BoardPinMap::MS5611::sclPin);
-    Wire.begin();
+    TwoWire &i2c = BoardPinMap::I2cBus::wire();
+    i2c.setSDA(BoardPinMap::I2cBus::sdaPin);
+    i2c.setSCL(BoardPinMap::I2cBus::sclPin);
+    i2c.begin();
+    i2c.setClock(BoardPinMap::I2cBus::clockHz);
 #endif
 
     // 태스크 등록 순서는 실제 실행 순서에도 영향을 준다.
@@ -31,6 +33,8 @@ bool FlightControllerApp::setup(uint32_t nowMs)
     scheduler_.add(mockTelemetrySourceTask_);
 #else
     scheduler_.add(imuTask_);
+    scheduler_.add(highGImuTask_);
+    scheduler_.add(magnetometerTask_);
     scheduler_.add(barometerTask_);
     scheduler_.add(gnssTask_);
 #endif

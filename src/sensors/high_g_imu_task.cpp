@@ -9,6 +9,7 @@ namespace
 
 HighGImuTask::HighGImuTask(H3LIS331DLHAL &imu,
                            HighGImuState &imuState,
+                           TelemetryState &telemetryState,
                            Logger &logger,
                            const IAppConfig &config,
                            uint8_t csPin,
@@ -19,6 +20,7 @@ HighGImuTask::HighGImuTask(H3LIS331DLHAL &imu,
                       config.imuRecoveryIntervalMs()),
       imu_(imu),
       imuState_(imuState),
+      telemetryState_(telemetryState),
       logger_(logger),
       config_(config),
       csPin_(csPin),
@@ -35,7 +37,9 @@ bool HighGImuTask::init()
 
     if (!initializeDevice(0U))
     {
-        LOGE(logger_, 0U, "high_g_imu", "h3lis331dl init failed");
+        markInitialized();
+        markReadFailure();
+        LOGW(logger_, 0U, "high_g_imu", "h3lis331dl init failed");
         return true;
     }
 
@@ -60,6 +64,7 @@ bool HighGImuTask::tick(uint32_t nowMs)
     {
         imuState_.connected = false;
         imuState_.hasNewData = false;
+        telemetryState_.health.highAccelOk = false;
         markReadFailure();
     }
 
@@ -82,6 +87,7 @@ bool HighGImuTask::initializeDevice(uint32_t logTs)
     imuState_.whoAmI = imu_.readWhoAmI();
     imuState_.connected = ok;
     imuState_.hasNewData = false;
+    telemetryState_.health.highAccelOk = false;
 
     if (!ok)
     {
@@ -106,6 +112,7 @@ void HighGImuTask::resetState()
     imuState_.connected = false;
     imuState_.hasNewData = false;
     imuState_.lastUpdatedMs = 0U;
+    telemetryState_.health.highAccelOk = false;
     lastSampleLogMs_ = 0U;
 }
 
@@ -124,6 +131,7 @@ void HighGImuTask::updateState(const H3LIS331DLReading &sample)
     imuState_.connected = true;
     imuState_.hasNewData = true;
     imuState_.lastUpdatedMs = sample.sampleMs;
+    telemetryState_.health.highAccelOk = true;
 }
 
 void HighGImuTask::logSample(uint32_t nowMs)

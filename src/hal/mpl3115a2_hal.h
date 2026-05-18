@@ -17,8 +17,8 @@ struct Mpl3115a2Reading
 class MPL3115A2HAL
 {
 public:
-    bool begin(TwoWire &wire = Wire,
-               uint16_t conversionTimeoutMs = 120U,
+    bool begin(TwoWire &wire = Wire1,
+               uint16_t conversionTimeoutMs = 700U,
                float seaLevelPressureHpa = 1013.25f);
     bool read(Mpl3115a2Reading &out, uint32_t nowMs);
     void setSeaLevelPressureHpa(float seaLevelPressureHpa);
@@ -35,7 +35,7 @@ private:
     static float pressureToSeaLevelPressureHpa(float pressureHpa, float altitudeM);
 
     Adafruit_MPL3115A2 sensor_;
-    uint16_t conversionTimeoutMs_ = 120U;
+    uint16_t conversionTimeoutMs_ = 700U;
     float seaLevelPressureHpa_ = 1013.25f;
     float groundPressurePa_ = 0.0f;
     bool initialized_ = false;

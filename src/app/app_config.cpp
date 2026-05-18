@@ -20,7 +20,7 @@ namespace
     constexpr uint8_t kImuMaxRecoveryAttempts = 5U;
     constexpr uint32_t kImuRecoveryIntervalMs = 1000U;
     constexpr uint32_t kImuTaskPeriodMs = 10U;
-    constexpr uint32_t kBarometerTaskPeriodMs = 50U;
+    constexpr uint32_t kBarometerTaskPeriodMs = 1000U;
     constexpr uint32_t kBarometerRecoveryIntervalMs = 1000U;
     constexpr uint32_t kGnssTaskPeriodMs = 50U;
     constexpr uint16_t kGnssPollByteBudget = 128U;
@@ -32,7 +32,7 @@ namespace
     constexpr uint32_t kTelemetryTaskPeriodMs = 20U;
     constexpr uint32_t kTelemetryFastPeriodMs = 200U;
     constexpr uint32_t kTelemetryGpsPeriodMs = 1000U;
-    constexpr uint32_t kTelemetrySensorFreshMs = 500U;
+    constexpr uint32_t kTelemetrySensorFreshMs = 1500U;
 
     constexpr uint8_t kLoggerDrainBudget = 4U;
     constexpr uint8_t kLoggerOutputFailThreshold = 3U;

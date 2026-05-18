@@ -14,6 +14,7 @@
 
 #define SERIAL_BAUD 115200
 #define GPS_TEST_WINDOW_MS 12000UL
+#define CURRENT_I2C_BUS Wire1
 
 Adafruit_LIS3MDL lis3mdl;
 Adafruit_MPL3115A2 mpl3115a2;
@@ -54,9 +55,10 @@ static void deselectSpiSensors()
 
 static void beginBuses()
 {
-    Wire.setSDA(BoardPinMap::LIS3MDL::sdaPin);
-    Wire.setSCL(BoardPinMap::LIS3MDL::sclPin);
-    Wire.begin();
+    CURRENT_I2C_BUS.setSDA(BoardPinMap::I2cBus::sdaPin);
+    CURRENT_I2C_BUS.setSCL(BoardPinMap::I2cBus::sclPin);
+    CURRENT_I2C_BUS.begin();
+    CURRENT_I2C_BUS.setClock(BoardPinMap::I2cBus::clockHz);
 
     deselectSpiSensors();
     SPI.setMOSI(BoardPinMap::SpiBus::mosiPin);
@@ -71,23 +73,25 @@ static void beginBuses()
 
 static void scanI2c()
 {
-    Serial.println("I2C_SCAN_BEGIN");
+    Serial.print("I2C_SCAN_BEGIN bus=");
+    Serial.println(BoardPinMap::I2cBus::name());
     for (uint8_t address = 1U; address < 127U; ++address)
     {
-        Wire.beginTransmission(address);
-        if (Wire.endTransmission() == 0)
+        CURRENT_I2C_BUS.beginTransmission(address);
+        if (CURRENT_I2C_BUS.endTransmission() == 0)
         {
             Serial.print("I2C_FOUND ");
             printHexByte(address);
             Serial.println();
         }
     }
-    Serial.println("I2C_SCAN_END");
+    Serial.print("I2C_SCAN_END bus=");
+    Serial.println(BoardPinMap::I2cBus::name());
 }
 
 static bool testLis3mdl()
 {
-    if (!lis3mdl.begin_I2C(BoardPinMap::LIS3MDL::i2cAddress, &Wire))
+    if (!lis3mdl.begin_I2C(BoardPinMap::LIS3MDL::i2cAddress, &CURRENT_I2C_BUS))
     {
         return false;
     }
@@ -114,7 +118,7 @@ static bool testLis3mdl()
 
 static bool testMpl3115a2()
 {
-    if (!mpl3115a2.begin(&Wire))
+    if (!mpl3115a2.begin(&CURRENT_I2C_BUS))
     {
         return false;
     }

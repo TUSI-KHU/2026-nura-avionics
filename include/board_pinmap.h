@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <Wire.h>
 
 namespace BoardPinMap
 {
@@ -14,6 +15,23 @@ struct SpiBus final
     static constexpr uint8_t mosiPin = 11U;
     static constexpr uint8_t misoPin = 12U;
     static constexpr uint8_t sckPin = 13U;
+};
+
+struct I2cBus final
+{
+    static TwoWire &wire()
+    {
+        return Wire1;
+    }
+
+    static constexpr uint8_t sdaPin = 17U;
+    static constexpr uint8_t sclPin = 16U;
+    static constexpr uint32_t clockHz = 100000UL;
+
+    static const char *name()
+    {
+        return "Wire1 17/16";
+    }
 };
 
 struct LSM6DSO32 final
@@ -46,34 +64,34 @@ struct ADXL377 final
 
 struct LIS3MDL final
 {
-    static constexpr uint8_t sdaPin = 17U;
-    static constexpr uint8_t sclPin = 16U;
+    static constexpr uint8_t sdaPin = I2cBus::sdaPin;
+    static constexpr uint8_t sclPin = I2cBus::sclPin;
     static constexpr uint8_t i2cAddress = 0x1CU;
 };
 
 struct MS5611 final
 {
-    static constexpr uint8_t sdaPin = 17U;
-    static constexpr uint8_t sclPin = 16U;
+    static constexpr uint8_t sdaPin = I2cBus::sdaPin;
+    static constexpr uint8_t sclPin = I2cBus::sclPin;
     static constexpr uint8_t i2cAddress = 0x77U;
 };
 
 struct MPL3115A2 final
 {
-    static constexpr uint8_t sdaPin = 17U;
-    static constexpr uint8_t sclPin = 16U;
+    static constexpr uint8_t sdaPin = I2cBus::sdaPin;
+    static constexpr uint8_t sclPin = I2cBus::sclPin;
     static constexpr uint8_t i2cAddress = 0x60U;
 };
 
 struct UbloxM6 final
 {
-    static decltype(Serial1) &serial()
+    static decltype(Serial3) &serial()
     {
-        return Serial1;
+        return Serial3;
     }
 
     static constexpr uint8_t rxPin = 15U;
-    static constexpr uint8_t txPin = 14;
+    static constexpr uint8_t txPin = 14U;
     static constexpr uint32_t baud = 9600UL;
 };
 
