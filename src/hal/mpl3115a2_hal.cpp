@@ -163,7 +163,7 @@ float MPL3115A2HAL::pressureToAltitudeM(float pressurePa, float referencePressur
     return kStandardAtmosphereMeters * (1.0f - powf(pressurePa / referencePressurePa, kPressureExponent));
 }
 
-float MPL3115A2HAL::pressureT   oSeaLevelPressureHpa(float pressureHpa, float altitudeM)
+float MPL3115A2HAL::pressureToSeaLevelPressureHpa(float pressureHpa, float altitudeM)
 {
     if (!isfinite(pressureHpa) || pressureHpa <= 0.0f || !isfinite(altitudeM))
     {
