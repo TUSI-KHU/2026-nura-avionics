@@ -138,3 +138,9 @@ Use the shared schedule sheet as the source of truth for deadlines and team coor
 - Emergency recovery deployment must remain deduplicated, authenticated, ACKed, and routed through mission logic.
 - Frequency, output power, antenna gain, duty cycle, and final channel plan must be checked against competition rules and Korean radio requirements before flight.
 - The current code is integration firmware, not a completed flight-certified avionics release.
+
+## License
+
+This project is licensed under the Apache License 2.0. Third-party libraries retain their own licenses.
+
+This repository contains experimental avionics software and documentation. It is provided without warranty and must be independently reviewed, tested, and validated before any flight or safety-critical use.

@@ -1,0 +1,11 @@
+2026 NURA Avionics
+Copyright 2026 TUSI-KHU and contributors
+
+This project is experimental avionics software and documentation.
+It is provided without warranty and must be independently reviewed,
+tested, and validated before any flight or safety-critical use.
+
+Third-party libraries and tools retain their original licenses.
+The PlatformIO dependencies used by this project include libraries
+from Adafruit, Rob Tillaart, Mikal Hart, Sandeep Mistry, and others.
+See each dependency package for its license and attribution notices.
