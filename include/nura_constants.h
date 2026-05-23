@@ -129,11 +129,13 @@ constexpr uint8_t kApogeeDescentConfirmSamples = 4U;
 
 constexpr uint32_t kApogeeTimeoutMs = 12000UL;
 constexpr uint32_t kMainTimeoutMs = 15000UL;
-constexpr uint32_t kGroundTimeoutMs = 60000UL;
 
 constexpr uint32_t kPyroFireDurationMs = 50UL;
 constexpr uint32_t kDrogueBackupDelayMs = 2000UL;
 constexpr float kMainDeployAltitudeM = 200.0f;
+constexpr uint8_t kLandingStableWindowSamples = 20U;
+constexpr float kLandingStableAltitudeRangeM = 0.5f;
+constexpr uint32_t kLandingMaxBarometerSampleGapMs = 150UL;
 } // namespace Flight
 
 namespace LSM6DSO32

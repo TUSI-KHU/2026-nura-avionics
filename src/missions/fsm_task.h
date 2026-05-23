@@ -42,8 +42,15 @@ private:
         float rmseM = 0.0f;
     };
 
+    struct LandingSample
+    {
+        uint32_t sampleMs = 0;
+        float altitudeM = 0.0f;
+    };
+
     void resetFlightScratch();
     void resetApogeeScratch();
+    void resetLandingScratch();
     void onEnter(State next, uint32_t nowMs);
     void tickArmed(uint32_t nowMs);
     void tickLaunch(uint32_t nowMs);
@@ -58,6 +65,9 @@ private:
     bool consumeHighGSample(uint32_t &lastSeenMs);
     bool consumeBarometerSample();
     void pushApogeeSample(uint32_t sampleMs, float altitudeM);
+    bool consumeLandingSample();
+    void pushLandingSample(uint32_t sampleMs, float altitudeM);
+    bool landingStable() const;
     bool apogeePredictionReady(float currentAltitudeM);
     bool pushApogeePrediction(float predictionM);
     bool plusTwoSigmaApogee(float &predictionM) const;
@@ -79,12 +89,16 @@ private:
     uint32_t lastLaunchSampleMs_ = 0U;
     uint32_t lastBurnoutSampleMs_ = 0U;
     uint32_t lastBarometerSampleMs_ = 0U;
+    uint32_t lastLandingBarometerSampleMs_ = 0U;
     ApogeeSample apogeeSamples_[NuraConstants::Flight::kApogeeFitWindowSamples];
     float apogeePredictions_[NuraConstants::Flight::kApogeePredictionHistorySamples] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    LandingSample landingSamples_[NuraConstants::Flight::kLandingStableWindowSamples];
     uint8_t apogeeSampleHead_ = 0U;
     uint8_t apogeeSampleCount_ = 0U;
     uint8_t apogeePredictionHead_ = 0U;
     uint8_t apogeePredictionCount_ = 0U;
+    uint8_t landingSampleHead_ = 0U;
+    uint8_t landingSampleCount_ = 0U;
     float maxCoastAltitudeM_ = 0.0f;
     bool primaryDrogueOff_ = false;
     bool backupDrogueOn_ = false;

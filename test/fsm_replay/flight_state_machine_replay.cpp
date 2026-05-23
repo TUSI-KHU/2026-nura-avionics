@@ -399,6 +399,7 @@ bool checkFullFlight(const Scenario &scenario)
     const uint32_t launchMs = static_cast<uint32_t>(scenario.launchS * 1000.0f);
     const uint32_t burnoutMs = static_cast<uint32_t>(scenario.burnoutS * 1000.0f);
     const float apogeeDecisionTimeS = static_cast<float>(result.apogeeMs) / 1000.0f;
+    const float landingTimeS = scenario.apogeeS + (scenario.apogeeM / scenario.descentRateMps);
 
     if (result.launchedBeforeRealLaunch)
     {
@@ -432,7 +433,37 @@ bool checkFullFlight(const Scenario &scenario)
     {
         return fail(scenario.name, "recovery sequence did not reach ground");
     }
+    if (static_cast<float>(result.groundMs) < ((landingTimeS * 1000.0f) - 200.0f))
+    {
+        return fail(scenario.name, "ground transition before landing");
+    }
     return pass(scenario.name);
+}
+
+bool checkLandingWindowRejectsSlowDescent()
+{
+    const Scenario scenario = {"landing_window", 1.0f, 2.55f, 10.5f, 400.0f, 5.0f, 0.0f, false, false, false};
+    const float landingTimeS = scenario.apogeeS + (scenario.apogeeM / scenario.descentRateMps);
+    const ReplayResult early = runReplay(scenario, 56000U);
+    if (early.deployMs == 0U)
+    {
+        return fail("landing_window", "slow descent scenario did not reach DEPLOY");
+    }
+    if (early.groundMs != 0U)
+    {
+        return fail("landing_window", "landing detector accepted adjacent descent deltas");
+    }
+
+    const ReplayResult full = runReplay(scenario, static_cast<uint32_t>((landingTimeS + 5.0f) * 1000.0f));
+    if (full.groundMs == 0U)
+    {
+        return fail("landing_window", "landing detector did not reach GROUND after touchdown");
+    }
+    if (static_cast<float>(full.groundMs) < ((landingTimeS * 1000.0f) - 200.0f))
+    {
+        return fail("landing_window", "ground transition happened before touchdown");
+    }
+    return pass("landing_window");
 }
 
 bool checkMockHalScenario(const char *testName, MockFlightScenarioId scenarioId)
@@ -564,6 +595,7 @@ int main()
     ok = checkAbortToSafe() && ok;
     ok = checkForceDeployFromCoast() && ok;
     ok = checkForceDeployRejectedOnPad() && ok;
+    ok = checkLandingWindowRejectsSlowDescent() && ok;
     ok = checkMockHalScenario("mock_hal_nominal", MockFlightScenarioId::NOMINAL) && ok;
     ok = checkMockHalScenario("mock_hal_low_apogee", MockFlightScenarioId::LOW_APOGEE) && ok;
     ok = checkMockHalScenario("mock_hal_baro_noise", MockFlightScenarioId::BARO_NOISE) && ok;

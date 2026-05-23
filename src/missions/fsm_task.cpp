@@ -231,7 +231,16 @@ void FlightStateMachineTask::tickDeploy(uint32_t nowMs)
         // TODO: drive main pyro OFF when pyro HAL/pinmap is defined.
         mainPyroOff_ = true;
         flightState_.mainSequenceComplete = true;
-        transitionTo(State::GROUND, nowMs);
+    }
+
+    if (!flightState_.mainSequenceComplete)
+    {
+        return;
+    }
+
+    if (consumeLandingSample() && landingStable())
+    {
+        transitionTo(State::GROUND, telemetryState_.barometer.lastUpdatedMs);
     }
 }
 
@@ -313,6 +322,7 @@ void FlightStateMachineTask::onEnter(State next, uint32_t nowMs)
         flightState_.deployMs = nowMs;
         mainPyroOff_ = false;
         flightState_.mainSequenceComplete = false;
+        resetLandingScratch();
         // TODO: drive main pyro ON when pyro HAL/pinmap is defined.
         break;
     case State::GROUND:
@@ -335,6 +345,7 @@ void FlightStateMachineTask::resetFlightScratch()
     backupDrogueOff_ = false;
     mainPyroOff_ = false;
     resetApogeeScratch();
+    resetLandingScratch();
 }
 
 void FlightStateMachineTask::resetApogeeScratch()
@@ -347,6 +358,13 @@ void FlightStateMachineTask::resetApogeeScratch()
     apogeePredictionHead_ = 0U;
     apogeePredictionCount_ = 0U;
     maxCoastAltitudeM_ = 0.0f;
+}
+
+void FlightStateMachineTask::resetLandingScratch()
+{
+    lastLandingBarometerSampleMs_ = 0U;
+    landingSampleHead_ = 0U;
+    landingSampleCount_ = 0U;
 }
 
 float FlightStateMachineTask::highGAccelNorm() const
@@ -402,6 +420,62 @@ void FlightStateMachineTask::pushApogeeSample(uint32_t sampleMs, float altitudeM
     {
         ++apogeeSampleCount_;
     }
+}
+
+bool FlightStateMachineTask::consumeLandingSample()
+{
+    const BarometerTelemetryData &baro = telemetryState_.barometer;
+    if (!baro.valid || !baro.referenceValid || baro.lastUpdatedMs == 0U ||
+        baro.lastUpdatedMs == lastLandingBarometerSampleMs_)
+    {
+        return false;
+    }
+
+    if (lastLandingBarometerSampleMs_ != 0U &&
+        (baro.lastUpdatedMs - lastLandingBarometerSampleMs_) > NuraConstants::Flight::kLandingMaxBarometerSampleGapMs)
+    {
+        resetLandingScratch();
+    }
+
+    lastLandingBarometerSampleMs_ = baro.lastUpdatedMs;
+    pushLandingSample(baro.lastUpdatedMs, baro.altitudeM);
+    return true;
+}
+
+void FlightStateMachineTask::pushLandingSample(uint32_t sampleMs, float altitudeM)
+{
+    landingSamples_[landingSampleHead_].sampleMs = sampleMs;
+    landingSamples_[landingSampleHead_].altitudeM = altitudeM;
+    landingSampleHead_ = static_cast<uint8_t>((landingSampleHead_ + 1U) %
+                                              NuraConstants::Flight::kLandingStableWindowSamples);
+    if (landingSampleCount_ < NuraConstants::Flight::kLandingStableWindowSamples)
+    {
+        ++landingSampleCount_;
+    }
+}
+
+bool FlightStateMachineTask::landingStable() const
+{
+    if (landingSampleCount_ < NuraConstants::Flight::kLandingStableWindowSamples)
+    {
+        return false;
+    }
+
+    float minAltitudeM = landingSamples_[0].altitudeM;
+    float maxAltitudeM = landingSamples_[0].altitudeM;
+    for (uint8_t i = 1U; i < NuraConstants::Flight::kLandingStableWindowSamples; ++i)
+    {
+        if (landingSamples_[i].altitudeM < minAltitudeM)
+        {
+            minAltitudeM = landingSamples_[i].altitudeM;
+        }
+        if (landingSamples_[i].altitudeM > maxAltitudeM)
+        {
+            maxAltitudeM = landingSamples_[i].altitudeM;
+        }
+    }
+
+    return (maxAltitudeM - minAltitudeM) <= NuraConstants::Flight::kLandingStableAltitudeRangeM;
 }
 
 bool FlightStateMachineTask::apogeePredictionReady(float currentAltitudeM)

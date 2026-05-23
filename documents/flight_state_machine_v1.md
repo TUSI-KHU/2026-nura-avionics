@@ -91,9 +91,11 @@ Initial implementation constants:
 | `PYRO_FIRE_DURATION_MS` | `50` | ms | Initial constant, must be verified by ground test |
 | `DROGUE_BACKUP_DELAY_MS` | `2000` | ms | Team decision; delay between primary and backup drogue pyro |
 | `MAIN_DEPLOY_ALTITUDE_M_AGL` | `200.0` | m | Initial team decision |
+| `LANDING_STABLE_WINDOW_SAMPLES` | `20` | samples | Team decision; landing detector window over fresh filtered barometer AGL samples |
+| `LANDING_STABLE_ALTITUDE_RANGE_M` | `0.5` | m | Team decision; `max(window) - min(window)` must be below this, not adjacent-sample delta |
+| `LANDING_MAX_BARO_SAMPLE_GAP_MS` | `150` | ms | Derived from 50 ms barometer period; reset landing window after stale samples |
 | `APOGEE_TIMEOUT_MS` | `12000` | ms | Initial fallback, must be reviewed against simulation / flight data |
 | `MAIN_TIMEOUT_MS` | `15000` | ms | Initial fallback, must be reviewed against descent policy |
-| `GROUND_TIMEOUT_MS` | `60000` | ms | Initial placeholder for later landing / recovery policy |
 
 Notes:
 
@@ -114,8 +116,8 @@ Notes:
 | `COAST` | Save `coast_start_ms`. Reset apogee detector scratch state, including max altitude and descent counter. | Push fresh barometer AGL samples into the nine-sample predictor, update predicted-apogee and backup-descent confirmation counts. | `APOGEE_TIMEOUT_MS`. | `APOGEE`. | In `LAUNCH`, high-g acceleration norm is `< BURNOUT_ACCEL_THRESHOLD_G` for `BURNOUT_CONFIRM_SAMPLES` consecutive samples. |
 | `APOGEE` | Start drogue primary pyro pulse. Save pyro sequence start time. TODO: log drogue sequence start later. | End primary pulse after `PYRO_FIRE_DURATION_MS`; after `DROGUE_BACKUP_DELAY_MS`, fire backup pyro for `PYRO_FIRE_DURATION_MS`; keep all pyro timing non-blocking. | Pyro sequence timeout derived from backup delay plus pulse duration. | `DROGUE`. | Apogee detector asserts apogee, or `COAST` timeout fallback fires. |
 | `DROGUE` | Latch drogue sequence complete. Reset main deploy detector scratch state. | Monitor barometer AGL altitude for main deployment threshold. | `MAIN_TIMEOUT_MS`. | `DEPLOY`. | Drogue primary-plus-backup pyro sequence is complete. This does not require proof that the parachute physically opened. |
-| `DEPLOY` | Start main pyro pulse. TODO: support backup main pyro only if hardware/team policy requires it. TODO: log main deploy later. | End main pulse after `PYRO_FIRE_DURATION_MS`; keep timing non-blocking. | Main pyro sequence timeout. | `GROUND` when timeout policy is defined. | In `DROGUE`, altitude AGL is `<= MAIN_DEPLOY_ALTITUDE_M_AGL`, or `MAIN_TIMEOUT_MS` fallback fires. |
-| `GROUND` | Force pyro outputs OFF. TODO: close/flush logs and enter recovery telemetry mode later. | TODO: recovery GPS/telemetry behavior. | None. | None. | Main deploy sequence complete, landing detector later, or `GROUND_TIMEOUT_MS` fallback later. |
+| `DEPLOY` | Start main pyro pulse. Reset landing detector scratch state. TODO: support backup main pyro only if hardware/team policy requires it. TODO: log main deploy later. | End main pulse after `PYRO_FIRE_DURATION_MS`; after the pulse is complete, push fresh filtered barometer AGL samples into the landing detector. | None for first implementation. | None; timeout policy deferred to sensor fault / recovery policy. | In `DROGUE`, altitude AGL is `<= MAIN_DEPLOY_ALTITUDE_M_AGL`, or `MAIN_TIMEOUT_MS` fallback fires. |
+| `GROUND` | Force pyro outputs OFF. TODO: close/flush logs and enter recovery telemetry mode later. | TODO: recovery GPS/telemetry behavior. | None. | None. | Main deploy sequence is complete and the landing detector is stable. |
 | `FAULT` | Force pyro outputs OFF. Set fault flag. TODO: log fault later. | Hold fault state. | None. | None. | Initialization failure or future critical fault policy. |
 
 ## Detector Details
@@ -333,8 +335,33 @@ main ON at t
 main OFF at t + PYRO_FIRE_DURATION_MS
 
 after main OFF:
-    transition to GROUND or later landing/ground policy state
+    mark main sequence complete
+    start accepting landing-detector barometer samples
 ```
+
+Landing detector in `DEPLOY`:
+
+```text
+allowed only after mainSequenceComplete == true
+input: filtered barometer altitude AGL, fresh sample timestamp
+
+for each fresh barometer sample:
+    if sample gap > LANDING_MAX_BARO_SAMPLE_GAP_MS:
+        reset landing window
+    push altitude into a 20-sample ring buffer
+
+if the ring buffer is full
+AND max(altitude_window) - min(altitude_window) <= LANDING_STABLE_ALTITUDE_RANGE_M:
+    transition to GROUND
+
+```
+
+The detector intentionally uses the full 20-sample window range. It must not be
+implemented as "20 adjacent differences below 0.5 m", because a slow parachute
+descent can have adjacent 50 ms deltas below 0.5 m while still airborne.
+A `DEPLOY -> GROUND` timeout fallback is intentionally deferred. A fixed timeout
+can become an early-ground false positive if `DROGUE -> DEPLOY` entered by
+timeout while the rocket was still high.
 
 TODO:
 
@@ -375,7 +402,8 @@ while keeping the flight-state transition and recovery sequence under the FSM.
 - Sensor fault policy and degraded-mode transitions.
 - Barometer oversampling configuration for 50 ms sampling.
 - Barometer filter tuning.
-- Landing detector or `GROUND_TIMEOUT_MS` policy.
+- Tune landing detector thresholds with actual main-parachute descent logs.
+- Decide whether a guarded `DEPLOY -> GROUND` timeout fallback is needed.
 - Pyro continuity and battery voltage gating.
 - Flight-log replay verification tests.
 
@@ -405,6 +433,7 @@ check implementation drift quickly.
 | Forced recovery execution | `src/missions/fsm_task.cpp` | `consumeForceRecoveryDeployRequest()`, `forceRecoveryDeployAllowed()` | FSM consumes the request only in `LAUNCH` or `COAST`, transitions to `APOGEE`, and records execution for ACK. |
 | Drogue pyro sequence state | `src/missions/fsm_task.cpp` | `onEnter(State::APOGEE)`, `tickApogee()` | Non-blocking sequence timing is implemented; actual pyro HAL output is TODO. |
 | Main deploy decision and sequence | `src/missions/fsm_task.cpp` | `tickDrogue()`, `onEnter(State::DEPLOY)`, `tickDeploy()` | `DROGUE -> DEPLOY` at `<= 200 m AGL` or timeout; actual pyro HAL output is TODO. |
+| Landing / ground transition | `src/missions/fsm_task.cpp` | `tickDeploy()`, `consumeLandingSample()`, `landingStable()` | After main pulse completion, uses 20 fresh filtered barometer AGL samples and transitions to `GROUND` when window range is `<= 0.5 m`; timeout fallback is deferred. |
 | Telemetry state code mapping | `src/missions/telemetry_task.cpp`, `protocol/include/nura_protocol_v1_lite.h` | `currentFlightStateCode()`, `FlightStateCode` | Downlink status encodes the new state IDs. |
 | Protocol documentation state table | `documents/nura_lora_packet_protocol_v1.md` | `State encoding` section | Human-readable packet spec mirrors the code enum. |
 | Mock flight data source | `src/hal/mock_flight_data_hal.cpp`, `src/missions/mock_telemetry_source_task.cpp` | `MockFlightDataHAL::read()`, `MockTelemetrySourceTask::tick()` | Generates deterministic nominal, low-apogee, noisy, gust, dropout, and pad-false-accel scenarios; publishes high-g IMU and filtered barometer data for mock builds. |
