@@ -4,17 +4,13 @@
 #include <Arduino.h>
 #include <math.h>
 
+#include "nura_constants.h"
+
 namespace
 {
-    constexpr float kRadToDeg = 57.2957795f;
-    constexpr uint8_t kWhoAmIRegister = 0x0FU;
-    constexpr uint8_t kExpectedWhoAmI = 0x6CU;
-    constexpr uint8_t kNoSpiMode = 0xFFU;
-    constexpr uint32_t kProbeSpiHz = 1000000UL;
-
     uint8_t readRawRegister(uint8_t csPin, SPIClass &spi, uint8_t spiMode, uint8_t reg)
     {
-        SPISettings settings(kProbeSpiHz, MSBFIRST, spiMode);
+        SPISettings settings(NuraConstants::LSM6DSO32::kProbeSpiHz, MSBFIRST, spiMode);
         pinMode(csPin, OUTPUT);
         digitalWrite(csPin, HIGH);
         spi.beginTransaction(settings);
@@ -33,12 +29,13 @@ namespace
         const uint8_t modes[4] = {SPI_MODE0, SPI_MODE1, SPI_MODE2, SPI_MODE3};
         for (uint8_t i = 0U; i < 4U; ++i)
         {
-            if (readRawRegister(csPin, spi, modes[i], kWhoAmIRegister) == kExpectedWhoAmI)
+            if (readRawRegister(csPin, spi, modes[i], NuraConstants::LSM6DSO32::kWhoAmIRegister) ==
+                NuraConstants::LSM6DSO32::kExpectedWhoAmI)
             {
                 return modes[i];
             }
         }
-        return kNoSpiMode;
+        return NuraConstants::LSM6DSO32::kNoSpiMode;
     }
 }
 
@@ -105,7 +102,7 @@ bool LSM6DSO32HAL::begin(uint8_t csPin,
     spi.begin();
 
     const uint8_t spiMode = detectSpiMode(csPin, spi);
-    if (spiMode == kNoSpiMode)
+    if (spiMode == NuraConstants::LSM6DSO32::kNoSpiMode)
     {
         return false;
     }
@@ -148,9 +145,9 @@ bool LSM6DSO32HAL::read(Lsm6dso32Reading &out, uint32_t nowMs)
     out.accelYMps2 = accel.acceleration.y - calibration_.accelYMps2Offset;
     out.accelZMps2 = accel.acceleration.z - calibration_.accelZMps2Offset;
 
-    out.gyroXDps = (gyro.gyro.x * kRadToDeg) - calibration_.gyroXDpsOffset;
-    out.gyroYDps = (gyro.gyro.y * kRadToDeg) - calibration_.gyroYDpsOffset;
-    out.gyroZDps = (gyro.gyro.z * kRadToDeg) - calibration_.gyroZDpsOffset;
+    out.gyroXDps = (gyro.gyro.x * NuraConstants::Physics::kRadToDeg) - calibration_.gyroXDpsOffset;
+    out.gyroYDps = (gyro.gyro.y * NuraConstants::Physics::kRadToDeg) - calibration_.gyroYDpsOffset;
+    out.gyroZDps = (gyro.gyro.z * NuraConstants::Physics::kRadToDeg) - calibration_.gyroZDpsOffset;
 
     out.temperatureC = temp.temperature;
     out.sampleMs = nowMs;
@@ -213,9 +210,9 @@ bool LSM6DSO32HAL::calibrateStationary(uint16_t sampleCount,
         accelXSum += accel.acceleration.x;
         accelYSum += accel.acceleration.y;
         accelZSum += accel.acceleration.z;
-        gyroXSum += gyro.gyro.x * kRadToDeg;
-        gyroYSum += gyro.gyro.y * kRadToDeg;
-        gyroZSum += gyro.gyro.z * kRadToDeg;
+        gyroXSum += gyro.gyro.x * NuraConstants::Physics::kRadToDeg;
+        gyroYSum += gyro.gyro.y * NuraConstants::Physics::kRadToDeg;
+        gyroZSum += gyro.gyro.z * NuraConstants::Physics::kRadToDeg;
 
         if (sampleDelayMs > 0U)
         {

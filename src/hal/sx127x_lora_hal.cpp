@@ -4,11 +4,7 @@
 #include <LoRa.h>
 #undef private
 
-namespace
-{
-    constexpr uint8_t kRegVersion = 0x42U;
-    constexpr uint8_t kExpectedVersion = 0x12U;
-}
+#include "nura_constants.h"
 
 bool Sx127xLoRaHAL::begin(const Sx127xLoRaConfig &config, SPIClass &spi)
 {
@@ -184,7 +180,8 @@ bool Sx127xLoRaHAL::selectSpiMode(const Sx127xLoRaConfig &config, SPIClass &spi)
     const uint8_t modes[4] = {SPI_MODE0, SPI_MODE1, SPI_MODE2, SPI_MODE3};
     for (uint8_t i = 0U; i < 4U; ++i)
     {
-        if (readRegisterRaw(config, spi, kRegVersion, modes[i]) == kExpectedVersion)
+        if (readRegisterRaw(config, spi, NuraConstants::LoRa::kRegVersion, modes[i]) ==
+            NuraConstants::LoRa::kExpectedVersion)
         {
             selectedSpiMode_ = modes[i];
             return true;

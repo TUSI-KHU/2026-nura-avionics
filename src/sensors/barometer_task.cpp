@@ -7,11 +7,6 @@
 
 namespace
 {
-    constexpr float kStandardAtmosphereMeters = 44330.0f;
-    constexpr float kPressureExponent = 0.19029495f;
-    constexpr float kAltitudeFilterAlpha = 0.35f;
-    constexpr uint8_t kAltitudeMedianWindow = 3U;
-
     float relativeAltitudeM(float pressurePa, float referencePressurePa)
     {
         if (!isfinite(pressurePa) || !isfinite(referencePressurePa) ||
@@ -20,7 +15,8 @@ namespace
             return 0.0f;
         }
 
-        return kStandardAtmosphereMeters * (1.0f - powf(pressurePa / referencePressurePa, kPressureExponent));
+        return NuraConstants::Atmosphere::kStandardAtmosphereMeters *
+               (1.0f - powf(pressurePa / referencePressurePa, NuraConstants::Atmosphere::kPressureExponent));
     }
 
     float sortedMedian(float values[], uint8_t count)
@@ -125,13 +121,14 @@ void BarometerTask::clearReading(uint32_t nowMs)
 float BarometerTask::filterAltitude(float rawAltitudeM)
 {
     altitudeWindowM_[altitudeWindowHead_] = rawAltitudeM;
-    altitudeWindowHead_ = static_cast<uint8_t>((altitudeWindowHead_ + 1U) % kAltitudeMedianWindow);
-    if (altitudeWindowCount_ < kAltitudeMedianWindow)
+    altitudeWindowHead_ = static_cast<uint8_t>((altitudeWindowHead_ + 1U) %
+                                               NuraConstants::Sensors::kBarometerMedianWindowSamples);
+    if (altitudeWindowCount_ < NuraConstants::Sensors::kBarometerMedianWindowSamples)
     {
         ++altitudeWindowCount_;
     }
 
-    float windowCopy[kAltitudeMedianWindow] = {0.0f, 0.0f, 0.0f};
+    float windowCopy[NuraConstants::Sensors::kBarometerMedianWindowSamples] = {0.0f, 0.0f, 0.0f};
     for (uint8_t i = 0U; i < altitudeWindowCount_; ++i)
     {
         windowCopy[i] = altitudeWindowM_[i];
@@ -145,6 +142,7 @@ float BarometerTask::filterAltitude(float rawAltitudeM)
         return filteredAltitudeM_;
     }
 
-    filteredAltitudeM_ += kAltitudeFilterAlpha * (medianAltitudeM - filteredAltitudeM_);
+    filteredAltitudeM_ += NuraConstants::Sensors::kBarometerAltitudeLpfAlpha *
+                          (medianAltitudeM - filteredAltitudeM_);
     return filteredAltitudeM_;
 }

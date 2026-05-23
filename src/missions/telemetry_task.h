@@ -6,6 +6,7 @@
 #include "core/logger/logger.h"
 #include "core/tasks.h"
 #include "hal/sx127x_lora_hal.h"
+#include "nura_constants.h"
 #include "nura_protocol_v1_lite.h"
 #include "state/abort_state.h"
 #include "state/flight_state.h"
@@ -41,7 +42,7 @@ private:
 
     struct AckQueue
     {
-        nura::ControlPayload items[4];
+        nura::ControlPayload items[NuraConstants::Telemetry::kAckQueueDepth];
         uint8_t head = 0U;
         uint8_t count = 0U;
 
@@ -78,7 +79,7 @@ private:
     const IAppConfig &config_;
     nura::Parser parser_;
     AckQueue ackQueue_;
-    RecentCommand recentCommands_[4];
+    RecentCommand recentCommands_[NuraConstants::Telemetry::kRecentCommandDepth];
     nura::ControlPayload pendingForceDeployAck_;
     uint8_t recentCommandWriteIndex_ = 0U;
     uint16_t downlinkSeq_ = 0U;

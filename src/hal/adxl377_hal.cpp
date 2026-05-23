@@ -2,12 +2,7 @@
 
 #include <math.h>
 
-namespace
-{
-    constexpr float kGravity = 9.80665f;
-    constexpr float kDatasheetReferenceVoltage = 3.0f;
-    constexpr float kDatasheetSensitivityMvPerG = 6.5f;
-}
+#include "nura_constants.h"
 
 bool ADXL377HAL::begin(uint8_t xPin,
                        uint8_t yPin,
@@ -30,7 +25,8 @@ bool ADXL377HAL::begin(uint8_t xPin,
     adcMax_ = static_cast<uint16_t>((1UL << adcResolutionBits) - 1UL);
 
     zeroGVoltage_ = zeroGVoltage > 0.0f ? zeroGVoltage : referenceVoltage_ * 0.5f;
-    const float scaledSensitivity = kDatasheetSensitivityMvPerG * (referenceVoltage_ / kDatasheetReferenceVoltage);
+    const float scaledSensitivity = NuraConstants::ADXL377::kDatasheetSensitivityMvPerG *
+                                    (referenceVoltage_ / NuraConstants::ADXL377::kDatasheetReferenceVoltage);
     sensitivityVPerG_ = (sensitivityMvPerG > 0.0f ? sensitivityMvPerG : scaledSensitivity) * 0.001f;
     zeroGVoltageX_ = zeroGVoltage_;
     zeroGVoltageY_ = zeroGVoltage_;
@@ -60,9 +56,9 @@ bool ADXL377HAL::read(Adxl377Reading &out, uint32_t nowMs) const
     out.accelYG = voltageToG(out.voltageY, zeroGVoltageY_);
     out.accelZG = voltageToG(out.voltageZ, zeroGVoltageZ_);
 
-    out.accelXMps2 = out.accelXG * kGravity;
-    out.accelYMps2 = out.accelYG * kGravity;
-    out.accelZMps2 = out.accelZG * kGravity;
+    out.accelXMps2 = out.accelXG * NuraConstants::Physics::kGravityMps2;
+    out.accelYMps2 = out.accelYG * NuraConstants::Physics::kGravityMps2;
+    out.accelZMps2 = out.accelZG * NuraConstants::Physics::kGravityMps2;
     out.sampleMs = nowMs;
 
     return true;
@@ -94,8 +90,8 @@ void ADXL377HAL::clearCalibration()
     zeroGVoltageX_ = zeroGVoltage_;
     zeroGVoltageY_ = zeroGVoltage_;
     zeroGVoltageZ_ = zeroGVoltage_;
-    sensitivityVPerG_ = (kDatasheetSensitivityMvPerG *
-                         (referenceVoltage_ / kDatasheetReferenceVoltage)) *
+    sensitivityVPerG_ = (NuraConstants::ADXL377::kDatasheetSensitivityMvPerG *
+                         (referenceVoltage_ / NuraConstants::ADXL377::kDatasheetReferenceVoltage)) *
                         0.001f;
 }
 

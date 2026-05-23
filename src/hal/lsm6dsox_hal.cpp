@@ -3,10 +3,7 @@
 #include <Arduino.h>
 #include <math.h>
 
-namespace
-{
-    constexpr float kRadToDeg = 57.2957795f;
-}
+#include "nura_constants.h"
 
 bool LSM6DSOXHAL::begin(uint8_t csPin,
                         SPIClass &spi,
@@ -54,9 +51,9 @@ bool LSM6DSOXHAL::read(Lsm6dsoxReading &out, uint32_t nowMs)
     out.accelYMps2 = accel.acceleration.y - calibration_.accelYMps2Offset;
     out.accelZMps2 = accel.acceleration.z - calibration_.accelZMps2Offset;
 
-    out.gyroXDps = (gyro.gyro.x * kRadToDeg) - calibration_.gyroXDpsOffset;
-    out.gyroYDps = (gyro.gyro.y * kRadToDeg) - calibration_.gyroYDpsOffset;
-    out.gyroZDps = (gyro.gyro.z * kRadToDeg) - calibration_.gyroZDpsOffset;
+    out.gyroXDps = (gyro.gyro.x * NuraConstants::Physics::kRadToDeg) - calibration_.gyroXDpsOffset;
+    out.gyroYDps = (gyro.gyro.y * NuraConstants::Physics::kRadToDeg) - calibration_.gyroYDpsOffset;
+    out.gyroZDps = (gyro.gyro.z * NuraConstants::Physics::kRadToDeg) - calibration_.gyroZDpsOffset;
 
     out.temperatureC = temp.temperature;
     out.sampleMs = nowMs;
@@ -119,9 +116,9 @@ bool LSM6DSOXHAL::calibrateStationary(uint16_t sampleCount,
         accelXSum += accel.acceleration.x;
         accelYSum += accel.acceleration.y;
         accelZSum += accel.acceleration.z;
-        gyroXSum += gyro.gyro.x * kRadToDeg;
-        gyroYSum += gyro.gyro.y * kRadToDeg;
-        gyroZSum += gyro.gyro.z * kRadToDeg;
+        gyroXSum += gyro.gyro.x * NuraConstants::Physics::kRadToDeg;
+        gyroYSum += gyro.gyro.y * NuraConstants::Physics::kRadToDeg;
+        gyroZSum += gyro.gyro.z * NuraConstants::Physics::kRadToDeg;
 
         if (sampleDelayMs > 0U)
         {

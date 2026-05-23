@@ -4,18 +4,10 @@
 
 namespace
 {
-constexpr float kGravityMps2 = 9.80665f;
-constexpr float kPressureSeaLevelPa = 101325.0f;
-constexpr float kStandardAtmosphereMeters = 44330.0f;
-constexpr float kPressureExponent = 0.19029495f;
-constexpr float kAltitudeFilterAlpha = 0.35f;
-constexpr uint8_t kAltitudeMedianWindow = 3U;
-constexpr uint32_t kMockBarometerPeriodMs = 50UL;
-
 #if defined(NURA_MOCK_SCENARIO_ID)
 constexpr uint8_t kConfiguredScenarioId = static_cast<uint8_t>(NURA_MOCK_SCENARIO_ID);
 #else
-constexpr uint8_t kConfiguredScenarioId = 0U;
+constexpr uint8_t kConfiguredScenarioId = NuraConstants::Mock::kDefaultScenarioId;
 #endif
 
 MockFlightScenarioId configuredScenario()
@@ -72,42 +64,55 @@ bool MockFlightDataHAL::read(MockFlightDataReading &out, uint32_t nowMs)
     float altitudeM = altitudeFor(params, timeS);
     if (scenario_ == MockFlightScenarioId::BARO_NOISE)
     {
-        altitudeM += deterministicNoiseM(nowMs, 0.8f);
+        altitudeM += deterministicNoiseM(nowMs, NuraConstants::Mock::kNoiseAmplitudeM);
     }
     else if (scenario_ == MockFlightScenarioId::BARO_GUST)
     {
-        altitudeM += deterministicNoiseM(nowMs, 0.6f);
-        const float pulseDtS = timeS - (params.apogeeTimeS - 1.2f);
-        altitudeM += -6.0f * expf(-0.5f * (pulseDtS * pulseDtS) / (0.16f * 0.16f));
+        altitudeM += deterministicNoiseM(nowMs, NuraConstants::Mock::kGustNoiseAmplitudeM);
+        const float pulseDtS = timeS - (params.apogeeTimeS - NuraConstants::Mock::kGustPulseLeadS);
+        altitudeM += NuraConstants::Mock::kGustPulseAmplitudeM *
+                     expf(-0.5f * (pulseDtS * pulseDtS) /
+                          (NuraConstants::Mock::kGustPulseSigmaS * NuraConstants::Mock::kGustPulseSigmaS));
     }
 
-    const bool falseAccelWindow = scenario_ == MockFlightScenarioId::PAD_FALSE_ACCEL && nowMs >= 300UL && nowMs < 330UL;
+    const bool falseAccelWindow = scenario_ == MockFlightScenarioId::PAD_FALSE_ACCEL &&
+                                  nowMs >= NuraConstants::Mock::kPadFalseAccelStartMs &&
+                                  nowMs < NuraConstants::Mock::kPadFalseAccelEndMs;
     const bool motorBurnWindow = timeS >= params.launchTimeS && timeS < params.burnoutTimeS;
     const bool coastWindow = timeS >= params.burnoutTimeS;
-    const float highAccelNormG = falseAccelWindow ? 2.5f : (motorBurnWindow ? 3.8f : (coastWindow ? 0.55f : 0.15f));
+    const float highAccelNormG = falseAccelWindow ? NuraConstants::Mock::kPadFalseAccelG
+                                                  : (motorBurnWindow ? NuraConstants::Mock::kMotorBurnAccelG
+                                                                     : (coastWindow ? NuraConstants::Mock::kCoastAccelG
+                                                                                    : NuraConstants::Mock::kPrelaunchAccelG));
 
-    out.highAccelXG = 0.02f;
-    out.highAccelYG = 0.01f;
+    out.highAccelXG = NuraConstants::Mock::kAccelXG;
+    out.highAccelYG = NuraConstants::Mock::kAccelYG;
     out.highAccelZG = highAccelNormG;
-    out.accelXMps2 = out.highAccelXG * kGravityMps2;
-    out.accelYMps2 = out.highAccelYG * kGravityMps2;
-    out.accelZMps2 = out.highAccelZG * kGravityMps2;
+    out.accelXMps2 = out.highAccelXG * NuraConstants::Physics::kGravityMps2;
+    out.accelYMps2 = out.highAccelYG * NuraConstants::Physics::kGravityMps2;
+    out.accelZMps2 = out.highAccelZG * NuraConstants::Physics::kGravityMps2;
     out.gyroXDps = deterministicNoiseM(nowMs + 17UL, 4.0f);
     out.gyroYDps = deterministicNoiseM(nowMs + 31UL, 4.0f);
     out.gyroZDps = deterministicNoiseM(nowMs + 47UL, 4.0f);
     out.rawAltitudeM = altitudeM;
-    out.barometerValid = !(scenario_ == MockFlightScenarioId::BARO_DROPOUT && nowMs > 8200UL && nowMs < 8800UL);
-    out.barometerUpdated = out.barometerValid && ((nowMs % kMockBarometerPeriodMs) == 0UL);
+    out.barometerValid = !(scenario_ == MockFlightScenarioId::BARO_DROPOUT &&
+                           nowMs > NuraConstants::Mock::kBarometerDropoutStartMs &&
+                           nowMs < NuraConstants::Mock::kBarometerDropoutEndMs);
+    out.barometerUpdated = out.barometerValid && ((nowMs % NuraConstants::Mock::kBarometerPeriodMs) == 0UL);
     out.filteredAltitudeM = out.barometerUpdated ? filteredAltitude(altitudeM) : filteredAltitudeM_;
     out.pressurePa = pressureForAltitude(out.rawAltitudeM);
-    out.latitudeDeg = 37.1234567 + (static_cast<double>(timeS) * 0.000001);
-    out.longitudeDeg = 127.1234567 + (static_cast<double>(timeS) * 0.000001);
-    out.altitudeM = 50.0 + static_cast<double>(out.rawAltitudeM);
-    out.speedMps = timeS < params.apogeeTimeS ? 35.0 : params.descentRateMps;
-    out.courseDeg = 85.2;
-    out.hdop = 1.2;
-    out.satellites = 9U;
-    out.batteryMv = static_cast<uint16_t>(12000U - static_cast<uint16_t>((nowMs / 10000UL) % 500UL));
+    out.latitudeDeg = NuraConstants::Mock::kBaseLatitudeDeg +
+                      (static_cast<double>(timeS) * NuraConstants::Mock::kGpsDriftDegPerS);
+    out.longitudeDeg = NuraConstants::Mock::kBaseLongitudeDeg +
+                       (static_cast<double>(timeS) * NuraConstants::Mock::kGpsDriftDegPerS);
+    out.altitudeM = NuraConstants::Mock::kGpsBaseAltitudeM + static_cast<double>(out.rawAltitudeM);
+    out.speedMps = timeS < params.apogeeTimeS ? NuraConstants::Mock::kAscentSpeedMps : params.descentRateMps;
+    out.courseDeg = NuraConstants::Mock::kCourseDeg;
+    out.hdop = NuraConstants::Mock::kHdop;
+    out.satellites = NuraConstants::Mock::kSatellites;
+    out.batteryMv = static_cast<uint16_t>(NuraConstants::Mock::kBatteryBaseMv -
+                                          static_cast<uint16_t>((nowMs / NuraConstants::Mock::kBatterySawtoothPeriodMs) %
+                                                                NuraConstants::Mock::kBatterySawtoothMv));
     out.sampleMs = nowMs;
     return true;
 }
@@ -136,7 +141,7 @@ MockFlightDataHAL::ScenarioParams MockFlightDataHAL::paramsFor(MockFlightScenari
     switch (scenario)
     {
     case MockFlightScenarioId::LOW_APOGEE:
-        return {1.0f, 2.45f, 9.8f, 250.0f, 22.0f};
+        return NuraConstants::Mock::kLowApogeeProfile;
     case MockFlightScenarioId::BARO_GUST:
         return {1.0f, 2.55f, 10.5f, 400.0f, 25.0f};
     case MockFlightScenarioId::BARO_DROPOUT:
@@ -147,7 +152,7 @@ MockFlightDataHAL::ScenarioParams MockFlightDataHAL::paramsFor(MockFlightScenari
         return {1.0f, 2.55f, 10.5f, 400.0f, 25.0f};
     case MockFlightScenarioId::NOMINAL:
     default:
-        return {1.0f, 2.55f, 10.5f, 400.0f, 25.0f};
+        return NuraConstants::Mock::kNominalProfile;
     }
 }
 
@@ -192,8 +197,9 @@ float MockFlightDataHAL::altitudeFor(const ScenarioParams &params, float timeS)
 float MockFlightDataHAL::pressureForAltitude(float altitudeM)
 {
     const float clampedAltitudeM = altitudeM < 0.0f ? 0.0f : altitudeM;
-    const float ratio = 1.0f - (clampedAltitudeM / kStandardAtmosphereMeters);
-    return kPressureSeaLevelPa * powf(ratio, 1.0f / kPressureExponent);
+    const float ratio = 1.0f - (clampedAltitudeM / NuraConstants::Atmosphere::kStandardAtmosphereMeters);
+    return NuraConstants::Atmosphere::kSeaLevelPressurePa *
+           powf(ratio, 1.0f / NuraConstants::Atmosphere::kPressureExponent);
 }
 
 float MockFlightDataHAL::deterministicNoiseM(uint32_t nowMs, float amplitudeM)
@@ -206,13 +212,14 @@ float MockFlightDataHAL::deterministicNoiseM(uint32_t nowMs, float amplitudeM)
 float MockFlightDataHAL::filteredAltitude(float rawAltitudeM)
 {
     altitudeWindowM_[altitudeWindowHead_] = rawAltitudeM;
-    altitudeWindowHead_ = static_cast<uint8_t>((altitudeWindowHead_ + 1U) % kAltitudeMedianWindow);
-    if (altitudeWindowCount_ < kAltitudeMedianWindow)
+    altitudeWindowHead_ = static_cast<uint8_t>((altitudeWindowHead_ + 1U) %
+                                               NuraConstants::Sensors::kBarometerMedianWindowSamples);
+    if (altitudeWindowCount_ < NuraConstants::Sensors::kBarometerMedianWindowSamples)
     {
         ++altitudeWindowCount_;
     }
 
-    float windowCopy[kAltitudeMedianWindow] = {0.0f, 0.0f, 0.0f};
+    float windowCopy[NuraConstants::Sensors::kBarometerMedianWindowSamples] = {0.0f, 0.0f, 0.0f};
     for (uint8_t i = 0U; i < altitudeWindowCount_; ++i)
     {
         windowCopy[i] = altitudeWindowM_[i];
@@ -226,7 +233,8 @@ float MockFlightDataHAL::filteredAltitude(float rawAltitudeM)
     }
     else
     {
-        filteredAltitudeM_ += kAltitudeFilterAlpha * (medianAltitudeM - filteredAltitudeM_);
+        filteredAltitudeM_ += NuraConstants::Sensors::kBarometerAltitudeLpfAlpha *
+                              (medianAltitudeM - filteredAltitudeM_);
     }
     return filteredAltitudeM_;
 }

@@ -3,11 +3,7 @@
 #include <Arduino.h>
 #include <math.h>
 
-namespace
-{
-    constexpr uint8_t kExpectedWhoAmI = 0x32U;
-    constexpr float kGravity = 9.80665f;
-}
+#include "nura_constants.h"
 
 bool H3LIS331DLHAL::begin(uint8_t csPin,
                           SPIClass &spi,
@@ -26,7 +22,7 @@ bool H3LIS331DLHAL::begin(uint8_t csPin,
     }
 
     whoAmI_ = sensor_.getDeviceID();
-    if (whoAmI_ != kExpectedWhoAmI)
+    if (whoAmI_ != NuraConstants::H3LIS331DL::kExpectedWhoAmI)
     {
         return false;
     }
@@ -57,9 +53,9 @@ bool H3LIS331DLHAL::read(H3LIS331DLReading &out, uint32_t nowMs)
     out.accelXMps2 = event.acceleration.x;
     out.accelYMps2 = event.acceleration.y;
     out.accelZMps2 = event.acceleration.z;
-    out.accelXG = out.accelXMps2 / kGravity;
-    out.accelYG = out.accelYMps2 / kGravity;
-    out.accelZG = out.accelZMps2 / kGravity;
+    out.accelXG = out.accelXMps2 / NuraConstants::Physics::kGravityMps2;
+    out.accelYG = out.accelYMps2 / NuraConstants::Physics::kGravityMps2;
+    out.accelZG = out.accelZMps2 / NuraConstants::Physics::kGravityMps2;
     out.whoAmI = whoAmI_;
     out.sampleMs = nowMs;
 

@@ -3,15 +3,7 @@
 #include <Arduino.h>
 #include <math.h>
 
-namespace
-{
-    constexpr float kHpaToPa = 100.0f;
-    constexpr float kMinDatasheetPressurePa = 20000.0f;
-    constexpr float kMaxDatasheetPressurePa = 110000.0f;
-    constexpr float kStandardAtmosphereMeters = 44330.0f;
-    constexpr float kPressureExponent = 0.19029495f;
-    constexpr float kInversePressureExponent = 5.255f;
-}
+#include "nura_constants.h"
 
 bool MPL3115A2HAL::begin(TwoWire &wire,
                          uint16_t conversionTimeoutMs,
@@ -49,7 +41,7 @@ bool MPL3115A2HAL::read(Mpl3115a2Reading &out, uint32_t nowMs)
     }
 
     const float pressureHpa = sensor_.getLastConversionResults(MPL3115A2_PRESSURE);
-    const float pressurePa = pressureHpa * kHpaToPa;
+    const float pressurePa = pressureHpa * NuraConstants::MPL3115A2::kHpaToPa;
     const float temperatureC = sensor_.getLastConversionResults(MPL3115A2_TEMPERATURE);
     if (!validPressure(pressurePa) || !isfinite(temperatureC))
     {
@@ -111,7 +103,7 @@ bool MPL3115A2HAL::calibrateGroundBaseline(uint16_t sampleCount,
         return false;
     }
 
-    seaLevelPressureHpa_ = pressureToSeaLevelPressureHpa(groundPressurePa_ / kHpaToPa,
+    seaLevelPressureHpa_ = pressureToSeaLevelPressureHpa(groundPressurePa_ / NuraConstants::MPL3115A2::kHpaToPa,
                                                          knownGroundAltitudeM);
     groundBaselineValid_ = isfinite(seaLevelPressureHpa_) && seaLevelPressureHpa_ > 0.0f;
     if (groundBaselineValid_)
@@ -149,8 +141,8 @@ bool MPL3115A2HAL::waitForConversion()
 bool MPL3115A2HAL::validPressure(float pressurePa)
 {
     return isfinite(pressurePa) &&
-           pressurePa >= kMinDatasheetPressurePa &&
-           pressurePa <= kMaxDatasheetPressurePa;
+           pressurePa >= NuraConstants::MPL3115A2::kMinDatasheetPressurePa &&
+           pressurePa <= NuraConstants::MPL3115A2::kMaxDatasheetPressurePa;
 }
 
 float MPL3115A2HAL::pressureToAltitudeM(float pressurePa, float referencePressurePa)
@@ -160,7 +152,8 @@ float MPL3115A2HAL::pressureToAltitudeM(float pressurePa, float referencePressur
         return 0.0f;
     }
 
-    return kStandardAtmosphereMeters * (1.0f - powf(pressurePa / referencePressurePa, kPressureExponent));
+    return NuraConstants::Atmosphere::kStandardAtmosphereMeters *
+           (1.0f - powf(pressurePa / referencePressurePa, NuraConstants::Atmosphere::kPressureExponent));
 }
 
 float MPL3115A2HAL::pressureToSeaLevelPressureHpa(float pressureHpa, float altitudeM)
@@ -170,11 +163,11 @@ float MPL3115A2HAL::pressureToSeaLevelPressureHpa(float pressureHpa, float altit
         return 0.0f;
     }
 
-    const float altitudeScale = 1.0f - (altitudeM / kStandardAtmosphereMeters);
+    const float altitudeScale = 1.0f - (altitudeM / NuraConstants::Atmosphere::kStandardAtmosphereMeters);
     if (altitudeScale <= 0.0f)
     {
         return 0.0f;
     }
 
-    return pressureHpa / powf(altitudeScale, kInversePressureExponent);
+    return pressureHpa / powf(altitudeScale, NuraConstants::Atmosphere::kInversePressureExponent);
 }

@@ -3,14 +3,7 @@
 #include <Arduino.h>
 #include <math.h>
 
-namespace
-{
-    constexpr float kMinDatasheetPressurePa = 1000.0f;
-    constexpr float kMaxDatasheetPressurePa = 120000.0f;
-    constexpr float kStandardAtmosphereMeters = 44330.0f;
-    constexpr float kPressureExponent = 0.19029495f;
-    constexpr float kInversePressureExponent = 5.255f;
-}
+#include "nura_constants.h"
 
 bool MS5611HAL::begin(uint8_t i2cAddress,
                       TwoWire &wire,
@@ -205,8 +198,8 @@ uint8_t MS5611HAL::calculatePromCrc4(const uint16_t prom[8])
 bool MS5611HAL::validPressure(float pressurePa)
 {
     return isfinite(pressurePa) &&
-           pressurePa >= kMinDatasheetPressurePa &&
-           pressurePa <= kMaxDatasheetPressurePa;
+           pressurePa >= NuraConstants::MS5611::kMinDatasheetPressurePa &&
+           pressurePa <= NuraConstants::MS5611::kMaxDatasheetPressurePa;
 }
 
 float MS5611HAL::pressureToAltitudeM(float pressurePa, float referencePressurePa)
@@ -216,7 +209,8 @@ float MS5611HAL::pressureToAltitudeM(float pressurePa, float referencePressurePa
         return 0.0f;
     }
 
-    return kStandardAtmosphereMeters * (1.0f - powf(pressurePa / referencePressurePa, kPressureExponent));
+    return NuraConstants::Atmosphere::kStandardAtmosphereMeters *
+           (1.0f - powf(pressurePa / referencePressurePa, NuraConstants::Atmosphere::kPressureExponent));
 }
 
 float MS5611HAL::pressureToSeaLevelPressureMbar(float pressureMbar, float altitudeM)
@@ -226,11 +220,11 @@ float MS5611HAL::pressureToSeaLevelPressureMbar(float pressureMbar, float altitu
         return 0.0f;
     }
 
-    const float altitudeScale = 1.0f - (altitudeM / kStandardAtmosphereMeters);
+    const float altitudeScale = 1.0f - (altitudeM / NuraConstants::Atmosphere::kStandardAtmosphereMeters);
     if (altitudeScale <= 0.0f)
     {
         return 0.0f;
     }
 
-    return pressureMbar / powf(altitudeScale, kInversePressureExponent);
+    return pressureMbar / powf(altitudeScale, NuraConstants::Atmosphere::kInversePressureExponent);
 }

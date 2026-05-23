@@ -3,14 +3,10 @@
 #include <math.h>
 
 #include "board_pinmap.h"
+#include "nura_constants.h"
 
 namespace
 {
-    constexpr float kGravity = 9.80665f;
-    constexpr uint8_t kAuthKey[16] = {
-        0x4e, 0x55, 0x52, 0x41, 0x2d, 0x56, 0x31, 0x4c,
-        0x49, 0x54, 0x45, 0x2d, 0x54, 0x45, 0x53, 0x54};
-
     int16_t clampFloatToI16(float value)
     {
         if (!isfinite(value))
@@ -71,11 +67,11 @@ namespace
 
 bool TelemetryTask::AckQueue::push(const nura::ControlPayload &item)
 {
-    if (count >= 4U)
+    if (count >= NuraConstants::Telemetry::kAckQueueDepth)
     {
         return false;
     }
-    const uint8_t index = static_cast<uint8_t>((head + count) % 4U);
+    const uint8_t index = static_cast<uint8_t>((head + count) % NuraConstants::Telemetry::kAckQueueDepth);
     items[index] = item;
     ++count;
     return true;
@@ -88,7 +84,7 @@ bool TelemetryTask::AckQueue::pop(nura::ControlPayload &out)
         return false;
     }
     out = items[head];
-    head = static_cast<uint8_t>((head + 1U) % 4U);
+    head = static_cast<uint8_t>((head + 1U) % NuraConstants::Telemetry::kAckQueueDepth);
     --count;
     return true;
 }
@@ -283,7 +279,7 @@ void TelemetryTask::handleCommand(const nura::ParsedFrame &frame, const nura::Co
         return;
     }
 
-    if (!nura::verifyControlAuthTag(command, frame.seq, kAuthKey))
+    if (!nura::verifyControlAuthTag(command, frame.seq, NuraConstants::Telemetry::kControlAuthKey))
     {
         enqueueAck(command, nura::ACK_REJECTED, nura::RESULT_AUTH_FAILED, nura::REJECT_AUTH_TAG_MISMATCH);
         return;
@@ -394,7 +390,8 @@ void TelemetryTask::rememberCommand(const nura::ControlPayload &command)
     slot.commandId = command.commandId;
     slot.commandSeq = command.commandSeq;
     slot.nonce = command.nonce;
-    recentCommandWriteIndex_ = static_cast<uint8_t>((recentCommandWriteIndex_ + 1U) % 4U);
+    recentCommandWriteIndex_ = static_cast<uint8_t>((recentCommandWriteIndex_ + 1U) %
+                                                    NuraConstants::Telemetry::kRecentCommandDepth);
 }
 
 bool TelemetryTask::forceDeployAlreadyActive() const
@@ -430,9 +427,9 @@ nura::FastTelemetry TelemetryTask::buildFastTelemetry(uint32_t nowMs) const
     }
 
     const ImuData &imu = imuState_.data;
-    fast.lowAccelXCg = clampFloatToI16((imu.accelXMps2 / kGravity) * 100.0f);
-    fast.lowAccelYCg = clampFloatToI16((imu.accelYMps2 / kGravity) * 100.0f);
-    fast.lowAccelZCg = clampFloatToI16((imu.accelZMps2 / kGravity) * 100.0f);
+    fast.lowAccelXCg = clampFloatToI16((imu.accelXMps2 / NuraConstants::Physics::kGravityMps2) * 100.0f);
+    fast.lowAccelYCg = clampFloatToI16((imu.accelYMps2 / NuraConstants::Physics::kGravityMps2) * 100.0f);
+    fast.lowAccelZCg = clampFloatToI16((imu.accelZMps2 / NuraConstants::Physics::kGravityMps2) * 100.0f);
     fast.gyroXDps10 = clampFloatToI16(imu.gyroXDps * 10.0f);
     fast.gyroYDps10 = clampFloatToI16(imu.gyroYDps * 10.0f);
     fast.gyroZDps10 = clampFloatToI16(imu.gyroZDps * 10.0f);

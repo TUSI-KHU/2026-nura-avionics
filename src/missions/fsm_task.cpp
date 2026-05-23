@@ -93,7 +93,7 @@ void FlightStateMachineTask::tickArmed(uint32_t nowMs)
         return;
     }
 
-    if (highGAccelNorm() >= MissionConstants::kLaunchAccelThresholdG)
+    if (highGAccelNorm() >= NuraConstants::Flight::kLaunchAccelThresholdG)
     {
         ++launchConfirmCount_;
     }
@@ -102,7 +102,7 @@ void FlightStateMachineTask::tickArmed(uint32_t nowMs)
         launchConfirmCount_ = 0U;
     }
 
-    if (launchConfirmCount_ >= MissionConstants::kLaunchConfirmSamples)
+    if (launchConfirmCount_ >= NuraConstants::Flight::kLaunchConfirmSamples)
     {
         transitionTo(State::LAUNCH, highGImuState_.lastUpdatedMs);
     }
@@ -116,7 +116,7 @@ void FlightStateMachineTask::tickLaunch(uint32_t nowMs)
         return;
     }
 
-    if (highGAccelNorm() < MissionConstants::kBurnoutAccelThresholdG)
+    if (highGAccelNorm() < NuraConstants::Flight::kBurnoutAccelThresholdG)
     {
         ++burnoutConfirmCount_;
     }
@@ -125,7 +125,7 @@ void FlightStateMachineTask::tickLaunch(uint32_t nowMs)
         burnoutConfirmCount_ = 0U;
     }
 
-    if (burnoutConfirmCount_ >= MissionConstants::kBurnoutConfirmSamples)
+    if (burnoutConfirmCount_ >= NuraConstants::Flight::kBurnoutConfirmSamples)
     {
         transitionTo(State::COAST, highGImuState_.lastUpdatedMs);
     }
@@ -134,7 +134,7 @@ void FlightStateMachineTask::tickLaunch(uint32_t nowMs)
 void FlightStateMachineTask::tickCoast(uint32_t nowMs)
 {
     const uint32_t coastElapsedMs = nowMs - flightState_.coastMs;
-    if (coastElapsedMs >= MissionConstants::kApogeeTimeoutMs)
+    if (coastElapsedMs >= NuraConstants::Flight::kApogeeTimeoutMs)
     {
         transitionTo(State::APOGEE, nowMs);
         return;
@@ -152,7 +152,7 @@ void FlightStateMachineTask::tickCoast(uint32_t nowMs)
     }
 
     const uint32_t launchElapsedMs = telemetryState_.barometer.lastUpdatedMs - flightState_.launchMs;
-    const bool allowApogee = launchElapsedMs >= MissionConstants::kApogeeMinFlightTimeMs;
+    const bool allowApogee = launchElapsedMs >= NuraConstants::Flight::kApogeeMinFlightTimeMs;
     if (!allowApogee)
     {
         apogeeConfirmCount_ = 0U;
@@ -169,7 +169,7 @@ void FlightStateMachineTask::tickCoast(uint32_t nowMs)
         apogeeConfirmCount_ = 0U;
     }
 
-    if ((maxCoastAltitudeM_ - currentAltitudeM) >= MissionConstants::kApogeeDropThresholdM)
+    if ((maxCoastAltitudeM_ - currentAltitudeM) >= NuraConstants::Flight::kApogeeDropThresholdM)
     {
         ++descentConfirmCount_;
     }
@@ -178,8 +178,8 @@ void FlightStateMachineTask::tickCoast(uint32_t nowMs)
         descentConfirmCount_ = 0U;
     }
 
-    if (apogeeConfirmCount_ >= MissionConstants::kApogeeConfirmSamples ||
-        descentConfirmCount_ >= MissionConstants::kApogeeDescentConfirmSamples)
+    if (apogeeConfirmCount_ >= NuraConstants::Flight::kApogeeConfirmSamples ||
+        descentConfirmCount_ >= NuraConstants::Flight::kApogeeDescentConfirmSamples)
     {
         transitionTo(State::APOGEE, telemetryState_.barometer.lastUpdatedMs);
     }
@@ -189,20 +189,20 @@ void FlightStateMachineTask::tickApogee(uint32_t nowMs)
 {
     const uint32_t elapsedMs = nowMs - flightState_.apogeeMs;
 
-    if (!primaryDrogueOff_ && elapsedMs >= MissionConstants::kPyroFireDurationMs)
+    if (!primaryDrogueOff_ && elapsedMs >= NuraConstants::Flight::kPyroFireDurationMs)
     {
         // TODO: drive drogue primary pyro OFF when pyro HAL/pinmap is defined.
         primaryDrogueOff_ = true;
     }
 
-    if (!backupDrogueOn_ && elapsedMs >= MissionConstants::kDrogueBackupDelayMs)
+    if (!backupDrogueOn_ && elapsedMs >= NuraConstants::Flight::kDrogueBackupDelayMs)
     {
         // TODO: drive drogue backup pyro ON when pyro HAL/pinmap is defined.
         backupDrogueOn_ = true;
     }
 
     if (backupDrogueOn_ && !backupDrogueOff_ &&
-        elapsedMs >= (MissionConstants::kDrogueBackupDelayMs + MissionConstants::kPyroFireDurationMs))
+        elapsedMs >= (NuraConstants::Flight::kDrogueBackupDelayMs + NuraConstants::Flight::kPyroFireDurationMs))
     {
         // TODO: drive drogue backup pyro OFF when pyro HAL/pinmap is defined.
         backupDrogueOff_ = true;
@@ -216,8 +216,8 @@ void FlightStateMachineTask::tickDrogue(uint32_t nowMs)
     const uint32_t drogueElapsedMs = nowMs - flightState_.drogueMs;
     const bool mainAltitudeReached = telemetryState_.barometer.valid &&
                                      telemetryState_.barometer.referenceValid &&
-                                     telemetryState_.barometer.altitudeM <= MissionConstants::kMainDeployAltitudeM;
-    if (mainAltitudeReached || drogueElapsedMs >= MissionConstants::kMainTimeoutMs)
+                                     telemetryState_.barometer.altitudeM <= NuraConstants::Flight::kMainDeployAltitudeM;
+    if (mainAltitudeReached || drogueElapsedMs >= NuraConstants::Flight::kMainTimeoutMs)
     {
         transitionTo(State::DEPLOY, nowMs);
     }
@@ -226,7 +226,7 @@ void FlightStateMachineTask::tickDrogue(uint32_t nowMs)
 void FlightStateMachineTask::tickDeploy(uint32_t nowMs)
 {
     const uint32_t elapsedMs = nowMs - flightState_.deployMs;
-    if (!mainPyroOff_ && elapsedMs >= MissionConstants::kPyroFireDurationMs)
+    if (!mainPyroOff_ && elapsedMs >= NuraConstants::Flight::kPyroFireDurationMs)
     {
         // TODO: drive main pyro OFF when pyro HAL/pinmap is defined.
         mainPyroOff_ = true;
@@ -379,7 +379,7 @@ bool FlightStateMachineTask::consumeBarometerSample()
     }
 
     if (lastBarometerSampleMs_ != 0U &&
-        (baro.lastUpdatedMs - lastBarometerSampleMs_) > MissionConstants::kApogeeMaxBarometerSampleGapMs)
+        (baro.lastUpdatedMs - lastBarometerSampleMs_) > NuraConstants::Flight::kApogeeMaxBarometerSampleGapMs)
     {
         apogeeSampleHead_ = 0U;
         apogeeSampleCount_ = 0U;
@@ -397,8 +397,8 @@ void FlightStateMachineTask::pushApogeeSample(uint32_t sampleMs, float altitudeM
 {
     apogeeSamples_[apogeeSampleHead_].sampleMs = sampleMs;
     apogeeSamples_[apogeeSampleHead_].altitudeM = altitudeM;
-    apogeeSampleHead_ = static_cast<uint8_t>((apogeeSampleHead_ + 1U) % MissionConstants::kApogeeFitWindowSamples);
-    if (apogeeSampleCount_ < MissionConstants::kApogeeFitWindowSamples)
+    apogeeSampleHead_ = static_cast<uint8_t>((apogeeSampleHead_ + 1U) % NuraConstants::Flight::kApogeeFitWindowSamples);
+    if (apogeeSampleCount_ < NuraConstants::Flight::kApogeeFitWindowSamples)
     {
         ++apogeeSampleCount_;
     }
@@ -406,28 +406,28 @@ void FlightStateMachineTask::pushApogeeSample(uint32_t sampleMs, float altitudeM
 
 bool FlightStateMachineTask::apogeePredictionReady(float currentAltitudeM)
 {
-    if (apogeeSampleCount_ < MissionConstants::kApogeeFitWindowSamples ||
-        currentAltitudeM < MissionConstants::kMinApogeeDetectAltM)
+    if (apogeeSampleCount_ < NuraConstants::Flight::kApogeeFitWindowSamples ||
+        currentAltitudeM < NuraConstants::Flight::kMinApogeeDetectAltM)
     {
         return false;
     }
 
     ApogeeFit fit;
     if (!solveQuadratic(fit) ||
-        fit.a >= -MissionConstants::kApogeeMinCurvature ||
-        fit.a <= -MissionConstants::kApogeeMaxCurvature ||
-        fit.rmseM > MissionConstants::kApogeeMaxFitRmseM)
+        fit.a >= -NuraConstants::Flight::kApogeeMinCurvature ||
+        fit.a <= -NuraConstants::Flight::kApogeeMaxCurvature ||
+        fit.rmseM > NuraConstants::Flight::kApogeeMaxFitRmseM)
     {
         return false;
     }
 
-    const uint8_t lastIndex = static_cast<uint8_t>((apogeeSampleHead_ + MissionConstants::kApogeeFitWindowSamples - 1U) %
-                                                  MissionConstants::kApogeeFitWindowSamples);
+    const uint8_t lastIndex = static_cast<uint8_t>((apogeeSampleHead_ + NuraConstants::Flight::kApogeeFitWindowSamples - 1U) %
+                                                  NuraConstants::Flight::kApogeeFitWindowSamples);
     const uint8_t firstIndex = apogeeSampleHead_;
     const float lastT = static_cast<float>(apogeeSamples_[lastIndex].sampleMs - apogeeSamples_[firstIndex].sampleMs) / 1000.0f;
     const float tApogee = -fit.b / (2.0f * fit.a);
     if (!isfinite(tApogee) || tApogee <= lastT ||
-        (tApogee - lastT) > MissionConstants::kApogeeMaxPredictAheadS)
+        (tApogee - lastT) > NuraConstants::Flight::kApogeeMaxPredictAheadS)
     {
         return false;
     }
@@ -436,7 +436,7 @@ bool FlightStateMachineTask::apogeePredictionReady(float currentAltitudeM)
     const float rawMarginM = rawApogeeM - currentAltitudeM;
     if (!isfinite(rawApogeeM) ||
         rawMarginM < 0.0f ||
-        rawMarginM > MissionConstants::kApogeeMaxAltMarginM ||
+        rawMarginM > NuraConstants::Flight::kApogeeMaxAltMarginM ||
         !pushApogeePrediction(rawApogeeM))
     {
         return false;
@@ -451,8 +451,8 @@ bool FlightStateMachineTask::apogeePredictionReady(float currentAltitudeM)
     const float aggregatedMarginM = aggregatedApogeeM - currentAltitudeM;
     return isfinite(aggregatedApogeeM) &&
            aggregatedMarginM >= 0.0f &&
-           aggregatedMarginM <= MissionConstants::kApogeeDeployAltMarginM &&
-           aggregatedMarginM <= MissionConstants::kApogeeMaxAltMarginM;
+           aggregatedMarginM <= NuraConstants::Flight::kApogeeDeployAltMarginM &&
+           aggregatedMarginM <= NuraConstants::Flight::kApogeeMaxAltMarginM;
 }
 
 bool FlightStateMachineTask::pushApogeePrediction(float predictionM)
@@ -464,17 +464,17 @@ bool FlightStateMachineTask::pushApogeePrediction(float predictionM)
 
     if (apogeePredictionCount_ > 0U)
     {
-        const uint8_t lastIndex = static_cast<uint8_t>((apogeePredictionHead_ + MissionConstants::kApogeePredictionHistorySamples - 1U) %
-                                                      MissionConstants::kApogeePredictionHistorySamples);
-        if (fabsf(predictionM - apogeePredictions_[lastIndex]) > MissionConstants::kApogeeMaxPredictionJumpM)
+        const uint8_t lastIndex = static_cast<uint8_t>((apogeePredictionHead_ + NuraConstants::Flight::kApogeePredictionHistorySamples - 1U) %
+                                                      NuraConstants::Flight::kApogeePredictionHistorySamples);
+        if (fabsf(predictionM - apogeePredictions_[lastIndex]) > NuraConstants::Flight::kApogeeMaxPredictionJumpM)
         {
             return false;
         }
     }
 
     apogeePredictions_[apogeePredictionHead_] = predictionM;
-    apogeePredictionHead_ = static_cast<uint8_t>((apogeePredictionHead_ + 1U) % MissionConstants::kApogeePredictionHistorySamples);
-    if (apogeePredictionCount_ < MissionConstants::kApogeePredictionHistorySamples)
+    apogeePredictionHead_ = static_cast<uint8_t>((apogeePredictionHead_ + 1U) % NuraConstants::Flight::kApogeePredictionHistorySamples);
+    if (apogeePredictionCount_ < NuraConstants::Flight::kApogeePredictionHistorySamples)
     {
         ++apogeePredictionCount_;
     }
@@ -483,39 +483,39 @@ bool FlightStateMachineTask::pushApogeePrediction(float predictionM)
 
 bool FlightStateMachineTask::plusTwoSigmaApogee(float &predictionM) const
 {
-    if (apogeePredictionCount_ < MissionConstants::kApogeePredictionHistorySamples)
+    if (apogeePredictionCount_ < NuraConstants::Flight::kApogeePredictionHistorySamples)
     {
         return false;
     }
 
     float sum = 0.0f;
-    for (uint8_t i = 0U; i < MissionConstants::kApogeePredictionHistorySamples; ++i)
+    for (uint8_t i = 0U; i < NuraConstants::Flight::kApogeePredictionHistorySamples; ++i)
     {
         sum += apogeePredictions_[i];
     }
-    const float mean = sum / static_cast<float>(MissionConstants::kApogeePredictionHistorySamples);
+    const float mean = sum / static_cast<float>(NuraConstants::Flight::kApogeePredictionHistorySamples);
 
     float variance = 0.0f;
-    for (uint8_t i = 0U; i < MissionConstants::kApogeePredictionHistorySamples; ++i)
+    for (uint8_t i = 0U; i < NuraConstants::Flight::kApogeePredictionHistorySamples; ++i)
     {
         const float error = apogeePredictions_[i] - mean;
         variance += error * error;
     }
-    variance /= static_cast<float>(MissionConstants::kApogeePredictionHistorySamples);
+    variance /= static_cast<float>(NuraConstants::Flight::kApogeePredictionHistorySamples);
 
     const float sigma = sqrtf(variance);
-    if (!isfinite(mean) || !isfinite(sigma) || sigma > MissionConstants::kApogeeMaxPredictionSigmaM)
+    if (!isfinite(mean) || !isfinite(sigma) || sigma > NuraConstants::Flight::kApogeeMaxPredictionSigmaM)
     {
         return false;
     }
 
-    predictionM = mean + (MissionConstants::kApogeeAggregationSigmaMultiplier * sigma);
+    predictionM = mean + (NuraConstants::Flight::kApogeeAggregationSigmaMultiplier * sigma);
     return isfinite(predictionM);
 }
 
 bool FlightStateMachineTask::solveQuadratic(ApogeeFit &fit) const
 {
-    const uint8_t n = MissionConstants::kApogeeFitWindowSamples;
+    const uint8_t n = NuraConstants::Flight::kApogeeFitWindowSamples;
     const uint8_t firstIndex = apogeeSampleHead_;
     const uint32_t t0 = apogeeSamples_[firstIndex].sampleMs;
 

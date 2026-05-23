@@ -13,6 +13,7 @@
 #include "hal/mpl3115a2_hal.h"
 #include "hal/sx127x_lora_hal.h"
 #include "hal/ublox_m6_gnss_hal.h"
+#include "nura_constants.h"
 #include "nura_protocol_v1_lite.h"
 #include "sensors/barometer_task.h"
 #include "sensors/gnss_task.h"
@@ -27,10 +28,6 @@
 
 namespace
 {
-    constexpr uint32_t kTaskExerciseMs = 12000UL;
-    constexpr float kMinGroundPressurePa = 80000.0f;
-    constexpr float kMaxGroundPressurePa = 110000.0f;
-
     struct TestStats
     {
         uint8_t total = 0;
@@ -88,8 +85,8 @@ namespace
     bool pressurePlausible(float pressurePa)
     {
         return isfinite(pressurePa) &&
-               pressurePa >= kMinGroundPressurePa &&
-               pressurePa <= kMaxGroundPressurePa;
+               pressurePa >= NuraConstants::Diagnostics::kHardwareIntegrationMinGroundPressurePa &&
+               pressurePa <= NuraConstants::Diagnostics::kHardwareIntegrationMaxGroundPressurePa;
     }
 
     uint8_t readSpiRegisterRaw(uint8_t csPin, uint32_t spiFrequency, uint8_t spiMode, uint8_t address)
@@ -110,17 +107,15 @@ namespace
 
     void printLsm6dso32WhoAmI()
     {
-        constexpr uint8_t kWhoAmIReg = 0x0FU;
-        constexpr uint32_t kProbeSpiHz = 1000000UL;
         const uint8_t modes[4] = {SPI_MODE0, SPI_MODE1, SPI_MODE2, SPI_MODE3};
 
         Serial.print("LSM6DSO32_SPI_WHOAMI");
         for (uint8_t i = 0U; i < 4U; ++i)
         {
             const uint8_t value = readSpiRegisterRaw(BoardPinMap::LSM6DSO32::csPin,
-                                                     kProbeSpiHz,
+                                                     NuraConstants::LSM6DSO32::kProbeSpiHz,
                                                      modes[i],
-                                                     kWhoAmIReg);
+                                                     NuraConstants::LSM6DSO32::kWhoAmIRegister);
             Serial.print(" m");
             Serial.print(i);
             Serial.print("=0x");
@@ -205,8 +200,6 @@ namespace
 
     bool probeLoraVersion(const Sx127xLoRaConfig &config)
     {
-        constexpr uint8_t kRegVersion = 0x42U;
-        constexpr uint8_t kExpectedVersion = 0x12U;
         const uint8_t modes[4] = {SPI_MODE0, SPI_MODE1, SPI_MODE2, SPI_MODE3};
         bool ok = false;
 
@@ -214,7 +207,7 @@ namespace
         Serial.print("LORA_SPI_VERSION");
         for (uint8_t i = 0U; i < 4U; ++i)
         {
-            const uint8_t version = readLoraRegisterRaw(config, modes[i], kRegVersion);
+            const uint8_t version = readLoraRegisterRaw(config, modes[i], NuraConstants::LoRa::kRegVersion);
             Serial.print(" m");
             Serial.print(i);
             Serial.print("=0x");
@@ -223,7 +216,7 @@ namespace
                 Serial.print("0");
             }
             Serial.print(version, HEX);
-            ok = ok || version == kExpectedVersion;
+            ok = ok || version == NuraConstants::LoRa::kExpectedVersion;
         }
         Serial.println();
         return ok;
@@ -351,7 +344,7 @@ namespace
         uint32_t lastSnapMs = 0UL;
         const uint32_t startMs = millis();
 
-        while ((millis() - startMs) < kTaskExerciseMs)
+        while ((millis() - startMs) < NuraConstants::Diagnostics::kHardwareIntegrationExerciseMs)
         {
             const uint32_t nowMs = millis();
             if ((nowMs - lastImuMs) >= imuTask.periodMs())
@@ -452,7 +445,7 @@ namespace
 
 void setup()
 {
-    Serial.begin(115200);
+    Serial.begin(NuraConstants::App::kSerialBaudRate);
     while (!Serial && millis() < 4000UL)
     {
     }

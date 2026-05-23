@@ -6,50 +6,50 @@
 #include "core/logger/logger.h"
 #include "hal/mock_flight_data_hal.h"
 #include "missions/fsm_task.h"
-#include "missions/mission_constants.h"
+#include "nura_constants.h"
 
 namespace
 {
-constexpr float kGravityMps2 = 9.80665f;
-constexpr uint32_t kTickMs = 10U;
-constexpr uint32_t kBaroPeriodMs = 50U;
+constexpr float kGravityMps2 = NuraConstants::Physics::kGravityMps2;
+constexpr uint32_t kTickMs = NuraConstants::Tasks::kFlightStateTaskPeriodMs;
+constexpr uint32_t kBaroPeriodMs = NuraConstants::Sensors::kBarometerTaskPeriodMs;
 
 struct FakeConfig : public IAppConfig
 {
-    unsigned long serialBaudRate() const override { return 115200UL; }
+    unsigned long serialBaudRate() const override { return NuraConstants::App::kSerialBaudRate; }
     uint8_t statusIndicatorPin() const override { return 13U; }
-    uint16_t faultBlinkIntervalMs() const override { return 1000U; }
+    uint16_t faultBlinkIntervalMs() const override { return NuraConstants::App::kFaultBlinkIntervalMs; }
     uint8_t imuCsPin() const override { return 6U; }
-    uint8_t imuReadFailureThreshold() const override { return 3U; }
-    uint8_t imuMaxRecoveryAttempts() const override { return 5U; }
-    uint32_t imuRecoveryIntervalMs() const override { return 1000U; }
-    uint32_t imuTaskPeriodMs() const override { return 10U; }
-    uint32_t magnetometerTaskPeriodMs() const override { return 100U; }
-    uint32_t barometerTaskPeriodMs() const override { return 50U; }
-    uint32_t barometerRecoveryIntervalMs() const override { return 1000U; }
-    uint32_t gnssTaskPeriodMs() const override { return 50U; }
-    uint16_t gnssPollByteBudget() const override { return 128U; }
-    uint32_t gnssMaxFixAgeMs() const override { return 2000U; }
-    uint32_t watchdogTaskPeriodMs() const override { return 50U; }
+    uint8_t imuReadFailureThreshold() const override { return NuraConstants::Sensors::kImuReadFailureThreshold; }
+    uint8_t imuMaxRecoveryAttempts() const override { return NuraConstants::Sensors::kImuMaxRecoveryAttempts; }
+    uint32_t imuRecoveryIntervalMs() const override { return NuraConstants::Sensors::kImuRecoveryIntervalMs; }
+    uint32_t imuTaskPeriodMs() const override { return NuraConstants::Sensors::kImuTaskPeriodMs; }
+    uint32_t magnetometerTaskPeriodMs() const override { return NuraConstants::Sensors::kMagnetometerTaskPeriodMs; }
+    uint32_t barometerTaskPeriodMs() const override { return NuraConstants::Sensors::kBarometerTaskPeriodMs; }
+    uint32_t barometerRecoveryIntervalMs() const override { return NuraConstants::Sensors::kBarometerRecoveryIntervalMs; }
+    uint32_t gnssTaskPeriodMs() const override { return NuraConstants::Sensors::kGnssTaskPeriodMs; }
+    uint16_t gnssPollByteBudget() const override { return NuraConstants::Sensors::kGnssPollByteBudget; }
+    uint32_t gnssMaxFixAgeMs() const override { return NuraConstants::Sensors::kGnssMaxFixAgeMs; }
+    uint32_t watchdogTaskPeriodMs() const override { return NuraConstants::Tasks::kWatchdogTaskPeriodMs; }
     uint32_t flightStateTaskPeriodMs() const override { return kTickMs; }
-    uint32_t loggerTaskPeriodMs() const override { return 20U; }
-    uint32_t telemetryTaskPeriodMs() const override { return 20U; }
-    uint32_t telemetryFastPeriodMs() const override { return 200U; }
-    uint32_t telemetryGpsPeriodMs() const override { return 1000U; }
-    uint32_t telemetrySensorFreshMs() const override { return 1500U; }
-    uint8_t loggerDrainBudget() const override { return 4U; }
-    uint8_t loggerOutputFailThreshold() const override { return 3U; }
-    long loraFrequencyHz() const override { return 920900000L; }
-    uint32_t loraSpiFrequencyHz() const override { return 8000000UL; }
-    int loraTxPowerDbm() const override { return 17; }
-    int loraSpreadingFactor() const override { return 7; }
-    long loraSignalBandwidthHz() const override { return 125000L; }
-    int loraCodingRateDenominator() const override { return 5; }
-    long loraPreambleLength() const override { return 8L; }
-    int loraSyncWord() const override { return 0x12; }
-    uint8_t loraInitAttempts() const override { return 1U; }
-    uint8_t loraSpiMode() const override { return 0U; }
-    bool loraProbeSpiMode() const override { return false; }
+    uint32_t loggerTaskPeriodMs() const override { return NuraConstants::Tasks::kLoggerTaskPeriodMs; }
+    uint32_t telemetryTaskPeriodMs() const override { return NuraConstants::Tasks::kTelemetryTaskPeriodMs; }
+    uint32_t telemetryFastPeriodMs() const override { return NuraConstants::Telemetry::kFastPeriodMs; }
+    uint32_t telemetryGpsPeriodMs() const override { return NuraConstants::Telemetry::kGpsPeriodMs; }
+    uint32_t telemetrySensorFreshMs() const override { return NuraConstants::Telemetry::kSensorFreshMs; }
+    uint8_t loggerDrainBudget() const override { return NuraConstants::Logger::kDrainBudget; }
+    uint8_t loggerOutputFailThreshold() const override { return NuraConstants::Logger::kOutputFailThreshold; }
+    long loraFrequencyHz() const override { return NuraConstants::LoRa::kFlightFrequencyHz; }
+    uint32_t loraSpiFrequencyHz() const override { return NuraConstants::LoRa::kFlightSpiFrequencyHz; }
+    int loraTxPowerDbm() const override { return NuraConstants::LoRa::kFlightTxPowerDbm; }
+    int loraSpreadingFactor() const override { return NuraConstants::LoRa::kSpreadingFactor; }
+    long loraSignalBandwidthHz() const override { return NuraConstants::LoRa::kSignalBandwidthHz; }
+    int loraCodingRateDenominator() const override { return NuraConstants::LoRa::kCodingRateDenominator; }
+    long loraPreambleLength() const override { return NuraConstants::LoRa::kPreambleLength; }
+    int loraSyncWord() const override { return NuraConstants::LoRa::kSyncWord; }
+    uint8_t loraInitAttempts() const override { return NuraConstants::LoRa::kFlightInitAttempts; }
+    uint8_t loraSpiMode() const override { return NuraConstants::LoRa::kFlightSpiMode; }
+    bool loraProbeSpiMode() const override { return NuraConstants::LoRa::kFlightProbeSpiMode; }
 };
 
 struct FakePanicHandler : public IPanicHandler
@@ -60,7 +60,7 @@ struct FakePanicHandler : public IPanicHandler
 
 struct BaroFilter
 {
-    float window[3] = {0.0f, 0.0f, 0.0f};
+    float window[NuraConstants::Sensors::kBarometerMedianWindowSamples] = {0.0f, 0.0f, 0.0f};
     uint8_t head = 0U;
     uint8_t count = 0U;
     float filtered = 0.0f;
@@ -69,13 +69,13 @@ struct BaroFilter
     float push(float raw)
     {
         window[head] = raw;
-        head = static_cast<uint8_t>((head + 1U) % 3U);
-        if (count < 3U)
+        head = static_cast<uint8_t>((head + 1U) % NuraConstants::Sensors::kBarometerMedianWindowSamples);
+        if (count < NuraConstants::Sensors::kBarometerMedianWindowSamples)
         {
             ++count;
         }
 
-        float values[3] = {window[0], window[1], window[2]};
+        float values[NuraConstants::Sensors::kBarometerMedianWindowSamples] = {window[0], window[1], window[2]};
         for (uint8_t i = 1U; i < count; ++i)
         {
             const float value = values[i];
@@ -96,7 +96,7 @@ struct BaroFilter
         }
         else
         {
-            filtered += 0.35f * (median - filtered);
+            filtered += NuraConstants::Sensors::kBarometerAltitudeLpfAlpha * (median - filtered);
         }
         return filtered;
     }
@@ -424,7 +424,7 @@ bool checkFullFlight(const Scenario &scenario)
     {
         return fail(scenario.name, "dangerously early apogee transition by altitude");
     }
-    if (result.drogueMs < result.apogeeMs + MissionConstants::kDrogueBackupDelayMs)
+    if (result.drogueMs < result.apogeeMs + NuraConstants::Flight::kDrogueBackupDelayMs)
     {
         return fail(scenario.name, "drogue transition before backup sequence complete");
     }

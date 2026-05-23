@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#include "nura_constants.h"
+
 enum class MockFlightScenarioId : uint8_t
 {
     NOMINAL = 0U,
@@ -49,14 +51,7 @@ public:
     const char *scenarioName() const;
 
 private:
-    struct ScenarioParams
-    {
-        float launchTimeS;
-        float burnoutTimeS;
-        float apogeeTimeS;
-        float apogeeAltitudeM;
-        float descentRateMps;
-    };
+    using ScenarioParams = NuraConstants::Mock::FlightProfile;
 
     static ScenarioParams paramsFor(MockFlightScenarioId scenario);
     static const char *nameFor(MockFlightScenarioId scenario);
@@ -66,7 +61,7 @@ private:
     float filteredAltitude(float rawAltitudeM);
 
     MockFlightScenarioId scenario_ = MockFlightScenarioId::NOMINAL;
-    float altitudeWindowM_[3] = {0.0f, 0.0f, 0.0f};
+    float altitudeWindowM_[NuraConstants::Sensors::kBarometerMedianWindowSamples] = {0.0f, 0.0f, 0.0f};
     uint8_t altitudeWindowHead_ = 0U;
     uint8_t altitudeWindowCount_ = 0U;
     float filteredAltitudeM_ = 0.0f;

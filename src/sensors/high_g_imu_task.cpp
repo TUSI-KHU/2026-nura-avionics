@@ -2,10 +2,7 @@
 
 #include <Arduino.h>
 
-namespace
-{
-    constexpr uint32_t kSampleLogIntervalMs = 1000U;
-}
+#include "nura_constants.h"
 
 HighGImuTask::HighGImuTask(H3LIS331DLHAL &imu,
                            HighGImuState &imuState,
@@ -136,7 +133,7 @@ void HighGImuTask::updateState(const H3LIS331DLReading &sample)
 
 void HighGImuTask::logSample(uint32_t nowMs)
 {
-    if ((nowMs - lastSampleLogMs_) < kSampleLogIntervalMs)
+    if ((nowMs - lastSampleLogMs_) < NuraConstants::Sensors::kHighGSampleLogIntervalMs)
     {
         return;
     }

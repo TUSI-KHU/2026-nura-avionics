@@ -2,6 +2,7 @@
 
 #include "app/app_config.h"
 #include "hal/ublox_m6_gnss_hal.h"
+#include "nura_constants.h"
 #include "sensors/gnss_task.h"
 #include "state/gps_state.h"
 
@@ -12,7 +13,6 @@ namespace
     GpsState gpsState;
     GNSSTask gnssTask{gnssHal, gpsState, config};
 
-    constexpr uint32_t kPrintPeriodMs = 1000U;
     uint32_t lastPrintMs = 0;
 
     void printGpsState(uint32_t nowMs)
@@ -67,7 +67,7 @@ namespace
 
 void setup()
 {
-    Serial.begin(115200);
+    Serial.begin(NuraConstants::App::kSerialBaudRate);
     while (!Serial && millis() < 4000U)
     {
     }
@@ -92,7 +92,7 @@ void loop()
     const uint32_t nowMs = millis();
     gnssTask.tick(nowMs);
 
-    if (nowMs - lastPrintMs >= kPrintPeriodMs)
+    if (nowMs - lastPrintMs >= NuraConstants::Diagnostics::kGnssPrintPeriodMs)
     {
         lastPrintMs = nowMs;
         printGpsState(nowMs);

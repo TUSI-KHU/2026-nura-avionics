@@ -387,7 +387,7 @@ check implementation drift quickly.
 | Logic / data | File | Code location / function | Notes |
 | --- | --- | --- | --- |
 | State enum and printable names | `src/core/states.h` | `enum class State`, `stateName()` | IDs match the telemetry state code table. |
-| Mission thresholds and timeouts | `src/missions/mission_constants.h` | `MissionConstants::*` | Flight constants are centralized here except barometer filter constants, which are local to the sensor task. |
+| Mission thresholds and timeouts | `include/nura_constants.h` | `NuraConstants::Flight::*` | Flight constants are centralized here; protocol layout and board pins stay in their own source-of-truth files. |
 | FSM task construction | `src/app/flight_controller_app.h` | `fsmTask_` member initialization | Passes `FlightState`, `AbortState`, `HighGImuState`, and `TelemetryState` into the FSM. |
 | FSM shared state | `src/state/flight_state.h` | `FlightState` | Stores current state and entry timestamps: launch, coast, apogee, drogue, deploy. |
 | Barometer telemetry fields | `src/state/telemetry_state.h` | `BarometerTelemetryData` | `rawAltitudeM` is unfiltered; `altitudeM` is filtered and used by FSM. |

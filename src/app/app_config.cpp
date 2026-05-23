@@ -1,233 +1,202 @@
 #include "app/app_config.h"
 
-#include <SPI.h>
-
 #include "board_pinmap.h"
+#include "nura_constants.h"
 
-// EEPROM이나 SPI Flash 등을 사용하지 않고 콘픽을 하드코딩
-// 해두는 단계이기 때문에 전역 Private Namespace에서 값을 리턴하는
-// 식으로 클래스를 구성했다.
+// EEPROM이나 SPI Flash 등을 사용하지 않고 컴파일 타임 상수를 리턴하는
+// 단계이다. 동작 파라미터는 nura_constants.h, 물리 핀맵은 board_pinmap.h를 따른다.
 // TODO: Write an interface for EEPROM config store.
-
-namespace
-{
-    constexpr unsigned long kSerialBaudRate = 115200UL;
-    constexpr uint8_t kStatusIndicatorPin = BoardPinMap::StatusIndicator::pin;
-    constexpr uint16_t kFaultBlinkIntervalMs = 1000U;
-
-    constexpr uint8_t kImuCsPin = BoardPinMap::LSM6DSO32::csPin;
-    constexpr uint8_t kImuReadFailureThreshold = 3U;
-    constexpr uint8_t kImuMaxRecoveryAttempts = 5U;
-    constexpr uint32_t kImuRecoveryIntervalMs = 1000U;
-    constexpr uint32_t kImuTaskPeriodMs = 10U;
-    constexpr uint32_t kMagnetometerTaskPeriodMs = 100U;
-    constexpr uint32_t kBarometerTaskPeriodMs = 50U;
-    constexpr uint32_t kBarometerRecoveryIntervalMs = 1000U;
-    constexpr uint32_t kGnssTaskPeriodMs = 50U;
-    constexpr uint16_t kGnssPollByteBudget = 128U;
-    constexpr uint32_t kGnssMaxFixAgeMs = 2000U;
-
-    constexpr uint32_t kWatchdogTaskPeriodMs = 50U;
-    constexpr uint32_t kFlightStateTaskPeriodMs = 10U;
-    constexpr uint32_t kLoggerTaskPeriodMs = 20U;
-    constexpr uint32_t kTelemetryTaskPeriodMs = 20U;
-    constexpr uint32_t kTelemetryFastPeriodMs = 200U;
-    constexpr uint32_t kTelemetryGpsPeriodMs = 1000U;
-    constexpr uint32_t kTelemetrySensorFreshMs = 1500U;
-
-    // TODO: Tune MPL3115A2 oversampling for the 50 ms barometer period.
-
-    constexpr uint8_t kLoggerDrainBudget = 4U;
-    constexpr uint8_t kLoggerOutputFailThreshold = 3U;
-
-#if defined(NURA_DEV_SX1278)
-    constexpr long kLoraFrequencyHz = 433000000L;
-    constexpr uint32_t kLoraSpiFrequencyHz = 125000UL;
-    constexpr int kLoraTxPowerDbm = 10;
-    constexpr uint8_t kLoraInitAttempts = 5U;
-    constexpr uint8_t kLoraSpiMode = SPI_MODE1;
-    constexpr bool kLoraProbeSpiMode = true;
-#else
-    constexpr long kLoraFrequencyHz = 920900000L;
-    constexpr uint32_t kLoraSpiFrequencyHz = 8000000UL;
-    constexpr int kLoraTxPowerDbm = 17;
-    constexpr uint8_t kLoraInitAttempts = 1U;
-    constexpr uint8_t kLoraSpiMode = SPI_MODE0;
-    constexpr bool kLoraProbeSpiMode = false;
-#endif
-    constexpr int kLoraSpreadingFactor = 7;
-    constexpr long kLoraSignalBandwidthHz = 125000L;
-    constexpr int kLoraCodingRateDenominator = 5;
-    constexpr long kLoraPreambleLength = 8L;
-    constexpr int kLoraSyncWord = 0x12;
-}
 
 unsigned long DefaultAppConfig::serialBaudRate() const
 {
-    return kSerialBaudRate;
+    return NuraConstants::App::kSerialBaudRate;
 }
 
 uint8_t DefaultAppConfig::statusIndicatorPin() const
 {
-    return kStatusIndicatorPin;
+    return BoardPinMap::StatusIndicator::pin;
 }
 
 uint16_t DefaultAppConfig::faultBlinkIntervalMs() const
 {
-    return kFaultBlinkIntervalMs;
+    return NuraConstants::App::kFaultBlinkIntervalMs;
 }
 
 uint8_t DefaultAppConfig::imuCsPin() const
 {
-    return kImuCsPin;
+    return BoardPinMap::LSM6DSO32::csPin;
 }
 
 uint8_t DefaultAppConfig::imuReadFailureThreshold() const
 {
-    return kImuReadFailureThreshold;
+    return NuraConstants::Sensors::kImuReadFailureThreshold;
 }
 
 uint8_t DefaultAppConfig::imuMaxRecoveryAttempts() const
 {
-    return kImuMaxRecoveryAttempts;
+    return NuraConstants::Sensors::kImuMaxRecoveryAttempts;
 }
 
 uint32_t DefaultAppConfig::imuRecoveryIntervalMs() const
 {
-    return kImuRecoveryIntervalMs;
+    return NuraConstants::Sensors::kImuRecoveryIntervalMs;
 }
 
 uint32_t DefaultAppConfig::imuTaskPeriodMs() const
 {
-    return kImuTaskPeriodMs;
+    return NuraConstants::Sensors::kImuTaskPeriodMs;
 }
 
 uint32_t DefaultAppConfig::magnetometerTaskPeriodMs() const
 {
-    return kMagnetometerTaskPeriodMs;
+    return NuraConstants::Sensors::kMagnetometerTaskPeriodMs;
 }
 
 uint32_t DefaultAppConfig::barometerTaskPeriodMs() const
 {
-    return kBarometerTaskPeriodMs;
+    return NuraConstants::Sensors::kBarometerTaskPeriodMs;
 }
 
 uint32_t DefaultAppConfig::barometerRecoveryIntervalMs() const
 {
-    return kBarometerRecoveryIntervalMs;
+    return NuraConstants::Sensors::kBarometerRecoveryIntervalMs;
 }
 
 uint32_t DefaultAppConfig::gnssTaskPeriodMs() const
 {
-    return kGnssTaskPeriodMs;
+    return NuraConstants::Sensors::kGnssTaskPeriodMs;
 }
 
 uint16_t DefaultAppConfig::gnssPollByteBudget() const
 {
-    return kGnssPollByteBudget;
+    return NuraConstants::Sensors::kGnssPollByteBudget;
 }
 
 uint32_t DefaultAppConfig::gnssMaxFixAgeMs() const
 {
-    return kGnssMaxFixAgeMs;
+    return NuraConstants::Sensors::kGnssMaxFixAgeMs;
 }
 
 uint32_t DefaultAppConfig::watchdogTaskPeriodMs() const
 {
-    return kWatchdogTaskPeriodMs;
+    return NuraConstants::Tasks::kWatchdogTaskPeriodMs;
 }
 
 uint32_t DefaultAppConfig::flightStateTaskPeriodMs() const
 {
-    return kFlightStateTaskPeriodMs;
+    return NuraConstants::Tasks::kFlightStateTaskPeriodMs;
 }
 
 uint32_t DefaultAppConfig::loggerTaskPeriodMs() const
 {
-    return kLoggerTaskPeriodMs;
+    return NuraConstants::Tasks::kLoggerTaskPeriodMs;
 }
 
 uint32_t DefaultAppConfig::telemetryTaskPeriodMs() const
 {
-    return kTelemetryTaskPeriodMs;
+    return NuraConstants::Tasks::kTelemetryTaskPeriodMs;
 }
 
 uint32_t DefaultAppConfig::telemetryFastPeriodMs() const
 {
-    return kTelemetryFastPeriodMs;
+    return NuraConstants::Telemetry::kFastPeriodMs;
 }
 
 uint32_t DefaultAppConfig::telemetryGpsPeriodMs() const
 {
-    return kTelemetryGpsPeriodMs;
+    return NuraConstants::Telemetry::kGpsPeriodMs;
 }
 
 uint32_t DefaultAppConfig::telemetrySensorFreshMs() const
 {
-    return kTelemetrySensorFreshMs;
+    return NuraConstants::Telemetry::kSensorFreshMs;
 }
 
 uint8_t DefaultAppConfig::loggerDrainBudget() const
 {
-    return kLoggerDrainBudget;
+    return NuraConstants::Logger::kDrainBudget;
 }
 
 uint8_t DefaultAppConfig::loggerOutputFailThreshold() const
 {
-    return kLoggerOutputFailThreshold;
+    return NuraConstants::Logger::kOutputFailThreshold;
 }
 
 long DefaultAppConfig::loraFrequencyHz() const
 {
-    return kLoraFrequencyHz;
+#if defined(NURA_DEV_SX1278)
+    return NuraConstants::LoRa::kDevFrequencyHz;
+#else
+    return NuraConstants::LoRa::kFlightFrequencyHz;
+#endif
 }
 
 uint32_t DefaultAppConfig::loraSpiFrequencyHz() const
 {
-    return kLoraSpiFrequencyHz;
+#if defined(NURA_DEV_SX1278)
+    return NuraConstants::LoRa::kDevSpiFrequencyHz;
+#else
+    return NuraConstants::LoRa::kFlightSpiFrequencyHz;
+#endif
 }
 
 int DefaultAppConfig::loraTxPowerDbm() const
 {
-    return kLoraTxPowerDbm;
+#if defined(NURA_DEV_SX1278)
+    return NuraConstants::LoRa::kDevTxPowerDbm;
+#else
+    return NuraConstants::LoRa::kFlightTxPowerDbm;
+#endif
 }
 
 int DefaultAppConfig::loraSpreadingFactor() const
 {
-    return kLoraSpreadingFactor;
+    return NuraConstants::LoRa::kSpreadingFactor;
 }
 
 long DefaultAppConfig::loraSignalBandwidthHz() const
 {
-    return kLoraSignalBandwidthHz;
+    return NuraConstants::LoRa::kSignalBandwidthHz;
 }
 
 int DefaultAppConfig::loraCodingRateDenominator() const
 {
-    return kLoraCodingRateDenominator;
+    return NuraConstants::LoRa::kCodingRateDenominator;
 }
 
 long DefaultAppConfig::loraPreambleLength() const
 {
-    return kLoraPreambleLength;
+    return NuraConstants::LoRa::kPreambleLength;
 }
 
 int DefaultAppConfig::loraSyncWord() const
 {
-    return kLoraSyncWord;
+    return NuraConstants::LoRa::kSyncWord;
 }
 
 uint8_t DefaultAppConfig::loraInitAttempts() const
 {
-    return kLoraInitAttempts;
+#if defined(NURA_DEV_SX1278)
+    return NuraConstants::LoRa::kDevInitAttempts;
+#else
+    return NuraConstants::LoRa::kFlightInitAttempts;
+#endif
 }
 
 uint8_t DefaultAppConfig::loraSpiMode() const
 {
-    return kLoraSpiMode;
+#if defined(NURA_DEV_SX1278)
+    return NuraConstants::LoRa::kDevSpiMode;
+#else
+    return NuraConstants::LoRa::kFlightSpiMode;
+#endif
 }
 
 bool DefaultAppConfig::loraProbeSpiMode() const
 {
-    return kLoraProbeSpiMode;
+#if defined(NURA_DEV_SX1278)
+    return NuraConstants::LoRa::kDevProbeSpiMode;
+#else
+    return NuraConstants::LoRa::kFlightProbeSpiMode;
+#endif
 }

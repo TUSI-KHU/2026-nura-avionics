@@ -6,6 +6,7 @@
 #include "core/logger/logger.h"
 #include "core/tasks.h"
 #include "hal/mpl3115a2_hal.h"
+#include "nura_constants.h"
 #include "state/telemetry_state.h"
 
 class BarometerTask : public Task
@@ -29,7 +30,7 @@ private:
     const IAppConfig &config_;
     bool initialized_ = false;
     uint32_t lastInitAttemptMs_ = 0;
-    float altitudeWindowM_[3] = {0.0f, 0.0f, 0.0f};
+    float altitudeWindowM_[NuraConstants::Sensors::kBarometerMedianWindowSamples] = {0.0f, 0.0f, 0.0f};
     uint8_t altitudeWindowHead_ = 0U;
     uint8_t altitudeWindowCount_ = 0U;
     float filteredAltitudeM_ = 0.0f;

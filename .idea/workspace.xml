@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="BackendCodeEditorMiscSettings">
-    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="3" type="long" />
+    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="4" type="long" />
     <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexedValue" value="true" type="bool" />
   </component>
   <component name="CMakeProjectFlavorService">
@@ -21,44 +21,30 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="오타수git">
-      <change beforePath="$PROJECT_DIR$/documents/nura_lora_packet_protocol_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/nura_lora_packet_protocol_v1.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/protocol/include/nura_protocol_v1_lite.h" beforeDir="false" afterPath="$PROJECT_DIR$/protocol/include/nura_protocol_v1_lite.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/README.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/adxl377_high_g_accel_test.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/current_stack_smoke_test.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/h3lis331dl_high_g_accel_test.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/i2c_scanner.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/lis3mdl_mag_test.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/lora_test_report.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/lsm6dso32_low_g_imu_test.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/lsm6dsox_low_g_imu_test.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/mpl3115a2_baro_test.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/ms5611_baro_test.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/no_lora_bus_smoke_test.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/run_no_lora_bus_smoke.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/run_teensy_lora_pair.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/sx127x_lora_teensy_receiver.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/sx127x_lora_teensy_sender.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/sx127x_lora_test.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/sx127x_lora_uno_sender.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/teensy_serial_watch.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/test/README" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/test/test_teensy_port/test_teensy_port.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sensor_test/ublox_m6_gnss_test.ino" beforeDir="false" />
+    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="상태머신 로직추가 및 테스트 로직 업그레이">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/app_config.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/app_config.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/app_config.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/app_config.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/flight_controller_app.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/flight_controller_app.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core/states.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/states.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gnss_test_main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/gnss_test_main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/adxl377_hal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/adxl377_hal.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/h3lis331dl_hal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/h3lis331dl_hal.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/lsm6dso32_hal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/lsm6dso32_hal.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/lsm6dsox_hal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/lsm6dsox_hal.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/mock_flight_data_hal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/mock_flight_data_hal.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/mock_flight_data_hal.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/mock_flight_data_hal.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/mpl3115a2_hal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/mpl3115a2_hal.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/ms5611_hal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/ms5611_hal.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/sx127x_lora_hal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/sx127x_lora_hal.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hardware_integration_test_main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hardware_integration_test_main.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/missions/mock_telemetry_source_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/mock_telemetry_source_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/missions/mission_constants.h" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/missions/telemetry_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/telemetry_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/missions/telemetry_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/telemetry_task.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/sensors/barometer_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/barometer_task.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/sensors/barometer_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/barometer_task.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sensors/magnetometer_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/magnetometer_task.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/state/flight_state.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/state/flight_state.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/state/telemetry_state.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/state/telemetry_state.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/high_g_imu_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/high_g_imu_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/fsm_replay/flight_state_machine_replay.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/fsm_replay/flight_state_machine_replay.cpp" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -279,7 +265,7 @@
       <workItem from="1778827287614" duration="24088000" />
       <workItem from="1779011764123" duration="33223000" />
       <workItem from="1779463272711" duration="295000" />
-      <workItem from="1779514240913" duration="3010000" />
+      <workItem from="1779514240913" duration="5922000" />
     </task>
     <task id="LOCAL-00001" summary="port on teensy4.1">
       <option name="closed" value="true" />
@@ -393,7 +379,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779369738824</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="상태머신 로직추가 및 테스트 로직 업그레이">
+      <option name="closed" value="true" />
+      <created>1779521331357</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1779521331357</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -411,6 +405,7 @@
     <MESSAGE value="0518 - 모든 센서 테스트 및 HAL, state, fc 통합 완료" />
     <MESSAGE value="비행 로직넣을때 (의도하지않은)AI에 의한 추가방지 지침 추가, 로직 추가 시 문서화 필수조건 설" />
     <MESSAGE value="오타수" />
-    <option name="LAST_COMMIT_MESSAGE" value="오타수" />
+    <MESSAGE value="상태머신 로직추가 및 테스트 로직 업그레이" />
+    <option name="LAST_COMMIT_MESSAGE" value="상태머신 로직추가 및 테스트 로직 업그레이" />
   </component>
 </project>

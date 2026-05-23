@@ -3,7 +3,7 @@
 #include "app/app_config.h"
 #include "core/logger/logger.h"
 #include "core/tasks.h"
-#include "missions/mission_constants.h"
+#include "nura_constants.h"
 #include "state/abort_state.h"
 #include "state/flight_state.h"
 #include "state/high_g_imu_state.h"
@@ -79,8 +79,8 @@ private:
     uint32_t lastLaunchSampleMs_ = 0U;
     uint32_t lastBurnoutSampleMs_ = 0U;
     uint32_t lastBarometerSampleMs_ = 0U;
-    ApogeeSample apogeeSamples_[MissionConstants::kApogeeFitWindowSamples];
-    float apogeePredictions_[MissionConstants::kApogeePredictionHistorySamples] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    ApogeeSample apogeeSamples_[NuraConstants::Flight::kApogeeFitWindowSamples];
+    float apogeePredictions_[NuraConstants::Flight::kApogeePredictionHistorySamples] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     uint8_t apogeeSampleHead_ = 0U;
     uint8_t apogeeSampleCount_ = 0U;
     uint8_t apogeePredictionHead_ = 0U;
