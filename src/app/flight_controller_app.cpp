@@ -51,6 +51,12 @@ bool FlightControllerApp::setup(uint32_t nowMs)
         panicHandler_.panic();
     }
 
+#if defined(NURA_MOCK_TELEMETRY) && defined(NURA_MOCK_AUTO_ARM)
+    flightState_.state = State::ARMED;
+    flightState_.stateEnteredMs = nowMs;
+    LOGW(logger_, nowMs, "mock", "auto armed for mock flight replay");
+#endif
+
     flushBootLogs();
 
     return true;

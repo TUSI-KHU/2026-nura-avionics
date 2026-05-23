@@ -76,13 +76,20 @@ enum RejectReason : uint8_t
 
 enum FlightStateCode : uint8_t
 {
-    FLIGHT_BOOT = 0U,
-    FLIGHT_IDLE = 1U,
+    FLIGHT_INIT = 0U,
+    FLIGHT_SAFE = 1U,
     FLIGHT_ARMED = 2U,
     FLIGHT_LAUNCH = 3U,
-    FLIGHT_DESCENT = 4U,
-    FLIGHT_GROUND = 5U,
-    FLIGHT_SAFE = 6U,
+    FLIGHT_COAST = 4U,
+    FLIGHT_APOGEE = 5U,
+    FLIGHT_DROGUE = 6U,
+    FLIGHT_DEPLOY = 7U,
+    FLIGHT_GROUND = 8U,
+    FLIGHT_FAULT = 9U,
+
+    FLIGHT_BOOT = FLIGHT_INIT,
+    FLIGHT_IDLE = FLIGHT_SAFE,
+    FLIGHT_DESCENT = FLIGHT_DROGUE,
 };
 
 enum StatusBit : uint16_t
@@ -618,4 +625,3 @@ inline uint8_t flightStateFromStatus(uint16_t status)
     return static_cast<uint8_t>((status >> 8) & 0x0FU);
 }
 } // namespace nura
-

@@ -2,8 +2,6 @@
 
 #include <stdint.h>
 
-#include <Arduino.h>
-
 class IAppConfig
 {
 public:
@@ -18,6 +16,7 @@ public:
     virtual uint8_t imuMaxRecoveryAttempts() const = 0;
     virtual uint32_t imuRecoveryIntervalMs() const = 0;
     virtual uint32_t imuTaskPeriodMs() const = 0;
+    virtual uint32_t magnetometerTaskPeriodMs() const = 0;
     virtual uint32_t barometerTaskPeriodMs() const = 0;
     virtual uint32_t barometerRecoveryIntervalMs() const = 0;
     virtual uint32_t gnssTaskPeriodMs() const = 0;
@@ -60,6 +59,7 @@ public:
     uint8_t imuMaxRecoveryAttempts() const override;
     uint32_t imuRecoveryIntervalMs() const override;
     uint32_t imuTaskPeriodMs() const override;
+    uint32_t magnetometerTaskPeriodMs() const override;
     uint32_t barometerTaskPeriodMs() const override;
     uint32_t barometerRecoveryIntervalMs() const override;
     uint32_t gnssTaskPeriodMs() const override;

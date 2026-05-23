@@ -61,7 +61,7 @@ bool MagnetometerTask::tick(uint32_t nowMs)
 
 uint32_t MagnetometerTask::periodMs() const
 {
-    return config_.imuTaskPeriodMs();
+    return config_.magnetometerTaskPeriodMs();
 }
 
 bool MagnetometerTask::recover(uint32_t nowMs)

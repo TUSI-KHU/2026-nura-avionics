@@ -246,14 +246,17 @@ State encoding:
 
 | Value | State |
 | ---: | --- |
-| 0 | BOOT |
-| 1 | IDLE |
+| 0 | INIT |
+| 1 | SAFE |
 | 2 | ARMED |
 | 3 | LAUNCH |
-| 4 | DESCENT |
-| 5 | GROUND |
-| 6 | SAFE |
-| 7..15 | Reserved |
+| 4 | COAST |
+| 5 | APOGEE |
+| 6 | DROGUE |
+| 7 | DEPLOY |
+| 8 | GROUND |
+| 9 | FAULT |
+| 10..15 | Reserved |
 
 ### 8.2 Pressure Encoding
 
@@ -582,4 +585,3 @@ Phase 4: Flight-like validation
 - The Things Network regional parameter summary, South Korea KR920-923. https://www.thethingsnetwork.org/docs/lorawan/regional-parameters/other/
 - Altus Metrum AltOS telemetry design: fixed-size rocket telemetry packet classes and separate sensor/GPS rates. https://altusmetrum.org/AltOS/doc/telemetry.html
 - MAVLink serialization and command protocol: sequence, message ID, CRC, ACK/retry model, and signing concepts. https://mavlink.io/en/guide/serialization.html and https://mavlink.io/en/services/command.html
-

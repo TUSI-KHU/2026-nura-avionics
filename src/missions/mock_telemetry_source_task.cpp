@@ -2,12 +2,14 @@
 
 MockTelemetrySourceTask::MockTelemetrySourceTask(MockFlightDataHAL &mockData,
                                                  ImuState &imuState,
+                                                 HighGImuState &highGImuState,
                                                  GpsState &gpsState,
                                                  TelemetryState &telemetryState,
                                                  Logger &logger,
                                                  const IAppConfig &config)
     : mockData_(mockData),
       imuState_(imuState),
+      highGImuState_(highGImuState),
       gpsState_(gpsState),
       telemetryState_(telemetryState),
       logger_(logger),
@@ -26,6 +28,7 @@ bool MockTelemetrySourceTask::init()
     if (ok)
     {
         LOGI(logger_, 0U, "mock", "mock telemetry source initialized");
+        LOGI(logger_, 0U, "mock", mockData_.scenarioName());
     }
     return ok;
 }
@@ -46,15 +49,30 @@ bool MockTelemetrySourceTask::tick(uint32_t nowMs)
     imuState_.data.gyroZDps = sample.gyroZDps;
     imuState_.data.lastUpdatedMs = sample.sampleMs;
 
+    highGImuState_.accelXG = sample.highAccelXG;
+    highGImuState_.accelYG = sample.highAccelYG;
+    highGImuState_.accelZG = sample.highAccelZG;
+    highGImuState_.accelXMps2 = sample.accelXMps2;
+    highGImuState_.accelYMps2 = sample.accelYMps2;
+    highGImuState_.accelZMps2 = sample.accelZMps2;
+    highGImuState_.connected = true;
+    highGImuState_.hasNewData = true;
+    highGImuState_.lastUpdatedMs = sample.sampleMs;
+
     BarometerTelemetryData &baro = telemetryState_.barometer;
-    baro.valid = true;
-    baro.pressurePa = sample.pressurePa;
-    if (!baro.referenceValid)
+    if (sample.barometerUpdated)
     {
-        baro.referencePressurePa = sample.pressurePa;
-        baro.referenceValid = true;
+        baro.valid = true;
+        baro.pressurePa = sample.pressurePa;
+        if (!baro.referenceValid)
+        {
+            baro.referencePressurePa = sample.pressurePa;
+            baro.referenceValid = true;
+        }
+        baro.rawAltitudeM = sample.rawAltitudeM;
+        baro.altitudeM = sample.filteredAltitudeM;
+        baro.lastUpdatedMs = sample.sampleMs;
     }
-    baro.lastUpdatedMs = sample.sampleMs;
 
     GnssTelemetryData &gnss = telemetryState_.gnss;
     gnss.valid = true;

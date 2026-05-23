@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="BackendCodeEditorMiscSettings">
+    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="3" type="long" />
+    <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexedValue" value="true" type="bool" />
+  </component>
+  <component name="CMakeProjectFlavorService">
+    <option name="flavorId" value="CMakePlainProjectFlavor" />
+  </component>
+  <component name="CMakeRunConfigurationManager">
+    <generated>
+      <config projectName="2026-nura-avionics" targetName="PlatformIO" />
+    </generated>
+  </component>
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" ENABLED="true" CONFIG_NAME="Debug" />
+    </configurations>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="오타수git">
+      <change beforePath="$PROJECT_DIR$/documents/nura_lora_packet_protocol_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/nura_lora_packet_protocol_v1.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/protocol/include/nura_protocol_v1_lite.h" beforeDir="false" afterPath="$PROJECT_DIR$/protocol/include/nura_protocol_v1_lite.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/adxl377_high_g_accel_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/current_stack_smoke_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/h3lis331dl_high_g_accel_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/i2c_scanner.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/lis3mdl_mag_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/lora_test_report.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/lsm6dso32_low_g_imu_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/lsm6dsox_low_g_imu_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/mpl3115a2_baro_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/ms5611_baro_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/no_lora_bus_smoke_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/run_no_lora_bus_smoke.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/run_teensy_lora_pair.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/sx127x_lora_teensy_receiver.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/sx127x_lora_teensy_sender.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/sx127x_lora_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/sx127x_lora_uno_sender.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/teensy_serial_watch.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/test/README" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/test/test_teensy_port/test_teensy_port.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensor_test/ublox_m6_gnss_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/app_config.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/app_config.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/app_config.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/app_config.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/flight_controller_app.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/flight_controller_app.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/states.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/states.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/missions/mock_telemetry_source_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/mock_telemetry_source_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/missions/telemetry_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/telemetry_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/barometer_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/barometer_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/barometer_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/barometer_task.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/magnetometer_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/magnetometer_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/state/flight_state.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/state/flight_state.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/state/telemetry_state.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/state/telemetry_state.h" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="1879" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="build" />
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="Git.Settings">
+    <excluded-from-favorite>
+      <branch-storage>
+        <map>
+          <entry type="LOCAL">
+            <value>
+              <list>
+                <branch-info repo="$PROJECT_DIR$" source="main" />
+              </list>
+            </value>
+          </entry>
+        </map>
+      </branch-storage>
+    </excluded-from-favorite>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;zcrawling&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/TUSI-KHU/2026-nura-avionics.git&quot;,
+    &quot;accountId&quot;: &quot;154c47cf-9b58-43bf-9b29-7589cc494113&quot;
+  }
+}</component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/sensor_test/test/test_teensy_port/test_teensy_port.cpp" root0="FORCE_HIGHLIGHTING" />
+  </component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="ProjectApplicationVersion">
+    <option name="ide" value="CLion" />
+    <option name="majorVersion" value="2026" />
+    <option name="minorVersion" value="1.1" />
+    <option name="productBranch" value="Classic" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 6
+}</component>
+  <component name="ProjectId" id="3DGBWRUkZ07IUmdVSsDDgEMcDXm" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;PlatformIO.PlatformIO.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.RadMigrateCodeStyle&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/sb/TUSI/tusi_server&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/documents" />
+      <recent name="$PROJECT_DIR$/sensor_test" />
+      <recent name="$PROJECT_DIR$" />
+    </key>
+  </component>
+  <component name="RunManager" selected="PlatformIO.PlatformIO">
+    <configuration name="run_no_lora_bus_smoke" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="2026-nura-avionics" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/sensor_test" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="DEBUG_JUST_MY_CODE" value="false" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sensor_test/run_no_lora_bus_smoke.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="run_no_lora_bus_smoke" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="2026-nura-avionics" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/sensor_test" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="DEBUG_JUST_MY_CODE" value="false" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sensor_test/run_no_lora_bus_smoke.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="PlatformIO" type="platformio" factoryName="PlatformIO Debug" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="2026-nura-avionics" TARGET_NAME="PlatformIO" CONFIG_NAME="PlatformIO">
+      <method v="2" />
+    </configuration>
+    <configuration name="PlatformIO" type="platformio" factoryName="PlatformIO Debug" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="2026-nura-avionics" TARGET_NAME="PlatformIO" CONFIG_NAME="PlatformIO">
+      <method v="2">
+        <option name="PlatformioBuildBeforeRun" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="PlatformIO" type="platformio" factoryName="PlatformIO Debug" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="2026-nura-avionics" TARGET_NAME="PlatformIO" CONFIG_NAME="PlatformIO">
+      <method v="2">
+        <option name="PlatformioBuildBeforeRun" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="PlatformIO" type="platformio" factoryName="PlatformIO Debug" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="2026-nura-avionics" TARGET_NAME="PlatformIO" CONFIG_NAME="PlatformIO">
+      <method v="2">
+        <option name="PlatformioBuildBeforeRun" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="PlatformIO" type="platformio" factoryName="PlatformIO Debug" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="2026-nura-avionics" TARGET_NAME="PlatformIO" CONFIG_NAME="PlatformIO">
+      <method v="2">
+        <option name="PlatformioBuildBeforeRun" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="PlatformIO" type="platformio" factoryName="PlatformIO Debug" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="2026-nura-avionics" TARGET_NAME="PlatformIO" CONFIG_NAME="PlatformIO">
+      <method v="2">
+        <option name="PlatformioBuildBeforeRun" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="PlatformIO" type="platformio" factoryName="PlatformIO Debug" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="2026-nura-avionics" TARGET_NAME="PlatformIO" CONFIG_NAME="PlatformIO">
+      <method v="2">
+        <option name="PlatformioBuildBeforeRun" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="PlatformIO" type="platformio" factoryName="PlatformIO Debug" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="2026-nura-avionics" TARGET_NAME="PlatformIO" CONFIG_NAME="PlatformIO">
+      <method v="2">
+        <option name="PlatformioBuildBeforeRun" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="PlatformIO.PlatformIO" />
+      <item itemvalue="Python.run_no_lora_bus_smoke" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.run_no_lora_bus_smoke" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="" />
+      <created>1777898561402</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1777898561402</updated>
+      <workItem from="1777898566025" duration="1397000" />
+      <workItem from="1777984343446" duration="7332000" />
+      <workItem from="1778151727939" duration="831000" />
+      <workItem from="1778472688264" duration="15390000" />
+      <workItem from="1778652827017" duration="11636000" />
+      <workItem from="1778740748260" duration="369000" />
+      <workItem from="1778750855114" duration="858000" />
+      <workItem from="1778755346561" duration="218000" />
+      <workItem from="1778827287614" duration="24088000" />
+      <workItem from="1779011764123" duration="33223000" />
+      <workItem from="1779463272711" duration="295000" />
+      <workItem from="1779514240913" duration="3010000" />
+    </task>
+    <task id="LOCAL-00001" summary="port on teensy4.1">
+      <option name="closed" value="true" />
+      <created>1777985732830</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1777985732830</updated>
+    </task>
+    <task id="LOCAL-00002" summary="add sensor calibration logic on hal &amp;&amp;&#10;calibration demand on sensors.md">
+      <option name="closed" value="true" />
+      <created>1778563001321</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1778563001321</updated>
+    </task>
+    <task id="LOCAL-00003" summary="add uniform sensor test (not included proj. target)">
+      <option name="closed" value="true" />
+      <created>1778654111894</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1778654111894</updated>
+    </task>
+    <task id="LOCAL-00004" summary="add uniform sensor test (not included proj. target)">
+      <option name="closed" value="true" />
+      <created>1778654127406</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1778654127406</updated>
+    </task>
+    <task id="LOCAL-00005" summary="lora unit test complete. &#10;(근데 사실 패킷구조 정의 이런건 하나도 안함... ㅎㅎ)&#10;그냥 잘 돌아가는데까지 어마무시한 시간이 걸렸습니다.&#10;이제 전압 플로팅같은건 없이 안정화는 되었으니깐, 패킷구조 정의할거구요, 나머지 로직도 짤거에요.&#10;참고로 그냥 LORA.h 기본파일 쓰면 안되고 mode bit 수정해야 잘되네요?? 하하 샤갈">
+      <option name="closed" value="true" />
+      <created>1778667212689</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1778667212689</updated>
+    </task>
+    <task id="LOCAL-00006" summary="lora unit test complete. &#10;(근데 사실 패킷구조 정의 이런건 하나도 안함... ㅎㅎ)&#10;그냥 잘 돌아가는데까지 어마무시한 시간이 걸렸습니다.&#10;이제 전압 플로팅같은건 없이 안정화는 되었으니깐, 패킷구조 정의할거구요, 나머지 로직도 짤거에요.&#10;참고로 그냥 LORA.h 기본파일 쓰면 안되고 mode bit 수정해야 잘되네요?? 하하 샤갈">
+      <option name="closed" value="true" />
+      <created>1778667234831</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1778667234831</updated>
+    </task>
+    <task id="LOCAL-00007" summary="add AGENTS.md &#10;document 폴더 만들고 센서랑 요구사항들도 추가했어">
+      <option name="closed" value="true" />
+      <created>1778740895634</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1778740895634</updated>
+    </task>
+    <task id="LOCAL-00008" summary="add AGENTS.md &#10;document 폴더 만들고 센서랑 요구사항들도 추가했어">
+      <option name="closed" value="true" />
+      <created>1778740900730</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1778740900730</updated>
+    </task>
+    <task id="LOCAL-00009" summary="sensor_test 추가했어요. HAL 만들기 전에 센서 테스트한 코드는 여기다가 임시로 올리시면 됩니다.">
+      <option name="closed" value="true" />
+      <created>1778741017895</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1778741017895</updated>
+    </task>
+    <task id="LOCAL-00010" summary="add all_set and all_get func">
+      <option name="closed" value="true" />
+      <created>1778751847367</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1778751847367</updated>
+    </task>
+    <task id="LOCAL-00011" summary="09fcc77까지 fast-forward, lora update">
+      <option name="closed" value="true" />
+      <created>1779002308149</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1779002308149</updated>
+    </task>
+    <task id="LOCAL-00012" summary="0518 - 모든 센서 테스트 및 HAL, state, fc 통합 완료">
+      <option name="closed" value="true" />
+      <created>1779113323469</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1779113323469</updated>
+    </task>
+    <task id="LOCAL-00013" summary="비행 로직넣을때 (의도하지않은)AI에 의한 추가방지 지침 추가, 로직 추가 시 문서화 필수조건 설">
+      <option name="closed" value="true" />
+      <created>1779369551446</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1779369551446</updated>
+    </task>
+    <task id="LOCAL-00014" summary="오타수">
+      <option name="closed" value="true" />
+      <created>1779369738824</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1779369738824</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="port on teensy4.1" />
+    <MESSAGE value="add sensor calibration logic on hal &amp;&amp;&#10;calibration demand on sensors.md" />
+    <MESSAGE value="add uniform sensor test (not included proj. target)" />
+    <MESSAGE value="lora unit test complete. &#10;(근데 사실 패킷구조 정의 이런건 하나도 안함... ㅎㅎ)&#10;그냥 잘 돌아가는데까지 어마무시한 시간이 걸렸습니다.&#10;이제 전압 플로팅같은건 없이 안정화는 되었으니깐, 패킷구조 정의할거구요, 나머지 로직도 짤거에요.&#10;참고로 그냥 LORA.h 기본파일 쓰면 안되고 mode bit 수정해야 잘되네요?? 하하 샤갈" />
+    <MESSAGE value="add AGENTS.md &#10;document 폴더 만들고 센서랑 요구사항들도 추가했어" />
+    <MESSAGE value="sensor_test 추가했어요. HAL 만들기 전에 센서 테스트한 코드는 여기다가 임시로 올리시면 됩니다." />
+    <MESSAGE value="add all_set and all_get func" />
+    <MESSAGE value="09fcc77까지 fast-forward, lora update" />
+    <MESSAGE value="0518 - 모든 센서 테스트 및 HAL, state, fc 통합 완료" />
+    <MESSAGE value="비행 로직넣을때 (의도하지않은)AI에 의한 추가방지 지침 추가, 로직 추가 시 문서화 필수조건 설" />
+    <MESSAGE value="오타수" />
+    <option name="LAST_COMMIT_MESSAGE" value="오타수" />
+  </component>
+</project>

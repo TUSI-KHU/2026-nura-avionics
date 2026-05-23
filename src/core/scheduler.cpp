@@ -1,6 +1,4 @@
 #include "scheduler.h"
-#include <Arduino.h>
-
 
 Scheduler::Scheduler()
     : count_(0)
@@ -8,7 +6,7 @@ Scheduler::Scheduler()
     // 등록되지 않은 테스크를 명확히 구분하기 위해 전체를 0으로 초기화한다.
     for (uint8_t i = 0; i < kMaxTasks; ++i)
     {
-        entries_[i].task = 0;
+        entries_[i].task = nullptr;
         entries_[i].nextRunMs = 0;
         entries_[i].active = false;
     }
@@ -34,7 +32,7 @@ bool Scheduler::init(uint32_t nowMs)
     for (uint8_t i = 0; i < count_; ++i)
     {
         Entry &e = entries_[i];
-        if (!e.active || e.task == 0)
+        if (!e.active || e.task == nullptr)
         {
             continue;
         }
@@ -56,7 +54,7 @@ void Scheduler::tick(uint32_t nowMs)
     for (uint8_t i = 0; i < count_; ++i)
     {
         Entry &e = entries_[i];
-        if (!e.active || e.task == 0)
+        if (!e.active || e.task == nullptr)
         {
             continue;
         }

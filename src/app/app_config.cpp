@@ -20,19 +20,22 @@ namespace
     constexpr uint8_t kImuMaxRecoveryAttempts = 5U;
     constexpr uint32_t kImuRecoveryIntervalMs = 1000U;
     constexpr uint32_t kImuTaskPeriodMs = 10U;
-    constexpr uint32_t kBarometerTaskPeriodMs = 1000U;
+    constexpr uint32_t kMagnetometerTaskPeriodMs = 100U;
+    constexpr uint32_t kBarometerTaskPeriodMs = 50U;
     constexpr uint32_t kBarometerRecoveryIntervalMs = 1000U;
     constexpr uint32_t kGnssTaskPeriodMs = 50U;
     constexpr uint16_t kGnssPollByteBudget = 128U;
     constexpr uint32_t kGnssMaxFixAgeMs = 2000U;
 
     constexpr uint32_t kWatchdogTaskPeriodMs = 50U;
-    constexpr uint32_t kFlightStateTaskPeriodMs = 100U;
+    constexpr uint32_t kFlightStateTaskPeriodMs = 10U;
     constexpr uint32_t kLoggerTaskPeriodMs = 20U;
     constexpr uint32_t kTelemetryTaskPeriodMs = 20U;
     constexpr uint32_t kTelemetryFastPeriodMs = 200U;
     constexpr uint32_t kTelemetryGpsPeriodMs = 1000U;
     constexpr uint32_t kTelemetrySensorFreshMs = 1500U;
+
+    // TODO: Tune MPL3115A2 oversampling for the 50 ms barometer period.
 
     constexpr uint8_t kLoggerDrainBudget = 4U;
     constexpr uint8_t kLoggerOutputFailThreshold = 3U;
@@ -97,6 +100,11 @@ uint32_t DefaultAppConfig::imuRecoveryIntervalMs() const
 uint32_t DefaultAppConfig::imuTaskPeriodMs() const
 {
     return kImuTaskPeriodMs;
+}
+
+uint32_t DefaultAppConfig::magnetometerTaskPeriodMs() const
+{
+    return kMagnetometerTaskPeriodMs;
 }
 
 uint32_t DefaultAppConfig::barometerTaskPeriodMs() const

@@ -21,6 +21,7 @@ public:
 private:
     bool initialize(uint32_t nowMs);
     void clearReading(uint32_t nowMs);
+    float filterAltitude(float rawAltitudeM);
 
     MPL3115A2HAL &barometer_;
     TelemetryState &telemetryState_;
@@ -28,4 +29,9 @@ private:
     const IAppConfig &config_;
     bool initialized_ = false;
     uint32_t lastInitAttemptMs_ = 0;
+    float altitudeWindowM_[3] = {0.0f, 0.0f, 0.0f};
+    uint8_t altitudeWindowHead_ = 0U;
+    uint8_t altitudeWindowCount_ = 0U;
+    float filteredAltitudeM_ = 0.0f;
+    bool filterReady_ = false;
 };

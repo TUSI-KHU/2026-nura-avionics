@@ -2,16 +2,10 @@
 
 #include "board_pinmap.h"
 
-namespace
-{
-    constexpr uint32_t kGnssMaxFixAgeMs = 2000U;
-    constexpr uint32_t kGnssTaskPeriodMs = 100U;
-    constexpr uint16_t kGnssPollByteBudget = 128U;
-}
-
-GNSSTask::GNSSTask(UbloxM6GNSSHAL &gnss, GpsState &gpsState)
+GNSSTask::GNSSTask(UbloxM6GNSSHAL &gnss, GpsState &gpsState, const IAppConfig &config)
     : gnss_(gnss),
-      gpsState_(gpsState) {}
+      gpsState_(gpsState),
+      config_(config) {}
 
 const char *GNSSTask::name() const
 {
@@ -26,13 +20,13 @@ bool GNSSTask::init()
     serial.setTX(BoardPinMap::UbloxM6::txPin);
     return gnss_.begin(serial,
                        BoardPinMap::UbloxM6::baud,
-                       kGnssMaxFixAgeMs);
+                       config_.gnssMaxFixAgeMs());
 }
 
 bool GNSSTask::tick(uint32_t nowMs)
 {
     UbloxM6GnssReading sample;
-    const bool readOk = gnss_.poll(sample, nowMs, kGnssPollByteBudget);
+    const bool readOk = gnss_.poll(sample, nowMs, config_.gnssPollByteBudget());
 
     if (readOk)
     {
@@ -44,7 +38,7 @@ bool GNSSTask::tick(uint32_t nowMs)
 
 uint32_t GNSSTask::periodMs() const
 {
-    return kGnssTaskPeriodMs;
+    return config_.gnssTaskPeriodMs();
 }
 
 void GNSSTask::updateState(const UbloxM6GnssReading &sample)

@@ -67,9 +67,9 @@ private:
     BlinkingPanicHandler panicHandler_{config_};
     SerialLogOutput logOutput_;
 #if defined(NURA_MOCK_TELEMETRY)
-    MockTelemetrySourceTask mockTelemetrySourceTask_{mockDataHal_, imuState_, gpsState_, telemetryState_, logger_, config_};
+    MockTelemetrySourceTask mockTelemetrySourceTask_{mockDataHal_, imuState_, highGImuState_, gpsState_, telemetryState_, logger_, config_};
     RecoverableTask *const recoverableDevices_[1] = {
-        0,
+        nullptr,
     };
 #else
     IMUTask imuTask_{imuHal_, imuState_, logger_, config_};
@@ -82,7 +82,7 @@ private:
                                H3LIS331DLRange::RANGE_200G};
     MagnetometerTask magnetometerTask_{magnetometerHal_, magnetometerState_, telemetryState_, logger_, config_};
     BarometerTask barometerTask_{barometerHal_, telemetryState_, logger_, config_};
-    GNSSTask gnssTask_{gnssHal_, gpsState_};
+    GNSSTask gnssTask_{gnssHal_, gpsState_, config_};
     RecoverableTask *const recoverableDevices_[3] = {
         &imuTask_,
         &highGImuTask_,
@@ -90,7 +90,7 @@ private:
     };
 #endif
     WatchdogTask watchdogTask_{recoverableDevices_, sizeof(recoverableDevices_) / sizeof(recoverableDevices_[0]), abortState_, logger_, config_};
-    FlightStateMachineTask fsmTask_{flightState_, abortState_, logger_, config_, panicHandler_};
+    FlightStateMachineTask fsmTask_{flightState_, abortState_, highGImuState_, telemetryState_, logger_, config_, panicHandler_};
     TelemetryTask telemetryTask_{loraHal_, imuState_, gpsState_, telemetryState_, flightState_, abortState_, logger_, config_};
     LoggerTask loggerTask_{logger_, logOutput_, config_};
 };

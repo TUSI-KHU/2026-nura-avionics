@@ -139,6 +139,7 @@ bool TelemetryTask::tick(uint32_t nowMs)
     }
 
     receiveControl(nowMs);
+    enqueueDeferredCommandAcks();
     if (sendAckIfQueued())
     {
         return true;
@@ -188,6 +189,21 @@ bool TelemetryTask::receiveControl(uint32_t nowMs)
         }
     }
     return handled;
+}
+
+void TelemetryTask::enqueueDeferredCommandAcks()
+{
+    if (!pendingForceDeployAckValid_ ||
+        !flightState_.forceRecoveryDeployExecuted ||
+        flightState_.forceRecoveryDeployExecutedSeq != pendingForceDeployAck_.commandSeq)
+    {
+        return;
+    }
+
+    if (enqueueAck(pendingForceDeployAck_, nura::ACK_EXECUTED, nura::RESULT_OK, nura::REJECT_NONE))
+    {
+        pendingForceDeployAckValid_ = false;
+    }
 }
 
 bool TelemetryTask::sendAckIfQueued()
@@ -293,13 +309,28 @@ void TelemetryTask::handleCommand(const nura::ParsedFrame &frame, const nura::Co
             enqueueAck(command, nura::ACK_REJECTED, nura::RESULT_BAD_FORMAT, nura::REJECT_DEPLOYMENT_INHIBITED);
             return;
         }
+
+        if (forceDeployAlreadyActive())
+        {
+            rememberCommand(command);
+            enqueueAck(command, nura::ACK_EXECUTED, nura::RESULT_ALREADY_DONE, nura::REJECT_NONE);
+            return;
+        }
+
+        if (!forceDeployRequestAllowed())
+        {
+            enqueueAck(command, nura::ACK_REJECTED, forceDeployRejectResult(), nura::REJECT_STATE_REJECTED);
+            return;
+        }
+
+        flightState_.forceRecoveryDeployRequested = true;
+        flightState_.forceRecoveryDeployRequestSeq = command.commandSeq;
+        flightState_.forceRecoveryDeployExecuted = false;
+        pendingForceDeployAck_ = command;
+        pendingForceDeployAckValid_ = true;
         enqueueAck(command, nura::ACK_ACCEPTED, nura::RESULT_OK, nura::REJECT_NONE);
-        telemetryState_.health.deployFired = true;
-        flightState_.state = State::DESCENT;
-        flightState_.stateEnteredMs = nowMs;
         rememberCommand(command);
-        enqueueAck(command, nura::ACK_EXECUTED, nura::RESULT_OK, nura::REJECT_NONE);
-        LOGW(logger_, nowMs, "telemetry", "force deploy command executed");
+        LOGW(logger_, nowMs, "telemetry", "force deploy command requested");
         break;
 
     case nura::COMMAND_ABORT_PROPULSION_DEPRECATED:
@@ -313,7 +344,7 @@ void TelemetryTask::handleCommand(const nura::ParsedFrame &frame, const nura::Co
     }
 }
 
-void TelemetryTask::enqueueAck(const nura::ControlPayload &command,
+bool TelemetryTask::enqueueAck(const nura::ControlPayload &command,
                                uint8_t stage,
                                uint8_t result,
                                uint8_t reason,
@@ -336,7 +367,9 @@ void TelemetryTask::enqueueAck(const nura::ControlPayload &command,
     if (!ackQueue_.push(ack))
     {
         LOGW(logger_, 0U, "telemetry", "ack queue full");
+        return false;
     }
+    return true;
 }
 
 bool TelemetryTask::wasRecentlyProcessed(const nura::ControlPayload &command) const
@@ -362,6 +395,26 @@ void TelemetryTask::rememberCommand(const nura::ControlPayload &command)
     slot.commandSeq = command.commandSeq;
     slot.nonce = command.nonce;
     recentCommandWriteIndex_ = static_cast<uint8_t>((recentCommandWriteIndex_ + 1U) % 4U);
+}
+
+bool TelemetryTask::forceDeployAlreadyActive() const
+{
+    return telemetryState_.health.deployFired ||
+           recoverySequenceActive(flightState_.state);
+}
+
+bool TelemetryTask::forceDeployRequestAllowed() const
+{
+    return stateAllowsForceRecoveryDeploy(flightState_.state);
+}
+
+uint8_t TelemetryTask::forceDeployRejectResult() const
+{
+    if (flightState_.state == State::INIT || flightState_.state == State::SAFE)
+    {
+        return nura::RESULT_NOT_ARMED;
+    }
+    return nura::RESULT_BAD_STATE;
 }
 
 nura::FastTelemetry TelemetryTask::buildFastTelemetry(uint32_t nowMs) const
@@ -442,7 +495,12 @@ uint16_t TelemetryTask::buildStatusWord(uint32_t nowMs) const
     {
         status |= nura::STATUS_RADIO_OK;
     }
-    if (flightState_.state == State::ARMED || flightState_.state == State::LAUNCH || flightState_.state == State::DESCENT)
+    if (flightState_.state == State::ARMED ||
+        flightState_.state == State::LAUNCH ||
+        flightState_.state == State::COAST ||
+        flightState_.state == State::APOGEE ||
+        flightState_.state == State::DROGUE ||
+        flightState_.state == State::DEPLOY)
     {
         status |= nura::STATUS_ARMED;
     }
@@ -466,22 +524,28 @@ uint8_t TelemetryTask::currentFlightStateCode() const
 {
     switch (flightState_.state)
     {
-    case State::BOOT:
-        return nura::FLIGHT_BOOT;
-    case State::IDLE:
-        return nura::FLIGHT_IDLE;
+    case State::INIT:
+        return nura::FLIGHT_INIT;
+    case State::SAFE:
+        return nura::FLIGHT_SAFE;
     case State::ARMED:
         return nura::FLIGHT_ARMED;
     case State::LAUNCH:
         return nura::FLIGHT_LAUNCH;
-    case State::DESCENT:
-        return nura::FLIGHT_DESCENT;
+    case State::COAST:
+        return nura::FLIGHT_COAST;
+    case State::APOGEE:
+        return nura::FLIGHT_APOGEE;
+    case State::DROGUE:
+        return nura::FLIGHT_DROGUE;
+    case State::DEPLOY:
+        return nura::FLIGHT_DEPLOY;
     case State::GROUND:
         return nura::FLIGHT_GROUND;
-    case State::SAFE:
-        return nura::FLIGHT_SAFE;
+    case State::FAULT:
+        return nura::FLIGHT_FAULT;
     default:
-        return nura::FLIGHT_SAFE;
+        return nura::FLIGHT_FAULT;
     }
 }
 

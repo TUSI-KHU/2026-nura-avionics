@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+#include "app/app_config.h"
 #include "core/tasks.h"
 #include "hal/ublox_m6_gnss_hal.h"
 #include "state/gps_state.h"
@@ -9,7 +10,7 @@
 class GNSSTask : public Task
 {
 public:
-    GNSSTask(UbloxM6GNSSHAL &gnss, GpsState &gpsState);
+    GNSSTask(UbloxM6GNSSHAL &gnss, GpsState &gpsState, const IAppConfig &config);
 
     const char *name() const override;
     bool init() override;
@@ -21,4 +22,5 @@ private:
 
     UbloxM6GNSSHAL &gnss_;
     GpsState &gpsState_;
+    const IAppConfig &config_;
 };

@@ -1,14 +1,16 @@
 #include <Arduino.h>
 
+#include "app/app_config.h"
 #include "hal/ublox_m6_gnss_hal.h"
 #include "sensors/gnss_task.h"
 #include "state/gps_state.h"
 
 namespace
 {
+    DefaultAppConfig config;
     UbloxM6GNSSHAL gnssHal;
     GpsState gpsState;
-    GNSSTask gnssTask{gnssHal, gpsState};
+    GNSSTask gnssTask{gnssHal, gpsState, config};
 
     constexpr uint32_t kPrintPeriodMs = 1000U;
     uint32_t lastPrintMs = 0;

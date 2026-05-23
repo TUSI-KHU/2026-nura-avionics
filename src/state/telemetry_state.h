@@ -8,6 +8,8 @@ struct BarometerTelemetryData
     bool referenceValid = false;
     float pressurePa = 0.0f;
     float referencePressurePa = 0.0f;
+    float rawAltitudeM = 0.0f;
+    float altitudeM = 0.0f;
     uint32_t lastUpdatedMs = 0;
 };
 

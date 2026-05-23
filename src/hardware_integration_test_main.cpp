@@ -326,7 +326,7 @@ namespace
                                H3LIS331DLRange::RANGE_200G);
         MagnetometerTask magTask(magHal, magState, telemetryState, logger, config);
         BarometerTask baroTask(baroHal, telemetryState, logger, config);
-        GNSSTask gnssTask(gnssHal, gpsState);
+        GNSSTask gnssTask(gnssHal, gpsState, config);
 
         initializeBuses();
 

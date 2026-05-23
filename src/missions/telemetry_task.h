@@ -50,14 +50,18 @@ private:
     };
 
     bool receiveControl(uint32_t nowMs);
+    void enqueueDeferredCommandAcks();
     bool sendAckIfQueued();
     bool sendFastTelemetry(uint32_t nowMs);
     bool sendGpsTelemetry(uint32_t nowMs);
     bool sendRawFrame(uint8_t type, const uint8_t *payload, uint8_t payloadLen);
     void handleCommand(const nura::ParsedFrame &frame, const nura::ControlPayload &command, uint32_t nowMs);
-    void enqueueAck(const nura::ControlPayload &command, uint8_t stage, uint8_t result, uint8_t reason, uint16_t detailFlags = 0U);
+    bool enqueueAck(const nura::ControlPayload &command, uint8_t stage, uint8_t result, uint8_t reason, uint16_t detailFlags = 0U);
     bool wasRecentlyProcessed(const nura::ControlPayload &command) const;
     void rememberCommand(const nura::ControlPayload &command);
+    bool forceDeployAlreadyActive() const;
+    bool forceDeployRequestAllowed() const;
+    uint8_t forceDeployRejectResult() const;
     nura::FastTelemetry buildFastTelemetry(uint32_t nowMs) const;
     nura::GpsTelemetry buildGpsTelemetry(uint32_t nowMs) const;
     uint16_t buildStatusWord(uint32_t nowMs) const;
@@ -75,6 +79,7 @@ private:
     nura::Parser parser_;
     AckQueue ackQueue_;
     RecentCommand recentCommands_[4];
+    nura::ControlPayload pendingForceDeployAck_;
     uint8_t recentCommandWriteIndex_ = 0U;
     uint16_t downlinkSeq_ = 0U;
     uint32_t lastFastTxMs_ = 0UL;
@@ -82,4 +87,5 @@ private:
     bool radioReady_ = false;
     bool sentFast_ = false;
     bool sentGps_ = false;
+    bool pendingForceDeployAckValid_ = false;
 };

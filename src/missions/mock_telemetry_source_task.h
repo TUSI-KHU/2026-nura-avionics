@@ -7,6 +7,7 @@
 #include "core/tasks.h"
 #include "hal/mock_flight_data_hal.h"
 #include "state/gps_state.h"
+#include "state/high_g_imu_state.h"
 #include "state/imu_state.h"
 #include "state/telemetry_state.h"
 
@@ -15,6 +16,7 @@ class MockTelemetrySourceTask : public Task
 public:
     MockTelemetrySourceTask(MockFlightDataHAL &mockData,
                             ImuState &imuState,
+                            HighGImuState &highGImuState,
                             GpsState &gpsState,
                             TelemetryState &telemetryState,
                             Logger &logger,
@@ -28,6 +30,7 @@ public:
 private:
     MockFlightDataHAL &mockData_;
     ImuState &imuState_;
+    HighGImuState &highGImuState_;
     GpsState &gpsState_;
     TelemetryState &telemetryState_;
     Logger &logger_;
