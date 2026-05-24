@@ -5,6 +5,7 @@
 FlightStateMachineTask::FlightStateMachineTask(FlightState &flightState,
                                                AbortState &abortState,
                                                HighGImuState &highGImuState,
+                                               const ImuState &imuState,
                                                TelemetryState &telemetryState,
                                                Logger &logger,
                                                const IAppConfig &config,
@@ -12,6 +13,7 @@ FlightStateMachineTask::FlightStateMachineTask(FlightState &flightState,
     : flightState_(flightState),
       abortState_(abortState),
       highGImuState_(highGImuState),
+      imuState_(imuState),
       telemetryState_(telemetryState),
       logger_(logger),
       config_(config),
@@ -140,6 +142,15 @@ void FlightStateMachineTask::tickCoast(uint32_t nowMs)
         return;
     }
 
+    if (telemetryState_.barometer.fault)
+    {
+        if (baroFaultAttitudeFallbackReady(nowMs))
+        {
+            transitionTo(State::APOGEE, nowMs);
+        }
+        return;
+    }
+
     if (!consumeBarometerSample())
     {
         return;
@@ -214,8 +225,16 @@ void FlightStateMachineTask::tickApogee(uint32_t nowMs)
 void FlightStateMachineTask::tickDrogue(uint32_t nowMs)
 {
     const uint32_t drogueElapsedMs = nowMs - flightState_.drogueMs;
-    const bool mainAltitudeReached = telemetryState_.barometer.valid &&
-                                     telemetryState_.barometer.referenceValid &&
+    if (barometerPrimaryUsable(nowMs) &&
+        telemetryState_.barometer.lastUpdatedMs != lastBarometerSampleMs_)
+    {
+        lastBarometerSampleMs_ = telemetryState_.barometer.lastUpdatedMs;
+        trackBarometerStuck(telemetryState_.barometer.lastUpdatedMs,
+                            telemetryState_.barometer.altitudeM,
+                            nowMs);
+    }
+
+    const bool mainAltitudeReached = barometerPrimaryUsable(nowMs) &&
                                      telemetryState_.barometer.altitudeM <= NuraConstants::Flight::kMainDeployAltitudeM;
     if (mainAltitudeReached || drogueElapsedMs >= NuraConstants::Flight::kMainTimeoutMs)
     {
@@ -317,6 +336,7 @@ void FlightStateMachineTask::onEnter(State next, uint32_t nowMs)
         break;
     case State::DROGUE:
         flightState_.drogueMs = nowMs;
+        resetBarometerStuckScratch();
         break;
     case State::DEPLOY:
         flightState_.deployMs = nowMs;
@@ -352,12 +372,15 @@ void FlightStateMachineTask::resetApogeeScratch()
 {
     apogeeConfirmCount_ = 0U;
     descentConfirmCount_ = 0U;
+    attitudeFallbackConfirmCount_ = 0U;
     lastBarometerSampleMs_ = 0U;
+    lastAttitudeFallbackSampleMs_ = 0U;
     apogeeSampleHead_ = 0U;
     apogeeSampleCount_ = 0U;
     apogeePredictionHead_ = 0U;
     apogeePredictionCount_ = 0U;
     maxCoastAltitudeM_ = 0.0f;
+    resetBarometerStuckScratch();
 }
 
 void FlightStateMachineTask::resetLandingScratch()
@@ -389,8 +412,8 @@ bool FlightStateMachineTask::consumeHighGSample(uint32_t &lastSeenMs)
 
 bool FlightStateMachineTask::consumeBarometerSample()
 {
-    const BarometerTelemetryData &baro = telemetryState_.barometer;
-    if (!baro.valid || !baro.referenceValid || baro.lastUpdatedMs == 0U ||
+    BarometerTelemetryData &baro = telemetryState_.barometer;
+    if (baro.fault || !baro.valid || !baro.referenceValid || baro.lastUpdatedMs == 0U ||
         baro.lastUpdatedMs == lastBarometerSampleMs_)
     {
         return false;
@@ -407,8 +430,128 @@ bool FlightStateMachineTask::consumeBarometerSample()
     }
 
     lastBarometerSampleMs_ = baro.lastUpdatedMs;
+    trackBarometerStuck(baro.lastUpdatedMs, baro.altitudeM, baro.lastUpdatedMs);
+    if (baro.fault)
+    {
+        return false;
+    }
+
     pushApogeeSample(baro.lastUpdatedMs, baro.altitudeM);
     return true;
+}
+
+bool FlightStateMachineTask::baroFaultAttitudeFallbackReady(uint32_t nowMs)
+{
+    const uint32_t launchElapsedMs = nowMs - flightState_.launchMs;
+    if (launchElapsedMs < NuraConstants::Flight::kBaroFaultAttitudeFallbackMinFlightTimeMs)
+    {
+        attitudeFallbackConfirmCount_ = 0U;
+        return false;
+    }
+
+    const ImuData &imu = imuState_.data;
+    if (imu.lastUpdatedMs == 0U ||
+        imu.lastUpdatedMs == lastAttitudeFallbackSampleMs_)
+    {
+        return false;
+    }
+
+    lastAttitudeFallbackSampleMs_ = imu.lastUpdatedMs;
+    if (!imu.tiltValid ||
+        (nowMs - imu.lastUpdatedMs) > NuraConstants::Flight::kBaroFaultAttitudeFallbackMaxSampleAgeMs)
+    {
+        attitudeFallbackConfirmCount_ = 0U;
+        return false;
+    }
+
+    if (imu.tiltAngleDeg >= NuraConstants::Flight::kBaroFaultAttitudeFallbackTiltDeg)
+    {
+        ++attitudeFallbackConfirmCount_;
+    }
+    else
+    {
+        attitudeFallbackConfirmCount_ = 0U;
+    }
+
+    return attitudeFallbackConfirmCount_ >= NuraConstants::Flight::kBaroFaultAttitudeFallbackConfirmSamples;
+}
+
+bool FlightStateMachineTask::barometerPrimaryUsable(uint32_t nowMs) const
+{
+    const BarometerTelemetryData &baro = telemetryState_.barometer;
+    return !baro.fault &&
+           baro.valid &&
+           baro.referenceValid &&
+           baro.lastUpdatedMs != 0U &&
+           (nowMs - baro.lastUpdatedMs) <= NuraConstants::Flight::kApogeeMaxBarometerSampleGapMs;
+}
+
+void FlightStateMachineTask::resetBarometerStuckScratch()
+{
+    barometerStuckWindowStartMs_ = 0U;
+    lastBarometerStuckSampleMs_ = 0U;
+    barometerStuckMinAltitudeM_ = 0.0f;
+    barometerStuckMaxAltitudeM_ = 0.0f;
+    barometerStuckWindowActive_ = false;
+}
+
+void FlightStateMachineTask::trackBarometerStuck(uint32_t sampleMs, float altitudeM, uint32_t nowMs)
+{
+    if (!isfinite(altitudeM))
+    {
+        resetBarometerStuckScratch();
+        return;
+    }
+
+    if (!barometerStuckWindowActive_ ||
+        (lastBarometerStuckSampleMs_ != 0U &&
+         (sampleMs - lastBarometerStuckSampleMs_) > NuraConstants::Flight::kApogeeMaxBarometerSampleGapMs))
+    {
+        barometerStuckWindowActive_ = true;
+        barometerStuckWindowStartMs_ = sampleMs;
+        barometerStuckMinAltitudeM_ = altitudeM;
+        barometerStuckMaxAltitudeM_ = altitudeM;
+        lastBarometerStuckSampleMs_ = sampleMs;
+        return;
+    }
+
+    if (altitudeM < barometerStuckMinAltitudeM_)
+    {
+        barometerStuckMinAltitudeM_ = altitudeM;
+    }
+    if (altitudeM > barometerStuckMaxAltitudeM_)
+    {
+        barometerStuckMaxAltitudeM_ = altitudeM;
+    }
+    lastBarometerStuckSampleMs_ = sampleMs;
+
+    const float altitudeRangeM = barometerStuckMaxAltitudeM_ - barometerStuckMinAltitudeM_;
+    if ((sampleMs - barometerStuckWindowStartMs_) >= NuraConstants::Sensors::kBarometerStuckWindowMs &&
+        altitudeRangeM <= NuraConstants::Sensors::kBarometerStuckRangeM)
+    {
+        markBarometerFault(nowMs, BARO_FAULT_STUCK);
+        return;
+    }
+
+    if ((sampleMs - barometerStuckWindowStartMs_) >= NuraConstants::Sensors::kBarometerStuckWindowMs)
+    {
+        barometerStuckWindowStartMs_ = sampleMs;
+        barometerStuckMinAltitudeM_ = altitudeM;
+        barometerStuckMaxAltitudeM_ = altitudeM;
+    }
+}
+
+void FlightStateMachineTask::markBarometerFault(uint32_t nowMs, uint16_t faultFlag)
+{
+    (void)nowMs;
+    BarometerTelemetryData &baro = telemetryState_.barometer;
+    if ((baro.faultFlags & faultFlag) == 0U)
+    {
+        LOGW(logger_, nowMs, "fsm", "barometer fault");
+    }
+    baro.fault = true;
+    baro.faultFlags = static_cast<uint16_t>(baro.faultFlags | faultFlag);
+    baro.valid = false;
 }
 
 void FlightStateMachineTask::pushApogeeSample(uint32_t sampleMs, float altitudeM)
@@ -425,7 +568,7 @@ void FlightStateMachineTask::pushApogeeSample(uint32_t sampleMs, float altitudeM
 bool FlightStateMachineTask::consumeLandingSample()
 {
     const BarometerTelemetryData &baro = telemetryState_.barometer;
-    if (!baro.valid || !baro.referenceValid || baro.lastUpdatedMs == 0U ||
+    if (baro.fault || !baro.valid || !baro.referenceValid || baro.lastUpdatedMs == 0U ||
         baro.lastUpdatedMs == lastLandingBarometerSampleMs_)
     {
         return false;

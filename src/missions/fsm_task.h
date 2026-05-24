@@ -7,6 +7,7 @@
 #include "state/abort_state.h"
 #include "state/flight_state.h"
 #include "state/high_g_imu_state.h"
+#include "state/imu_state.h"
 #include "state/telemetry_state.h"
 #include "hal/panic_handler.h"
 
@@ -17,6 +18,7 @@ public:
     FlightStateMachineTask(FlightState &flightState,
                            AbortState &abortState,
                            HighGImuState &highGImuState,
+                           const ImuState &imuState,
                            TelemetryState &telemetryState,
                            Logger &logger,
                            const IAppConfig &config,
@@ -64,6 +66,11 @@ private:
     float highGAccelNorm() const;
     bool consumeHighGSample(uint32_t &lastSeenMs);
     bool consumeBarometerSample();
+    bool baroFaultAttitudeFallbackReady(uint32_t nowMs);
+    bool barometerPrimaryUsable(uint32_t nowMs) const;
+    void resetBarometerStuckScratch();
+    void trackBarometerStuck(uint32_t sampleMs, float altitudeM, uint32_t nowMs);
+    void markBarometerFault(uint32_t nowMs, uint16_t faultFlag);
     void pushApogeeSample(uint32_t sampleMs, float altitudeM);
     bool consumeLandingSample();
     void pushLandingSample(uint32_t sampleMs, float altitudeM);
@@ -77,6 +84,7 @@ private:
     FlightState &flightState_;
     AbortState &abortState_;
     HighGImuState &highGImuState_;
+    const ImuState &imuState_;
     TelemetryState &telemetryState_;
     Logger &logger_;
     const IAppConfig &config_;
@@ -86,10 +94,14 @@ private:
     uint8_t burnoutConfirmCount_ = 0U;
     uint8_t apogeeConfirmCount_ = 0U;
     uint8_t descentConfirmCount_ = 0U;
+    uint8_t attitudeFallbackConfirmCount_ = 0U;
     uint32_t lastLaunchSampleMs_ = 0U;
     uint32_t lastBurnoutSampleMs_ = 0U;
+    uint32_t lastAttitudeFallbackSampleMs_ = 0U;
     uint32_t lastBarometerSampleMs_ = 0U;
     uint32_t lastLandingBarometerSampleMs_ = 0U;
+    uint32_t barometerStuckWindowStartMs_ = 0U;
+    uint32_t lastBarometerStuckSampleMs_ = 0U;
     ApogeeSample apogeeSamples_[NuraConstants::Flight::kApogeeFitWindowSamples];
     float apogeePredictions_[NuraConstants::Flight::kApogeePredictionHistorySamples] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     LandingSample landingSamples_[NuraConstants::Flight::kLandingStableWindowSamples];
@@ -100,6 +112,9 @@ private:
     uint8_t landingSampleHead_ = 0U;
     uint8_t landingSampleCount_ = 0U;
     float maxCoastAltitudeM_ = 0.0f;
+    float barometerStuckMinAltitudeM_ = 0.0f;
+    float barometerStuckMaxAltitudeM_ = 0.0f;
+    bool barometerStuckWindowActive_ = false;
     bool primaryDrogueOff_ = false;
     bool backupDrogueOn_ = false;
     bool backupDrogueOff_ = false;

@@ -25,6 +25,12 @@ struct MockFlightDataReading
     float gyroXDps = 0.0f;
     float gyroYDps = 0.0f;
     float gyroZDps = 0.0f;
+    bool attitudeValid = true;
+    float rollDeg = 0.0f;
+    float pitchDeg = 0.0f;
+    float yawDeg = 0.0f;
+    bool tiltValid = true;
+    float tiltAngleDeg = 0.0f;
     float pressurePa = 101325.0f;
     float rawAltitudeM = 0.0f;
     float filteredAltitudeM = 0.0f;

@@ -224,8 +224,22 @@ void publishBaro(TelemetryState &telemetry, BaroFilter &filter, const Scenario &
     baro.lastUpdatedMs = nowMs;
 }
 
-void publishMockSample(HighGImuState &highG, TelemetryState &telemetry, const MockFlightDataReading &sample)
+void publishMockSample(ImuState &imu, HighGImuState &highG, TelemetryState &telemetry, const MockFlightDataReading &sample)
 {
+    imu.data.accelXMps2 = sample.accelXMps2;
+    imu.data.accelYMps2 = sample.accelYMps2;
+    imu.data.accelZMps2 = sample.accelZMps2;
+    imu.data.gyroXDps = sample.gyroXDps;
+    imu.data.gyroYDps = sample.gyroYDps;
+    imu.data.gyroZDps = sample.gyroZDps;
+    imu.data.attitudeValid = sample.attitudeValid;
+    imu.data.rollDeg = sample.rollDeg;
+    imu.data.pitchDeg = sample.pitchDeg;
+    imu.data.yawDeg = sample.yawDeg;
+    imu.data.tiltValid = sample.tiltValid;
+    imu.data.tiltAngleDeg = sample.tiltAngleDeg;
+    imu.data.lastUpdatedMs = sample.sampleMs;
+
     highG.accelXG = sample.highAccelXG;
     highG.accelYG = sample.highAccelYG;
     highG.accelZG = sample.highAccelZG;
@@ -270,10 +284,11 @@ ReplayResult runReplay(const Scenario &scenario, uint32_t endMs)
     Logger logger;
     FlightState flight;
     AbortState abort;
+    ImuState imu;
     HighGImuState highG;
     TelemetryState telemetry;
     BaroFilter filter;
-    FlightStateMachineTask fsm(flight, abort, highG, telemetry, logger, config, panic);
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
     fsm.init();
     fsm.tick(0U);
     flight.state = State::ARMED;
@@ -333,12 +348,13 @@ ReplayResult runMockHalReplay(MockFlightScenarioId scenarioId, uint32_t endMs)
     Logger logger;
     FlightState flight;
     AbortState abort;
+    ImuState imu;
     HighGImuState highG;
     TelemetryState telemetry;
     MockFlightDataHAL mockHal;
     mockHal.setScenario(scenarioId);
     mockHal.begin();
-    FlightStateMachineTask fsm(flight, abort, highG, telemetry, logger, config, panic);
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
     fsm.init();
     fsm.tick(0U);
     flight.state = State::ARMED;
@@ -352,7 +368,7 @@ ReplayResult runMockHalReplay(MockFlightScenarioId scenarioId, uint32_t endMs)
         MockFlightDataReading sample;
         if (mockHal.read(sample, nowMs))
         {
-            publishMockSample(highG, telemetry, sample);
+            publishMockSample(imu, highG, telemetry, sample);
         }
         fsm.tick(nowMs);
 
@@ -466,6 +482,134 @@ bool checkLandingWindowRejectsSlowDescent()
     return pass("landing_window");
 }
 
+bool checkBaroFaultUsesApogeeTimeout()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
+    fsm.init();
+    flight.state = State::COAST;
+    flight.launchMs = 0U;
+    flight.coastMs = 8000U;
+    flight.stateEnteredMs = 8000U;
+    telemetry.barometer.valid = false;
+    telemetry.barometer.referenceValid = true;
+    telemetry.barometer.fault = true;
+    telemetry.barometer.faultFlags = BARO_FAULT_BAD_VALUE;
+
+    fsm.tick(10000U);
+    if (flight.state != State::COAST)
+    {
+        return fail("baro_fault_timeout", "baro fault left COAST before timeout");
+    }
+
+    fsm.tick(flight.coastMs + NuraConstants::Flight::kApogeeTimeoutMs);
+    if (flight.state != State::APOGEE)
+    {
+        return fail("baro_fault_timeout", "baro fault did not use apogee timer fallback");
+    }
+    return pass("baro_fault_timeout");
+}
+
+bool checkBaroFaultUsesAttitudeFallback()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
+    fsm.init();
+    flight.state = State::COAST;
+    flight.launchMs = 0U;
+    flight.coastMs = 3000U;
+    flight.stateEnteredMs = 3000U;
+    telemetry.barometer.valid = false;
+    telemetry.barometer.referenceValid = true;
+    telemetry.barometer.fault = true;
+    telemetry.barometer.faultFlags = BARO_FAULT_BAD_VALUE;
+
+    for (uint32_t nowMs = 7960U; nowMs < NuraConstants::Flight::kBaroFaultAttitudeFallbackMinFlightTimeMs; nowMs += kTickMs)
+    {
+        imu.data.tiltValid = true;
+        imu.data.tiltAngleDeg = NuraConstants::Flight::kBaroFaultAttitudeFallbackTiltDeg + 5.0f;
+        imu.data.lastUpdatedMs = nowMs;
+        fsm.tick(nowMs);
+    }
+    if (flight.state != State::COAST)
+    {
+        return fail("baro_fault_attitude", "tilt fallback fired before min flight time");
+    }
+
+    for (uint8_t i = 0U; i < NuraConstants::Flight::kBaroFaultAttitudeFallbackConfirmSamples; ++i)
+    {
+        const uint32_t nowMs = NuraConstants::Flight::kBaroFaultAttitudeFallbackMinFlightTimeMs +
+                               (static_cast<uint32_t>(i) * kTickMs);
+        imu.data.tiltValid = true;
+        imu.data.tiltAngleDeg = NuraConstants::Flight::kBaroFaultAttitudeFallbackTiltDeg + 5.0f;
+        imu.data.lastUpdatedMs = nowMs;
+        fsm.tick(nowMs);
+    }
+
+    if (flight.state != State::APOGEE)
+    {
+        return fail("baro_fault_attitude", "baro fault tilt fallback did not enter APOGEE");
+    }
+    return pass("baro_fault_attitude");
+}
+
+bool checkStuckBaroFaultIsLatched()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
+    fsm.init();
+    flight.state = State::COAST;
+    flight.launchMs = 0U;
+    flight.coastMs = 8000U;
+    flight.stateEnteredMs = 8000U;
+
+    for (uint32_t nowMs = 8000U; nowMs <= 13200U; nowMs += kBaroPeriodMs)
+    {
+        if (!telemetry.barometer.fault)
+        {
+            telemetry.barometer.valid = true;
+            telemetry.barometer.referenceValid = true;
+            telemetry.barometer.pressurePa = 101325.0f;
+            telemetry.barometer.referencePressurePa = 101325.0f;
+            telemetry.barometer.rawAltitudeM = 120.0f;
+            telemetry.barometer.altitudeM = 120.0f;
+            telemetry.barometer.lastUpdatedMs = nowMs;
+        }
+        fsm.tick(nowMs);
+    }
+
+    if (!telemetry.barometer.fault || (telemetry.barometer.faultFlags & BARO_FAULT_STUCK) == 0U)
+    {
+        return fail("baro_stuck_fault", "constant in-flight baro altitude did not latch stuck fault");
+    }
+    if (flight.state != State::COAST)
+    {
+        return fail("baro_stuck_fault", "stuck baro fault caused immediate apogee transition");
+    }
+    return pass("baro_stuck_fault");
+}
+
 bool checkMockHalScenario(const char *testName, MockFlightScenarioId scenarioId)
 {
     const ReplayResult result = runMockHalReplay(scenarioId, 36000U);
@@ -492,9 +636,10 @@ bool checkAbortToSafe()
     Logger logger;
     FlightState flight;
     AbortState abort;
+    ImuState imu;
     HighGImuState highG;
     TelemetryState telemetry;
-    FlightStateMachineTask fsm(flight, abort, highG, telemetry, logger, config, panic);
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
     fsm.init();
     flight.state = State::COAST;
     flight.coastMs = 1000U;
@@ -514,9 +659,10 @@ bool checkForceDeployFromCoast()
     Logger logger;
     FlightState flight;
     AbortState abort;
+    ImuState imu;
     HighGImuState highG;
     TelemetryState telemetry;
-    FlightStateMachineTask fsm(flight, abort, highG, telemetry, logger, config, panic);
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
     fsm.init();
     flight.state = State::COAST;
     flight.coastMs = 3000U;
@@ -541,9 +687,10 @@ bool checkForceDeployRejectedOnPad()
     Logger logger;
     FlightState flight;
     AbortState abort;
+    ImuState imu;
     HighGImuState highG;
     TelemetryState telemetry;
-    FlightStateMachineTask fsm(flight, abort, highG, telemetry, logger, config, panic);
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
     fsm.init();
     flight.state = State::ARMED;
     flight.forceRecoveryDeployRequested = true;
@@ -596,6 +743,9 @@ int main()
     ok = checkForceDeployFromCoast() && ok;
     ok = checkForceDeployRejectedOnPad() && ok;
     ok = checkLandingWindowRejectsSlowDescent() && ok;
+    ok = checkBaroFaultUsesApogeeTimeout() && ok;
+    ok = checkBaroFaultUsesAttitudeFallback() && ok;
+    ok = checkStuckBaroFaultIsLatched() && ok;
     ok = checkMockHalScenario("mock_hal_nominal", MockFlightScenarioId::NOMINAL) && ok;
     ok = checkMockHalScenario("mock_hal_low_apogee", MockFlightScenarioId::LOW_APOGEE) && ok;
     ok = checkMockHalScenario("mock_hal_baro_noise", MockFlightScenarioId::BARO_NOISE) && ok;

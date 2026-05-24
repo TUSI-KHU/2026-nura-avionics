@@ -2,6 +2,31 @@
 
 #include <math.h>
 
+#include "nura_constants.h"
+
+namespace
+{
+    constexpr float kTwo = 2.0f;
+
+    float clampUnit(float value)
+    {
+        if (value > 1.0f)
+        {
+            return 1.0f;
+        }
+        if (value < -1.0f)
+        {
+            return -1.0f;
+        }
+        return value;
+    }
+
+    bool finiteQuaternion(float w, float x, float y, float z)
+    {
+        return isfinite(w) && isfinite(x) && isfinite(y) && isfinite(z);
+    }
+}
+
 IMUTask::IMUTask(LSM6DSO32HAL &imu, ImuState &imuState, Logger &logger, const IAppConfig &config)
     : RecoverableTask(TaskCriticality::CRITICAL,
                       config.imuReadFailureThreshold(),
@@ -26,7 +51,14 @@ bool IMUTask::init()
     imuState_.data.gyroXDps = 0.0f;
     imuState_.data.gyroYDps = 0.0f;
     imuState_.data.gyroZDps = 0.0f;
+    imuState_.data.attitudeValid = false;
+    imuState_.data.rollDeg = 0.0f;
+    imuState_.data.pitchDeg = 0.0f;
+    imuState_.data.yawDeg = 0.0f;
+    imuState_.data.tiltValid = false;
+    imuState_.data.tiltAngleDeg = 0.0f;
     imuState_.data.lastUpdatedMs = 0U;
+    resetAttitudeEstimate();
 
     if (!initializeDevice(0U))
     {
@@ -54,6 +86,7 @@ bool IMUTask::tick(uint32_t nowMs)
         imuState_.data.gyroXDps = sample.gyroXDps;
         imuState_.data.gyroYDps = sample.gyroYDps;
         imuState_.data.gyroZDps = sample.gyroZDps;
+        updateAttitudeEstimate(sample);
         imuState_.data.lastUpdatedMs = sample.sampleMs;
 
         markReadSuccess();
@@ -87,4 +120,198 @@ bool IMUTask::initializeDevice(uint32_t logTs)
     }
 
     return false;
+}
+
+void IMUTask::resetAttitudeEstimate()
+{
+    attitudeReferenceX_ = 0.0f;
+    attitudeReferenceY_ = 0.0f;
+    attitudeReferenceZ_ = 1.0f;
+    qW_ = 1.0f;
+    qX_ = 0.0f;
+    qY_ = 0.0f;
+    qZ_ = 0.0f;
+    lastAttitudeSampleMs_ = 0U;
+    attitudeReferenceValid_ = false;
+}
+
+void IMUTask::updateAttitudeEstimate(const Lsm6dso32Reading &sample)
+{
+    const float normMps2 = sqrtf((sample.accelXMps2 * sample.accelXMps2) +
+                                 (sample.accelYMps2 * sample.accelYMps2) +
+                                 (sample.accelZMps2 * sample.accelZMps2));
+    const float normG = normMps2 / NuraConstants::Physics::kGravityMps2;
+    if (!isfinite(normG) ||
+        normG < NuraConstants::Sensors::kTiltMinAccelNormG ||
+        normG > NuraConstants::Sensors::kTiltMaxAccelNormG)
+    {
+        imuState_.data.attitudeValid = false;
+        imuState_.data.tiltValid = false;
+        return;
+    }
+
+    const float unitX = sample.accelXMps2 / normMps2;
+    const float unitY = sample.accelYMps2 / normMps2;
+    const float unitZ = sample.accelZMps2 / normMps2;
+    if (!attitudeReferenceValid_)
+    {
+        initializeAttitudeReference(unitX, unitY, unitZ, sample.sampleMs);
+        publishAttitude();
+        return;
+    }
+
+    if (sample.sampleMs <= lastAttitudeSampleMs_)
+    {
+        publishAttitude();
+        return;
+    }
+
+    const uint32_t dtMs = sample.sampleMs - lastAttitudeSampleMs_;
+    lastAttitudeSampleMs_ = sample.sampleMs;
+    if (dtMs > NuraConstants::Sensors::kAttitudeMaxDeltaMs)
+    {
+        imuState_.data.attitudeValid = false;
+        imuState_.data.tiltValid = false;
+        return;
+    }
+
+    const float dtS = static_cast<float>(dtMs) * 0.001f;
+    integrateGyro(sample, dtS);
+    applyAccelCorrection(unitX, unitY, unitZ, normG, dtS);
+    publishAttitude();
+}
+
+void IMUTask::initializeAttitudeReference(float unitX, float unitY, float unitZ, uint32_t sampleMs)
+{
+    attitudeReferenceX_ = unitX;
+    attitudeReferenceY_ = unitY;
+    attitudeReferenceZ_ = unitZ;
+    qW_ = 1.0f;
+    qX_ = 0.0f;
+    qY_ = 0.0f;
+    qZ_ = 0.0f;
+    lastAttitudeSampleMs_ = sampleMs;
+    attitudeReferenceValid_ = true;
+}
+
+void IMUTask::integrateGyro(const Lsm6dso32Reading &sample, float dtS)
+{
+    const float gx = sample.gyroXDps * NuraConstants::Physics::kDegToRad;
+    const float gy = sample.gyroYDps * NuraConstants::Physics::kDegToRad;
+    const float gz = sample.gyroZDps * NuraConstants::Physics::kDegToRad;
+
+    const float halfDt = 0.5f * dtS;
+    const float nextW = qW_ + ((-qX_ * gx - qY_ * gy - qZ_ * gz) * halfDt);
+    const float nextX = qX_ + ((qW_ * gx + qY_ * gz - qZ_ * gy) * halfDt);
+    const float nextY = qY_ + ((qW_ * gy - qX_ * gz + qZ_ * gx) * halfDt);
+    const float nextZ = qZ_ + ((qW_ * gz + qX_ * gy - qY_ * gx) * halfDt);
+
+    qW_ = nextW;
+    qX_ = nextX;
+    qY_ = nextY;
+    qZ_ = nextZ;
+    normalizeQuaternion();
+}
+
+void IMUTask::applyAccelCorrection(float unitX, float unitY, float unitZ, float normG, float dtS)
+{
+    if (normG < NuraConstants::Sensors::kAttitudeAccelCorrectionMinNormG ||
+        normG > NuraConstants::Sensors::kAttitudeAccelCorrectionMaxNormG)
+    {
+        return;
+    }
+
+    float measuredWorldX = 0.0f;
+    float measuredWorldY = 0.0f;
+    float measuredWorldZ = 0.0f;
+    rotateBodyToWorld(unitX, unitY, unitZ, measuredWorldX, measuredWorldY, measuredWorldZ);
+
+    const float errorX = (measuredWorldY * attitudeReferenceZ_) - (measuredWorldZ * attitudeReferenceY_);
+    const float errorY = (measuredWorldZ * attitudeReferenceX_) - (measuredWorldX * attitudeReferenceZ_);
+    const float errorZ = (measuredWorldX * attitudeReferenceY_) - (measuredWorldY * attitudeReferenceX_);
+    const float gainDt = NuraConstants::Sensors::kAttitudeAccelCorrectionGain * dtS;
+    const float halfX = 0.5f * errorX * gainDt;
+    const float halfY = 0.5f * errorY * gainDt;
+    const float halfZ = 0.5f * errorZ * gainDt;
+
+    const float deltaW = 1.0f;
+    const float deltaX = halfX;
+    const float deltaY = halfY;
+    const float deltaZ = halfZ;
+
+    const float nextW = (deltaW * qW_) - (deltaX * qX_) - (deltaY * qY_) - (deltaZ * qZ_);
+    const float nextX = (deltaW * qX_) + (deltaX * qW_) + (deltaY * qZ_) - (deltaZ * qY_);
+    const float nextY = (deltaW * qY_) - (deltaX * qZ_) + (deltaY * qW_) + (deltaZ * qX_);
+    const float nextZ = (deltaW * qZ_) + (deltaX * qY_) - (deltaY * qX_) + (deltaZ * qW_);
+
+    qW_ = nextW;
+    qX_ = nextX;
+    qY_ = nextY;
+    qZ_ = nextZ;
+    normalizeQuaternion();
+}
+
+void IMUTask::publishAttitude()
+{
+    if (!attitudeReferenceValid_ || !finiteQuaternion(qW_, qX_, qY_, qZ_))
+    {
+        imuState_.data.attitudeValid = false;
+        imuState_.data.tiltValid = false;
+        return;
+    }
+
+    const float sinRollCosPitch = kTwo * ((qW_ * qX_) + (qY_ * qZ_));
+    const float cosRollCosPitch = 1.0f - (kTwo * ((qX_ * qX_) + (qY_ * qY_)));
+    const float sinPitch = clampUnit(kTwo * ((qW_ * qY_) - (qZ_ * qX_)));
+    const float sinYawCosPitch = kTwo * ((qW_ * qZ_) + (qX_ * qY_));
+    const float cosYawCosPitch = 1.0f - (kTwo * ((qY_ * qY_) + (qZ_ * qZ_)));
+
+    imuState_.data.rollDeg = atan2f(sinRollCosPitch, cosRollCosPitch) * NuraConstants::Physics::kRadToDeg;
+    imuState_.data.pitchDeg = asinf(sinPitch) * NuraConstants::Physics::kRadToDeg;
+    imuState_.data.yawDeg = atan2f(sinYawCosPitch, cosYawCosPitch) * NuraConstants::Physics::kRadToDeg;
+
+    float currentAxisWorldX = 0.0f;
+    float currentAxisWorldY = 0.0f;
+    float currentAxisWorldZ = 0.0f;
+    rotateBodyToWorld(attitudeReferenceX_, attitudeReferenceY_, attitudeReferenceZ_,
+                      currentAxisWorldX, currentAxisWorldY, currentAxisWorldZ);
+    const float dot = clampUnit((currentAxisWorldX * attitudeReferenceX_) +
+                                (currentAxisWorldY * attitudeReferenceY_) +
+                                (currentAxisWorldZ * attitudeReferenceZ_));
+    imuState_.data.tiltAngleDeg = acosf(dot) * NuraConstants::Physics::kRadToDeg;
+
+    const bool attitudeFinite = isfinite(imuState_.data.rollDeg) &&
+                                isfinite(imuState_.data.pitchDeg) &&
+                                isfinite(imuState_.data.yawDeg) &&
+                                isfinite(imuState_.data.tiltAngleDeg);
+    imuState_.data.attitudeValid = attitudeFinite;
+    imuState_.data.tiltValid = attitudeFinite;
+}
+
+void IMUTask::normalizeQuaternion()
+{
+    const float norm = sqrtf((qW_ * qW_) + (qX_ * qX_) + (qY_ * qY_) + (qZ_ * qZ_));
+    if (!isfinite(norm) || norm <= 0.0f)
+    {
+        resetAttitudeEstimate();
+        imuState_.data.attitudeValid = false;
+        imuState_.data.tiltValid = false;
+        return;
+    }
+
+    qW_ /= norm;
+    qX_ /= norm;
+    qY_ /= norm;
+    qZ_ /= norm;
+}
+
+void IMUTask::rotateBodyToWorld(float x, float y, float z, float &outX, float &outY, float &outZ) const
+{
+    const float tx = kTwo * ((qY_ * z) - (qZ_ * y));
+    const float ty = kTwo * ((qZ_ * x) - (qX_ * z));
+    const float tz = kTwo * ((qX_ * y) - (qY_ * x));
+
+    outX = x + (qW_ * tx) + ((qY_ * tz) - (qZ_ * ty));
+    outY = y + (qW_ * ty) + ((qZ_ * tx) - (qX_ * tz));
+    outZ = z + (qW_ * tz) + ((qX_ * ty) - (qY_ * tx));
 }

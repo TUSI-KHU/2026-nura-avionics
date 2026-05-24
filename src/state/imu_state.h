@@ -13,6 +13,13 @@ struct ImuData
     float gyroYDps = 0.0f;
     float gyroZDps = 0.0f;
 
+    bool attitudeValid = false;
+    float rollDeg = 0.0f;
+    float pitchDeg = 0.0f;
+    float yawDeg = 0.0f;
+    bool tiltValid = false;
+    float tiltAngleDeg = 0.0f;
+
     uint32_t lastUpdatedMs = 0;
 };
 

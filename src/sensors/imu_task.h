@@ -23,8 +23,25 @@ public:
 
 private:
     bool initializeDevice(uint32_t logTs);
+    void resetAttitudeEstimate();
+    void updateAttitudeEstimate(const Lsm6dso32Reading &sample);
+    void initializeAttitudeReference(float unitX, float unitY, float unitZ, uint32_t sampleMs);
+    void integrateGyro(const Lsm6dso32Reading &sample, float dtS);
+    void applyAccelCorrection(float unitX, float unitY, float unitZ, float normG, float dtS);
+    void publishAttitude();
+    void normalizeQuaternion();
+    void rotateBodyToWorld(float x, float y, float z, float &outX, float &outY, float &outZ) const;
     LSM6DSO32HAL &imu_;
     ImuState &imuState_;
     Logger &logger_;
     const IAppConfig &config_;
+    float attitudeReferenceX_ = 0.0f;
+    float attitudeReferenceY_ = 0.0f;
+    float attitudeReferenceZ_ = 1.0f;
+    float qW_ = 1.0f;
+    float qX_ = 0.0f;
+    float qY_ = 0.0f;
+    float qZ_ = 0.0f;
+    uint32_t lastAttitudeSampleMs_ = 0U;
+    bool attitudeReferenceValid_ = false;
 };

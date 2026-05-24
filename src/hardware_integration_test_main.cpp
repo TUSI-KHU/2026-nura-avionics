@@ -267,6 +267,14 @@ namespace
         Serial.print(imuState.data.gyroYDps, 3);
         Serial.print(",");
         Serial.print(imuState.data.gyroZDps, 3);
+        Serial.print(" rpy_deg=");
+        Serial.print(imuState.data.rollDeg, 2);
+        Serial.print(",");
+        Serial.print(imuState.data.pitchDeg, 2);
+        Serial.print(",");
+        Serial.print(imuState.data.yawDeg, 2);
+        Serial.print(" tilt_deg=");
+        Serial.print(imuState.data.tiltAngleDeg, 2);
         Serial.print(" high_g=");
         Serial.print(highGState.accelXG, 3);
         Serial.print(",");
@@ -400,6 +408,7 @@ namespace
                            telemetryState.health.magOk &&
                            finite3(magState.magXuT, magState.magYuT, magState.magZuT);
         const bool baroOk = telemetryState.barometer.valid &&
+                            !telemetryState.barometer.fault &&
                             pressurePlausible(telemetryState.barometer.pressurePa);
         const bool gpsElectricalOk = gpsState.data.charsProcessed > 0UL &&
                                      gpsState.data.passedChecksum > 0UL;

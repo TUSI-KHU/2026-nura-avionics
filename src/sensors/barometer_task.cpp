@@ -53,6 +53,7 @@ const char *BarometerTask::name() const
 bool BarometerTask::init()
 {
     clearReading(0U);
+    resetHealth();
     initialized_ = initialize(0U);
     return true;
 }
@@ -71,21 +72,33 @@ bool BarometerTask::tick(uint32_t nowMs)
     Mpl3115a2Reading sample;
     if (!barometer_.read(sample, nowMs))
     {
-        clearReading(nowMs);
+        recordReadFailure(nowMs);
         return true;
     }
 
     BarometerTelemetryData &baro = telemetryState_.barometer;
-    baro.valid = true;
-    baro.pressurePa = sample.pressurePa;
+    consecutiveReadFailCount_ = 0U;
+    baro.consecutiveReadFailCount = 0U;
+    if (!isfinite(sample.pressurePa) || sample.pressurePa <= 0.0f)
+    {
+        recordBadValue(nowMs, BARO_FAULT_BAD_VALUE);
+        return true;
+    }
+
     if (!baro.referenceValid)
     {
         baro.referencePressurePa = sample.pressurePa;
         baro.referenceValid = true;
     }
-    baro.rawAltitudeM = relativeAltitudeM(sample.pressurePa, baro.referencePressurePa);
-    baro.altitudeM = filterAltitude(baro.rawAltitudeM);
-    baro.lastUpdatedMs = sample.sampleMs;
+
+    const float rawAltitudeM = relativeAltitudeM(sample.pressurePa, baro.referencePressurePa);
+    if (!sampleAltitudeValid(rawAltitudeM))
+    {
+        recordBadValue(nowMs, BARO_FAULT_BAD_VALUE);
+        return true;
+    }
+
+    publishValidSample(sample, rawAltitudeM);
     return true;
 }
 
@@ -113,6 +126,106 @@ void BarometerTask::clearReading(uint32_t nowMs)
 {
     telemetryState_.barometer.valid = false;
     telemetryState_.barometer.lastUpdatedMs = nowMs;
+    lastValidSampleMs_ = 0U;
+    altitudeWindowHead_ = 0U;
+    altitudeWindowCount_ = 0U;
+    filterReady_ = false;
+}
+
+void BarometerTask::resetHealth()
+{
+    consecutiveReadFailCount_ = 0U;
+    consecutiveBadValueCount_ = 0U;
+    totalBadValueCount_ = 0U;
+
+    BarometerTelemetryData &baro = telemetryState_.barometer;
+    baro.fault = false;
+    baro.faultFlags = BARO_FAULT_NONE;
+    baro.consecutiveReadFailCount = 0U;
+    baro.consecutiveBadValueCount = 0U;
+    baro.totalBadValueCount = 0U;
+}
+
+void BarometerTask::recordReadFailure(uint32_t nowMs)
+{
+    if (consecutiveReadFailCount_ < 255U)
+    {
+        ++consecutiveReadFailCount_;
+    }
+
+    BarometerTelemetryData &baro = telemetryState_.barometer;
+    baro.consecutiveReadFailCount = consecutiveReadFailCount_;
+
+    if (consecutiveReadFailCount_ >= NuraConstants::Sensors::kBarometerConsecutiveReadFailFault)
+    {
+        markFault(nowMs, BARO_FAULT_READ_FAIL);
+    }
+
+    if (lastValidSampleMs_ != 0U &&
+        (nowMs - lastValidSampleMs_) >= NuraConstants::Sensors::kBarometerStaleFaultMs)
+    {
+        markFault(nowMs, BARO_FAULT_STALE);
+    }
+}
+
+bool BarometerTask::sampleAltitudeValid(float altitudeM) const
+{
+    return isfinite(altitudeM) &&
+           altitudeM >= NuraConstants::Sensors::kBarometerMinAltitudeAglM &&
+           altitudeM <= NuraConstants::Sensors::kBarometerMaxAltitudeAglM;
+}
+
+void BarometerTask::recordBadValue(uint32_t nowMs, uint16_t faultFlag)
+{
+    consecutiveReadFailCount_ = 0U;
+    if (consecutiveBadValueCount_ < 255U)
+    {
+        ++consecutiveBadValueCount_;
+    }
+    if (totalBadValueCount_ < 255U)
+    {
+        ++totalBadValueCount_;
+    }
+
+    BarometerTelemetryData &baro = telemetryState_.barometer;
+    baro.consecutiveReadFailCount = 0U;
+    baro.consecutiveBadValueCount = consecutiveBadValueCount_;
+    baro.totalBadValueCount = totalBadValueCount_;
+
+    if (consecutiveBadValueCount_ >= NuraConstants::Sensors::kBarometerBadValueConsecutiveFault ||
+        totalBadValueCount_ >= NuraConstants::Sensors::kBarometerBadValueTotalFault)
+    {
+        markFault(nowMs, faultFlag);
+    }
+}
+
+void BarometerTask::publishValidSample(const Mpl3115a2Reading &sample, float rawAltitudeM)
+{
+    consecutiveReadFailCount_ = 0U;
+    consecutiveBadValueCount_ = 0U;
+
+    BarometerTelemetryData &baro = telemetryState_.barometer;
+    baro.valid = true;
+    baro.consecutiveReadFailCount = 0U;
+    baro.consecutiveBadValueCount = 0U;
+    baro.pressurePa = sample.pressurePa;
+    baro.rawAltitudeM = rawAltitudeM;
+    baro.altitudeM = filterAltitude(rawAltitudeM);
+    baro.lastUpdatedMs = sample.sampleMs;
+    lastValidSampleMs_ = sample.sampleMs;
+}
+
+void BarometerTask::markFault(uint32_t nowMs, uint16_t faultFlag)
+{
+    BarometerTelemetryData &baro = telemetryState_.barometer;
+    if ((baro.faultFlags & faultFlag) == 0U)
+    {
+        LOGW(logger_, nowMs, "baro", "barometer fault");
+    }
+
+    baro.fault = true;
+    baro.faultFlags = static_cast<uint16_t>(baro.faultFlags | faultFlag);
+    baro.valid = false;
     altitudeWindowHead_ = 0U;
     altitudeWindowCount_ = 0U;
     filterReady_ = false;

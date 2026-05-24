@@ -421,7 +421,7 @@ nura::FastTelemetry TelemetryTask::buildFastTelemetry(uint32_t nowMs) const
     fast.bootMs = nowMs;
 
     const BarometerTelemetryData &baro = telemetryState_.barometer;
-    if (baro.valid && baro.referenceValid)
+    if (baro.valid && !baro.fault && baro.referenceValid)
     {
         fast.baroDp2Pa = clampFloatToI16((baro.pressurePa - baro.referencePressurePa) * 0.5f);
     }
@@ -467,7 +467,9 @@ uint16_t TelemetryTask::buildStatusWord(uint32_t nowMs) const
     {
         status |= nura::STATUS_HIGH_ACCEL_OK;
     }
-    if (telemetryState_.barometer.valid && sampleFresh(telemetryState_.barometer.lastUpdatedMs, nowMs, freshMs))
+    if (telemetryState_.barometer.valid &&
+        !telemetryState_.barometer.fault &&
+        sampleFresh(telemetryState_.barometer.lastUpdatedMs, nowMs, freshMs))
     {
         status |= nura::STATUS_BARO_OK;
     }

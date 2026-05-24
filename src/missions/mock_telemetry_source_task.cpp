@@ -47,6 +47,12 @@ bool MockTelemetrySourceTask::tick(uint32_t nowMs)
     imuState_.data.gyroXDps = sample.gyroXDps;
     imuState_.data.gyroYDps = sample.gyroYDps;
     imuState_.data.gyroZDps = sample.gyroZDps;
+    imuState_.data.attitudeValid = sample.attitudeValid;
+    imuState_.data.rollDeg = sample.rollDeg;
+    imuState_.data.pitchDeg = sample.pitchDeg;
+    imuState_.data.yawDeg = sample.yawDeg;
+    imuState_.data.tiltValid = sample.tiltValid;
+    imuState_.data.tiltAngleDeg = sample.tiltAngleDeg;
     imuState_.data.lastUpdatedMs = sample.sampleMs;
 
     highGImuState_.accelXG = sample.highAccelXG;

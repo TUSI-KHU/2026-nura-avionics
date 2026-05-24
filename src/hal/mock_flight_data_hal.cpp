@@ -94,6 +94,12 @@ bool MockFlightDataHAL::read(MockFlightDataReading &out, uint32_t nowMs)
     out.gyroXDps = deterministicNoiseM(nowMs + 17UL, 4.0f);
     out.gyroYDps = deterministicNoiseM(nowMs + 31UL, 4.0f);
     out.gyroZDps = deterministicNoiseM(nowMs + 47UL, 4.0f);
+    out.attitudeValid = true;
+    out.rollDeg = 0.0f;
+    out.pitchDeg = timeS > params.apogeeTimeS ? 80.0f : 0.0f;
+    out.yawDeg = deterministicNoiseM(nowMs + 61UL, 2.0f);
+    out.tiltValid = true;
+    out.tiltAngleDeg = timeS > params.apogeeTimeS ? 80.0f : 0.0f;
     out.rawAltitudeM = altitudeM;
     out.barometerValid = !(scenario_ == MockFlightScenarioId::BARO_DROPOUT &&
                            nowMs > NuraConstants::Mock::kBarometerDropoutStartMs &&

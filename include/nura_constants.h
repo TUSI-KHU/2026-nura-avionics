@@ -8,6 +8,7 @@ namespace Physics
 {
 constexpr float kGravityMps2 = 9.80665f;
 constexpr float kRadToDeg = 57.2957795f;
+constexpr float kDegToRad = 0.0174532925f;
 } // namespace Physics
 
 namespace Atmosphere
@@ -35,6 +36,20 @@ constexpr uint32_t kBarometerTaskPeriodMs = 50UL;
 constexpr uint32_t kBarometerRecoveryIntervalMs = 1000UL;
 constexpr uint8_t kBarometerMedianWindowSamples = 3U;
 constexpr float kBarometerAltitudeLpfAlpha = 0.35f;
+constexpr uint32_t kBarometerStaleFaultMs = 300UL;
+constexpr uint8_t kBarometerConsecutiveReadFailFault = 5U;
+constexpr uint8_t kBarometerBadValueTotalFault = 10U;
+constexpr uint8_t kBarometerBadValueConsecutiveFault = 5U;
+constexpr float kBarometerMinAltitudeAglM = -200.0f;
+constexpr float kBarometerMaxAltitudeAglM = 5000.0f;
+constexpr uint32_t kBarometerStuckWindowMs = 5000UL;
+constexpr float kBarometerStuckRangeM = 0.2f;
+constexpr float kTiltMinAccelNormG = 0.2f;
+constexpr float kTiltMaxAccelNormG = 3.0f;
+constexpr float kAttitudeAccelCorrectionMinNormG = 0.7f;
+constexpr float kAttitudeAccelCorrectionMaxNormG = 1.3f;
+constexpr float kAttitudeAccelCorrectionGain = 0.8f;
+constexpr uint32_t kAttitudeMaxDeltaMs = 100UL;
 constexpr uint32_t kGnssTaskPeriodMs = 50UL;
 constexpr uint16_t kGnssPollByteBudget = 128U;
 constexpr uint32_t kGnssMaxFixAgeMs = 2000UL;
@@ -126,6 +141,10 @@ constexpr uint32_t kApogeeMaxBarometerSampleGapMs = 150UL;
 constexpr float kMinApogeeDetectAltM = 30.0f;
 constexpr float kApogeeDropThresholdM = 4.0f;
 constexpr uint8_t kApogeeDescentConfirmSamples = 4U;
+constexpr uint32_t kBaroFaultAttitudeFallbackMinFlightTimeMs = 8000UL;
+constexpr float kBaroFaultAttitudeFallbackTiltDeg = 70.0f;
+constexpr uint8_t kBaroFaultAttitudeFallbackConfirmSamples = 5U;
+constexpr uint32_t kBaroFaultAttitudeFallbackMaxSampleAgeMs = 150UL;
 
 constexpr uint32_t kApogeeTimeoutMs = 12000UL;
 constexpr uint32_t kMainTimeoutMs = 15000UL;

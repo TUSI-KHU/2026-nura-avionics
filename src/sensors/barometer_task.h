@@ -22,6 +22,12 @@ public:
 private:
     bool initialize(uint32_t nowMs);
     void clearReading(uint32_t nowMs);
+    void resetHealth();
+    void recordReadFailure(uint32_t nowMs);
+    bool sampleAltitudeValid(float altitudeM) const;
+    void recordBadValue(uint32_t nowMs, uint16_t faultFlag);
+    void publishValidSample(const Mpl3115a2Reading &sample, float rawAltitudeM);
+    void markFault(uint32_t nowMs, uint16_t faultFlag);
     float filterAltitude(float rawAltitudeM);
 
     MPL3115A2HAL &barometer_;
@@ -30,6 +36,10 @@ private:
     const IAppConfig &config_;
     bool initialized_ = false;
     uint32_t lastInitAttemptMs_ = 0;
+    uint32_t lastValidSampleMs_ = 0;
+    uint8_t consecutiveReadFailCount_ = 0U;
+    uint8_t consecutiveBadValueCount_ = 0U;
+    uint8_t totalBadValueCount_ = 0U;
     float altitudeWindowM_[NuraConstants::Sensors::kBarometerMedianWindowSamples] = {0.0f, 0.0f, 0.0f};
     uint8_t altitudeWindowHead_ = 0U;
     uint8_t altitudeWindowCount_ = 0U;
