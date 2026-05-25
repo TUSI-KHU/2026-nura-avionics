@@ -118,6 +118,8 @@ constexpr uint8_t kExpectedVersion = 0x12U;
 
 namespace Flight
 {
+constexpr uint32_t kAccelFallbackMaxSampleAgeMs = 50UL;
+
 constexpr float kLaunchAccelThresholdG = 2.0f;
 constexpr uint8_t kLaunchConfirmSamples = 4U;
 

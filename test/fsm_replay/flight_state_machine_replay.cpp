@@ -193,9 +193,8 @@ float highGNorm(const Scenario &scenario, uint32_t nowMs)
     return 0.15f;
 }
 
-void publishHighG(HighGImuState &highG, const Scenario &scenario, uint32_t nowMs)
+void publishHighGNorm(HighGImuState &highG, TelemetryState &telemetry, float normG, uint32_t nowMs)
 {
-    const float normG = highGNorm(scenario, nowMs);
     highG.accelXG = 0.02f;
     highG.accelYG = 0.01f;
     highG.accelZG = normG;
@@ -205,6 +204,27 @@ void publishHighG(HighGImuState &highG, const Scenario &scenario, uint32_t nowMs
     highG.connected = true;
     highG.hasNewData = true;
     highG.lastUpdatedMs = nowMs;
+    telemetry.health.highAccelOk = true;
+}
+
+void publishHighG(HighGImuState &highG, TelemetryState &telemetry, const Scenario &scenario, uint32_t nowMs)
+{
+    publishHighGNorm(highG, telemetry, highGNorm(scenario, nowMs), nowMs);
+}
+
+void publishLowGNorm(ImuState &imu, float normG, uint32_t nowMs)
+{
+    imu.data.accelXMps2 = 0.02f * kGravityMps2;
+    imu.data.accelYMps2 = 0.01f * kGravityMps2;
+    imu.data.accelZMps2 = normG * kGravityMps2;
+    imu.data.lastUpdatedMs = nowMs;
+}
+
+void markHighGFault(HighGImuState &highG, TelemetryState &telemetry)
+{
+    highG.connected = false;
+    highG.hasNewData = false;
+    telemetry.health.highAccelOk = false;
 }
 
 void publishBaro(TelemetryState &telemetry, BaroFilter &filter, const Scenario &scenario, uint32_t nowMs)
@@ -249,6 +269,7 @@ void publishMockSample(ImuState &imu, HighGImuState &highG, TelemetryState &tele
     highG.connected = true;
     highG.hasNewData = true;
     highG.lastUpdatedMs = sample.sampleMs;
+    telemetry.health.highAccelOk = true;
 
     if (!sample.barometerUpdated)
     {
@@ -299,7 +320,7 @@ ReplayResult runReplay(const Scenario &scenario, uint32_t endMs)
 
     for (uint32_t nowMs = 0U; nowMs <= endMs; nowMs += kTickMs)
     {
-        publishHighG(highG, scenario, nowMs);
+        publishHighG(highG, telemetry, scenario, nowMs);
         publishBaro(telemetry, filter, scenario, nowMs);
         fsm.tick(nowMs);
 
@@ -721,6 +742,97 @@ bool checkLaunchConfirmation()
     }
     return pass("launch_confirm");
 }
+
+bool checkLowGFallbackLaunch()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
+    fsm.init();
+    flight.state = State::ARMED;
+    flight.stateEnteredMs = 0U;
+    markHighGFault(highG, telemetry);
+
+    for (uint8_t i = 0U; i < NuraConstants::Flight::kLaunchConfirmSamples; ++i)
+    {
+        const uint32_t nowMs = 1000U + (static_cast<uint32_t>(i) * kTickMs);
+        publishLowGNorm(imu, NuraConstants::Flight::kLaunchAccelThresholdG + 0.4f, nowMs);
+        fsm.tick(nowMs);
+    }
+
+    if (flight.state != State::LAUNCH)
+    {
+        return fail("low_g_launch_fallback", "low-g accel norm did not replace failed high-g launch detector");
+    }
+    return pass("low_g_launch_fallback");
+}
+
+bool checkLowGFallbackBurnout()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
+    fsm.init();
+    flight.state = State::LAUNCH;
+    flight.launchMs = 1000U;
+    flight.stateEnteredMs = 1000U;
+    markHighGFault(highG, telemetry);
+
+    for (uint8_t i = 0U; i < NuraConstants::Flight::kBurnoutConfirmSamples; ++i)
+    {
+        const uint32_t nowMs = 1500U + (static_cast<uint32_t>(i) * kTickMs);
+        publishLowGNorm(imu, NuraConstants::Flight::kBurnoutAccelThresholdG - 0.3f, nowMs);
+        fsm.tick(nowMs);
+    }
+
+    if (flight.state != State::COAST)
+    {
+        return fail("low_g_burnout_fallback", "low-g accel norm did not replace failed high-g burnout detector");
+    }
+    return pass("low_g_burnout_fallback");
+}
+
+bool checkHighGPreferredOverLowG()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
+    fsm.init();
+    flight.state = State::ARMED;
+    flight.stateEnteredMs = 0U;
+
+    for (uint8_t i = 0U; i < NuraConstants::Flight::kLaunchConfirmSamples; ++i)
+    {
+        const uint32_t nowMs = 1000U + (static_cast<uint32_t>(i) * kTickMs);
+        publishHighGNorm(highG, telemetry, NuraConstants::Flight::kLaunchAccelThresholdG - 0.6f, nowMs);
+        publishLowGNorm(imu, NuraConstants::Flight::kLaunchAccelThresholdG + 0.6f, nowMs);
+        fsm.tick(nowMs);
+    }
+
+    if (flight.state != State::ARMED)
+    {
+        return fail("high_g_preferred", "healthy high-g detector was bypassed by low-g samples");
+    }
+    return pass("high_g_preferred");
+}
 } // namespace
 
 int main()
@@ -739,6 +851,9 @@ int main()
         ok = checkFullFlight(scenario) && ok;
     }
     ok = checkLaunchConfirmation() && ok;
+    ok = checkLowGFallbackLaunch() && ok;
+    ok = checkLowGFallbackBurnout() && ok;
+    ok = checkHighGPreferredOverLowG() && ok;
     ok = checkAbortToSafe() && ok;
     ok = checkForceDeployFromCoast() && ok;
     ok = checkForceDeployRejectedOnPad() && ok;

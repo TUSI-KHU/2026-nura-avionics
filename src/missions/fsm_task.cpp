@@ -89,13 +89,13 @@ uint32_t FlightStateMachineTask::periodMs() const
 
 void FlightStateMachineTask::tickArmed(uint32_t nowMs)
 {
-    (void)nowMs;
-    if (!consumeHighGSample(lastLaunchSampleMs_))
+    AccelSample accel;
+    if (!consumeFlightAccelSample(nowMs, lastLaunchAccelSampleMs_, lastLaunchAccelSource_, accel))
     {
         return;
     }
 
-    if (highGAccelNorm() >= NuraConstants::Flight::kLaunchAccelThresholdG)
+    if (accel.normG >= NuraConstants::Flight::kLaunchAccelThresholdG)
     {
         ++launchConfirmCount_;
     }
@@ -106,19 +106,19 @@ void FlightStateMachineTask::tickArmed(uint32_t nowMs)
 
     if (launchConfirmCount_ >= NuraConstants::Flight::kLaunchConfirmSamples)
     {
-        transitionTo(State::LAUNCH, highGImuState_.lastUpdatedMs);
+        transitionTo(State::LAUNCH, accel.sampleMs);
     }
 }
 
 void FlightStateMachineTask::tickLaunch(uint32_t nowMs)
 {
-    (void)nowMs;
-    if (!consumeHighGSample(lastBurnoutSampleMs_))
+    AccelSample accel;
+    if (!consumeFlightAccelSample(nowMs, lastBurnoutAccelSampleMs_, lastBurnoutAccelSource_, accel))
     {
         return;
     }
 
-    if (highGAccelNorm() < NuraConstants::Flight::kBurnoutAccelThresholdG)
+    if (accel.normG < NuraConstants::Flight::kBurnoutAccelThresholdG)
     {
         ++burnoutConfirmCount_;
     }
@@ -129,7 +129,7 @@ void FlightStateMachineTask::tickLaunch(uint32_t nowMs)
 
     if (burnoutConfirmCount_ >= NuraConstants::Flight::kBurnoutConfirmSamples)
     {
-        transitionTo(State::COAST, highGImuState_.lastUpdatedMs);
+        transitionTo(State::COAST, accel.sampleMs);
     }
 }
 
@@ -312,13 +312,15 @@ void FlightStateMachineTask::onEnter(State next, uint32_t nowMs)
         break;
     case State::ARMED:
         launchConfirmCount_ = 0U;
-        lastLaunchSampleMs_ = 0U;
+        lastLaunchAccelSampleMs_ = 0U;
+        lastLaunchAccelSource_ = AccelSource::NONE;
         resetApogeeScratch();
         break;
     case State::LAUNCH:
         flightState_.launchMs = nowMs;
         burnoutConfirmCount_ = 0U;
-        lastBurnoutSampleMs_ = 0U;
+        lastBurnoutAccelSampleMs_ = 0U;
+        lastBurnoutAccelSource_ = AccelSource::NONE;
         break;
     case State::COAST:
         flightState_.coastMs = nowMs;
@@ -358,8 +360,10 @@ void FlightStateMachineTask::resetFlightScratch()
 {
     launchConfirmCount_ = 0U;
     burnoutConfirmCount_ = 0U;
-    lastLaunchSampleMs_ = 0U;
-    lastBurnoutSampleMs_ = 0U;
+    lastLaunchAccelSampleMs_ = 0U;
+    lastBurnoutAccelSampleMs_ = 0U;
+    lastLaunchAccelSource_ = AccelSource::NONE;
+    lastBurnoutAccelSource_ = AccelSource::NONE;
     primaryDrogueOff_ = false;
     backupDrogueOn_ = false;
     backupDrogueOff_ = false;
@@ -390,23 +394,71 @@ void FlightStateMachineTask::resetLandingScratch()
     landingSampleCount_ = 0U;
 }
 
-float FlightStateMachineTask::highGAccelNorm() const
+bool FlightStateMachineTask::consumeFlightAccelSample(uint32_t nowMs,
+                                                      uint32_t &lastSeenMs,
+                                                      AccelSource &lastSeenSource,
+                                                      AccelSample &sample) const
 {
-    const float x = highGImuState_.accelXG;
-    const float y = highGImuState_.accelYG;
-    const float z = highGImuState_.accelZG;
-    return sqrtf((x * x) + (y * y) + (z * z));
-}
-
-bool FlightStateMachineTask::consumeHighGSample(uint32_t &lastSeenMs)
-{
-    if (!highGImuState_.hasNewData || highGImuState_.lastUpdatedMs == 0U ||
-        highGImuState_.lastUpdatedMs == lastSeenMs)
+    AccelSample candidate;
+    if (!highGAccelSample(nowMs, candidate) && !lowGAccelSample(nowMs, candidate))
     {
         return false;
     }
 
-    lastSeenMs = highGImuState_.lastUpdatedMs;
+    if (candidate.source == lastSeenSource && candidate.sampleMs == lastSeenMs)
+    {
+        return false;
+    }
+
+    lastSeenSource = candidate.source;
+    lastSeenMs = candidate.sampleMs;
+    sample = candidate;
+    return true;
+}
+
+bool FlightStateMachineTask::highGAccelSample(uint32_t nowMs, AccelSample &sample) const
+{
+    if (!telemetryState_.health.highAccelOk ||
+        !highGImuState_.connected ||
+        !highGImuState_.hasNewData ||
+        highGImuState_.lastUpdatedMs == 0U ||
+        (nowMs - highGImuState_.lastUpdatedMs) > NuraConstants::Flight::kAccelFallbackMaxSampleAgeMs ||
+        !finite3(highGImuState_.accelXG, highGImuState_.accelYG, highGImuState_.accelZG))
+    {
+        return false;
+    }
+
+    const float normG = accelNormG(highGImuState_.accelXG, highGImuState_.accelYG, highGImuState_.accelZG);
+    if (!isfinite(normG))
+    {
+        return false;
+    }
+
+    sample.source = AccelSource::HIGH_G;
+    sample.sampleMs = highGImuState_.lastUpdatedMs;
+    sample.normG = normG;
+    return true;
+}
+
+bool FlightStateMachineTask::lowGAccelSample(uint32_t nowMs, AccelSample &sample) const
+{
+    const ImuData &imu = imuState_.data;
+    if (imu.lastUpdatedMs == 0U ||
+        (nowMs - imu.lastUpdatedMs) > NuraConstants::Flight::kAccelFallbackMaxSampleAgeMs ||
+        !finite3(imu.accelXMps2, imu.accelYMps2, imu.accelZMps2))
+    {
+        return false;
+    }
+
+    const float normG = accelNormGFromMps2(imu.accelXMps2, imu.accelYMps2, imu.accelZMps2);
+    if (!isfinite(normG))
+    {
+        return false;
+    }
+
+    sample.source = AccelSource::LOW_G;
+    sample.sampleMs = imu.lastUpdatedMs;
+    sample.normG = normG;
     return true;
 }
 
@@ -781,6 +833,22 @@ bool FlightStateMachineTask::solveQuadratic(ApogeeFit &fit) const
     }
     fit.rmseM = sqrtf(squaredErrorSum / static_cast<float>(n));
     return isfinite(fit.rmseM);
+}
+
+float FlightStateMachineTask::accelNormG(float xG, float yG, float zG)
+{
+    return sqrtf((xG * xG) + (yG * yG) + (zG * zG));
+}
+
+float FlightStateMachineTask::accelNormGFromMps2(float xMps2, float yMps2, float zMps2)
+{
+    const float normMps2 = sqrtf((xMps2 * xMps2) + (yMps2 * yMps2) + (zMps2 * zMps2));
+    return normMps2 / NuraConstants::Physics::kGravityMps2;
+}
+
+bool FlightStateMachineTask::finite3(float x, float y, float z)
+{
+    return isfinite(x) && isfinite(y) && isfinite(z);
 }
 
 bool FlightStateMachineTask::solve3x3(float matrix[3][4], float &x0, float &x1, float &x2)

@@ -20,6 +20,7 @@ Included in this version:
 - Real-time apogee prediction using a nine-sample quadratic fit.
 - Uplink forced recovery deployment as an FSM-owned request path.
 - Barometer sample rejection and first degraded barometer fault policy.
+- High-g / low-g acceleration source fallback for launch and burnout detection.
 - Constants that must be represented in code, even if their final values are
   still team-tunable.
 
@@ -36,8 +37,12 @@ Excluded from this version:
   perform sensor bus reads.
 - Logging is not part of the current FSM implementation. Add TODO markers where
   logging events should be emitted later.
-- Barometer fault fallback is implemented for apogee/main decisions. Other
-  sensor fault fallback is not part of the current FSM implementation.
+- Barometer fault fallback is implemented for apogee/main decisions. High-g
+  acceleration fallback is implemented only for launch and burnout detection.
+  Broader sensor degraded-mode policy is still TODO.
+- Launch and burnout detection use a single scalar acceleration norm in g.
+  High-g is the primary source; low-g is used only when high-g is unavailable,
+  faulted, stale, or non-finite.
 - Constants and thresholds must live in code as named constants, not inline
   literals.
 - `APOGEE` is a real state in this design. It represents the drogue pyro
@@ -67,10 +72,11 @@ Initial implementation constants:
 
 | Constant | Initial value | Unit | Source / note |
 | --- | ---: | --- | --- |
+| `ACCEL_FALLBACK_MAX_SAMPLE_AGE_MS` | `50` | ms | Freshness bound for high-g/low-g acceleration samples used by launch and burnout detection |
 | `LAUNCH_ACCEL_THRESHOLD_G` | `2.0` | g | Team decision, based on 2025 acceleration-norm logs |
-| `LAUNCH_CONFIRM_SAMPLES` | `4` | samples | Team decision; high-g consecutive samples |
-| `BURNOUT_ACCEL_THRESHOLD_G` | `1.0` | g | Team decision; high-g acceleration norm below this enters coast |
-| `BURNOUT_CONFIRM_SAMPLES` | `4` | samples | Team decision; high-g consecutive samples |
+| `LAUNCH_CONFIRM_SAMPLES` | `4` | samples | Team decision; consecutive selected-acceleration samples |
+| `BURNOUT_ACCEL_THRESHOLD_G` | `1.0` | g | Team decision; selected acceleration norm below this enters coast |
+| `BURNOUT_CONFIRM_SAMPLES` | `4` | samples | Team decision; consecutive selected-acceleration samples |
 | `APOGEE_FIT_WINDOW_SAMPLES` | `9` | samples | Barometer sliding-window quadratic fit |
 | `APOGEE_PREDICTION_HISTORY_SAMPLES` | `5` | samples | Recent valid apogee predictions used by `plus2sigma5` |
 | `APOGEE_CONFIRM_SAMPLES` | `3` | samples | Consecutive valid apogee predictions before deployment |
@@ -121,10 +127,12 @@ Notes:
 
 - The 4-sample launch and burnout confirmations are intentionally sample-count
   based, not millisecond based.
-- The launch and burnout confirmation source is the high-g accelerometer
-  (`H3LIS331DL`) acceleration norm.
-- Low-g IMU tilt fallback is used only after a barometer fault. High/low-g
-  acceleration fallback for launch and burnout remains deferred.
+- The launch and burnout confirmation source is high-g (`H3LIS331DL`) first.
+  If high-g is faulted or stale, the low-g IMU acceleration norm is used as a
+  degraded fallback. A healthy high-g sample is never mixed with a low-g sample
+  for the same detector step.
+- Low-g IMU tilt fallback is also used after a barometer fault, but that is a
+  separate apogee fallback path.
 
 ## State Table
 
@@ -132,9 +140,9 @@ Notes:
 | --- | --- | --- | --- | --- | --- |
 | `INIT` | Initialize sensors, initialize calibration, build barometer ground baseline, force pyro outputs OFF. TODO: initialize SD/SPI Flash logging later. | Check initialization completion. | TODO init timeout. | `FAULT` or `SAFE`, final policy TBD. | Boot starts here. |
 | `SAFE` | Force pyro outputs OFF. Reset flight-local counters and detector state. | Watch arming switch / arming command. Sensor tasks continue globally. | None for first implementation. | None. | `INIT` completed. |
-| `ARMED` | Reset launch detector consecutive count. Reset launch timestamp. Reset coast/apogee detector scratch state. | Compute high-g acceleration norm and update launch confirmation count. | Optional arming timeout TODO. | `SAFE` if disarmed, final disarm policy TBD. | Human arming switch / arming command is active. |
-| `LAUNCH` | Save `launch_time_ms`. Reset burnout confirmation count. TODO: log launch event later. | Continue high-g acceleration norm monitoring and update burnout confirmation count. | Optional motor-burn timeout TODO. | `COAST` when motor-burn timeout policy is defined. | In `ARMED`, high-g acceleration norm is `>= LAUNCH_ACCEL_THRESHOLD_G` for `LAUNCH_CONFIRM_SAMPLES` consecutive samples. |
-| `COAST` | Save `coast_start_ms`. Reset apogee detector scratch state, including max altitude and descent counter. | Push fresh barometer AGL samples into the nine-sample predictor, update predicted-apogee and backup-descent confirmation counts. | `APOGEE_TIMEOUT_MS`. | `APOGEE`. | In `LAUNCH`, high-g acceleration norm is `< BURNOUT_ACCEL_THRESHOLD_G` for `BURNOUT_CONFIRM_SAMPLES` consecutive samples. |
+| `ARMED` | Reset launch detector consecutive count. Reset launch timestamp. Reset coast/apogee detector scratch state. | Compute selected acceleration norm and update launch confirmation count. | Optional arming timeout TODO. | `SAFE` if disarmed, final disarm policy TBD. | Human arming switch / arming command is active. |
+| `LAUNCH` | Save `launch_time_ms`. Reset burnout confirmation count. TODO: log launch event later. | Continue selected acceleration norm monitoring and update burnout confirmation count. | Optional motor-burn timeout TODO. | `COAST` when motor-burn timeout policy is defined. | In `ARMED`, selected acceleration norm is `>= LAUNCH_ACCEL_THRESHOLD_G` for `LAUNCH_CONFIRM_SAMPLES` consecutive samples. |
+| `COAST` | Save `coast_start_ms`. Reset apogee detector scratch state, including max altitude and descent counter. | Push fresh barometer AGL samples into the nine-sample predictor, update predicted-apogee and backup-descent confirmation counts. | `APOGEE_TIMEOUT_MS`. | `APOGEE`. | In `LAUNCH`, selected acceleration norm is `< BURNOUT_ACCEL_THRESHOLD_G` for `BURNOUT_CONFIRM_SAMPLES` consecutive samples. |
 | `APOGEE` | Start drogue primary pyro pulse. Save pyro sequence start time. TODO: log drogue sequence start later. | End primary pulse after `PYRO_FIRE_DURATION_MS`; after `DROGUE_BACKUP_DELAY_MS`, fire backup pyro for `PYRO_FIRE_DURATION_MS`; keep all pyro timing non-blocking. | Pyro sequence timeout derived from backup delay plus pulse duration. | `DROGUE`. | Apogee detector asserts apogee, or `COAST` timeout fallback fires. |
 | `DROGUE` | Latch drogue sequence complete. Reset main deploy detector scratch state. | Monitor barometer AGL altitude for main deployment threshold. | `MAIN_TIMEOUT_MS`. | `DEPLOY`. | Drogue primary-plus-backup pyro sequence is complete. This does not require proof that the parachute physically opened. |
 | `DEPLOY` | Start main pyro pulse. Reset landing detector scratch state. TODO: support backup main pyro only if hardware/team policy requires it. TODO: log main deploy later. | End main pulse after `PYRO_FIRE_DURATION_MS`; after the pulse is complete, push fresh filtered barometer AGL samples into the landing detector. | None for first implementation. | None; timeout policy deferred to sensor fault / recovery policy. | In `DROGUE`, altitude AGL is `<= MAIN_DEPLOY_ALTITUDE_M_AGL`, or `MAIN_TIMEOUT_MS` fallback fires. |
@@ -143,15 +151,50 @@ Notes:
 
 ## Detector Details
 
-### High-G Acceleration Norm
+### Flight Acceleration Source And Norm
 
-Use high-g accelerometer values:
+Launch and burnout detection use one selected acceleration source per fresh
+sample. The primary source is high-g. The fallback source is low-g.
+
+High-g is usable only when:
+
+```text
+highAccelOk == true
+AND highG.connected == true
+AND highG.hasNewData == true
+AND highG.lastUpdatedMs is non-zero and fresh within ACCEL_FALLBACK_MAX_SAMPLE_AGE_MS
+AND highG x/y/z values are finite
+```
+
+Low-g is usable only when:
+
+```text
+lowG.lastUpdatedMs is non-zero and fresh within ACCEL_FALLBACK_MAX_SAMPLE_AGE_MS
+AND lowG accel x/y/z values are finite
+```
+
+Selection rule:
+
+```text
+if high-g is usable:
+    use high-g
+else if low-g is usable:
+    use low-g
+else:
+    do not update launch/burnout confirmation this tick
+```
+
+The detector consumes only one new sample per source timestamp. If high-g is
+healthy but has no new timestamp yet, the detector waits for high-g instead of
+opportunistically mixing in low-g samples.
+
+For high-g accelerometer values:
 
 ```text
 accel_norm_g = sqrt(x_g^2 + y_g^2 + z_g^2)
 ```
 
-If values are available only in m/s^2:
+For low-g values in m/s^2:
 
 ```text
 accel_norm_g = sqrt(ax^2 + ay^2 + az^2) / 9.80665
@@ -556,7 +599,8 @@ while keeping the flight-state transition and recovery sequence under the FSM.
 ## TODO For Later Work
 
 - SD/SPI Flash logging policy and storage buffer sizing.
-- Low-g/high-g IMU fallback policy and degraded-mode transitions.
+- Broader non-barometer degraded-mode transitions beyond high-g/low-g launch
+  and burnout fallback.
 - Barometer oversampling configuration for 50 ms sampling.
 - Barometer filter tuning.
 - Tune landing detector thresholds with actual main-parachute descent logs.
@@ -583,8 +627,8 @@ check implementation drift quickly.
 | Barometer sample rejection / fault latch | `src/sensors/barometer_task.cpp`, `src/state/telemetry_state.h` | `recordReadFailure()`, `recordBadValue()`, `markFault()`, `BarometerTelemetryData` | Rejects isolated bad samples; latches read-fail, stale, bad-value, and stuck fault flags after the configured thresholds. |
 | Global task periods | `src/app/app_config.cpp`, `src/app/app_config.h` | `DefaultAppConfig::*TaskPeriodMs()` | Barometer period is 50 ms; magnetometer period is 100 ms; FSM period is 10 ms. |
 | INIT / abort handling / dispatch | `src/missions/fsm_task.cpp` | `FlightStateMachineTask::tick()` | `INIT -> SAFE`; active abort returns to `SAFE`; state-specific handlers are called here. |
-| ARMED launch detection | `src/missions/fsm_task.cpp` | `tickArmed()`, `highGAccelNorm()`, `consumeHighGSample()` | High-g norm `>= 2.0 g` for four fresh high-g samples enters `LAUNCH`. |
-| LAUNCH burnout detection | `src/missions/fsm_task.cpp` | `tickLaunch()` | High-g norm `< 1.0 g` for four fresh high-g samples enters `COAST`. |
+| ARMED launch detection | `src/missions/fsm_task.cpp` | `tickArmed()`, `consumeFlightAccelSample()` | Selected acceleration norm `>= 2.0 g` for four fresh samples enters `LAUNCH`; high-g is primary, low-g is fallback. |
+| LAUNCH burnout detection | `src/missions/fsm_task.cpp` | `tickLaunch()`, `consumeFlightAccelSample()` | Selected acceleration norm `< 1.0 g` for four fresh samples enters `COAST`; high-g is primary, low-g is fallback. |
 | COAST apogee detection | `src/missions/fsm_task.cpp` | `tickCoast()`, `consumeBarometerSample()`, `pushApogeeSample()`, `apogeePredictionReady()` | Uses filtered barometer altitude, quality-checked nine-sample fit, `plus2sigma5` aggregation, descent backup, and timeout fallback. |
 | Barometer-fault attitude fallback | `src/missions/fsm_task.cpp` | `baroFaultAttitudeFallbackReady()` | When barometer is faulted in `COAST`, requires launch+8 s, fresh valid tilt, tilt `>= 70 deg`, and five consecutive samples before `APOGEE`; timer fallback remains active. |
 | In-flight barometer stuck detection | `src/missions/fsm_task.cpp` | `trackBarometerStuck()`, `markBarometerFault()` | Tracks 5 s altitude range only in `COAST`/`DROGUE`; latches `BARO_FAULT_STUCK` and leaves recovery to timer fallback. |

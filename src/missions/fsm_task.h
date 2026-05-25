@@ -30,6 +30,20 @@ public:
     uint32_t periodMs() const override;
 
 private:
+    enum class AccelSource : uint8_t
+    {
+        NONE = 0U,
+        HIGH_G,
+        LOW_G,
+    };
+
+    struct AccelSample
+    {
+        AccelSource source = AccelSource::NONE;
+        uint32_t sampleMs = 0U;
+        float normG = 0.0f;
+    };
+
     struct ApogeeSample
     {
         uint32_t sampleMs = 0;
@@ -63,8 +77,12 @@ private:
     void transitionTo(State next, uint32_t nowMs);
     bool consumeForceRecoveryDeployRequest(uint32_t nowMs);
     bool forceRecoveryDeployAllowed() const;
-    float highGAccelNorm() const;
-    bool consumeHighGSample(uint32_t &lastSeenMs);
+    bool consumeFlightAccelSample(uint32_t nowMs,
+                                  uint32_t &lastSeenMs,
+                                  AccelSource &lastSeenSource,
+                                  AccelSample &sample) const;
+    bool highGAccelSample(uint32_t nowMs, AccelSample &sample) const;
+    bool lowGAccelSample(uint32_t nowMs, AccelSample &sample) const;
     bool consumeBarometerSample();
     bool baroFaultAttitudeFallbackReady(uint32_t nowMs);
     bool barometerPrimaryUsable(uint32_t nowMs) const;
@@ -79,6 +97,9 @@ private:
     bool pushApogeePrediction(float predictionM);
     bool plusTwoSigmaApogee(float &predictionM) const;
     bool solveQuadratic(ApogeeFit &fit) const;
+    static float accelNormG(float xG, float yG, float zG);
+    static float accelNormGFromMps2(float xMps2, float yMps2, float zMps2);
+    static bool finite3(float x, float y, float z);
     static bool solve3x3(float matrix[3][4], float &x0, float &x1, float &x2);
 
     FlightState &flightState_;
@@ -95,8 +116,10 @@ private:
     uint8_t apogeeConfirmCount_ = 0U;
     uint8_t descentConfirmCount_ = 0U;
     uint8_t attitudeFallbackConfirmCount_ = 0U;
-    uint32_t lastLaunchSampleMs_ = 0U;
-    uint32_t lastBurnoutSampleMs_ = 0U;
+    uint32_t lastLaunchAccelSampleMs_ = 0U;
+    uint32_t lastBurnoutAccelSampleMs_ = 0U;
+    AccelSource lastLaunchAccelSource_ = AccelSource::NONE;
+    AccelSource lastBurnoutAccelSource_ = AccelSource::NONE;
     uint32_t lastAttitudeFallbackSampleMs_ = 0U;
     uint32_t lastBarometerSampleMs_ = 0U;
     uint32_t lastLandingBarometerSampleMs_ = 0U;
