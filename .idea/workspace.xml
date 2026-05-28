@@ -21,13 +21,18 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="baro fault 감지 및 실시 드로그 로직(IMU기반) 추가">
+    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="IMU fault 로직 추가">
+      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_5_18_26,_10_15 PM_[Changes]/shelved.patch" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_5_18_26__10_15PM__Changes_.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include/board_pinmap.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/board_pinmap.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/include/nura_constants.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/nura_constants.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/platformio.ini" beforeDir="false" afterPath="$PROJECT_DIR$/platformio.ini" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/flight_controller_app.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/flight_controller_app.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/flight_controller_app.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/flight_controller_app.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/fsm_replay/flight_state_machine_replay.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/fsm_replay/flight_state_machine_replay.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/state/flight_state.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/state/flight_state.h" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -248,7 +253,8 @@
       <workItem from="1778827287614" duration="24088000" />
       <workItem from="1779011764123" duration="33223000" />
       <workItem from="1779463272711" duration="295000" />
-      <workItem from="1779514240913" duration="12142000" />
+      <workItem from="1779514240913" duration="21663000" />
+      <workItem from="1779943422742" duration="1252000" />
     </task>
     <task id="LOCAL-00001" summary="port on teensy4.1">
       <option name="closed" value="true" />
@@ -394,7 +400,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779604169901</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="IMU fault 로직 추가">
+      <option name="closed" value="true" />
+      <created>1779696174128</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1779696174128</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -416,6 +430,7 @@
     <MESSAGE value="소스코드 내 모든 상수 단일 파일로 분" />
     <MESSAGE value="Grounding status 수정" />
     <MESSAGE value="baro fault 감지 및 실시 드로그 로직(IMU기반) 추가" />
-    <option name="LAST_COMMIT_MESSAGE" value="baro fault 감지 및 실시 드로그 로직(IMU기반) 추가" />
+    <MESSAGE value="IMU fault 로직 추가" />
+    <option name="LAST_COMMIT_MESSAGE" value="IMU fault 로직 추가" />
   </component>
 </project>

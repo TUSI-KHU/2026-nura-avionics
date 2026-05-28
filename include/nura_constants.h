@@ -68,6 +68,14 @@ namespace Logger
 {
 constexpr uint8_t kDrainBudget = 4U;
 constexpr uint8_t kOutputFailThreshold = 3U;
+constexpr uint16_t kFlightLogRamBufferBytes = 16U * 1024U;
+constexpr uint16_t kFlightLogFlashSectorBytes = 4U * 1024U;
+constexpr uint32_t kFlightLogFlashBytes = 8UL * 1024UL * 1024UL;
+constexpr uint16_t kFlightLogFastPeriodMs = 20U;
+constexpr uint16_t kFlightLogSlowPeriodMs = 100U;
+constexpr uint8_t kFlightLogDrainRecordsPerTick = 8U;
+constexpr uint32_t kFlightLogSpiFrequencyHz = 8000000UL;
+constexpr uint8_t kFlightDecisionTraceQueueDepth = 16U;
 } // namespace Logger
 
 namespace Diagnostics

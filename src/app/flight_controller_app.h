@@ -30,6 +30,10 @@
 #include "hal/panic_handler.h"
 #include "hal/serial_log_output.h"
 #include "hal/sx127x_lora_hal.h"
+#include "logging/flight_log_mirror_storage.h"
+#include "logging/flight_log_storage.h"
+#include "logging/sd_flight_log_storage.h"
+#include "missions/flight_log_task.h"
 #include "missions/fsm_task.h"
 #include "missions/logger_task.h"
 #include "missions/telemetry_task.h"
@@ -64,6 +68,9 @@ private:
     UbloxM6GNSSHAL gnssHal_;
 #endif
     Sx127xLoRaHAL loraHal_;
+    NullFlightLogStorage spiFlashLogStorage_;
+    SdFlightLogStorage sdLogStorage_{BoardPinMap::MicroSD::csPin};
+    FlightLogMirrorStorage flightLogStorage_{spiFlashLogStorage_, sdLogStorage_};
     BlinkingPanicHandler panicHandler_{config_};
     SerialLogOutput logOutput_;
 #if defined(NURA_MOCK_TELEMETRY)
@@ -91,6 +98,7 @@ private:
 #endif
     WatchdogTask watchdogTask_{recoverableDevices_, sizeof(recoverableDevices_) / sizeof(recoverableDevices_[0]), abortState_, logger_, config_};
     FlightStateMachineTask fsmTask_{flightState_, abortState_, highGImuState_, imuState_, telemetryState_, logger_, config_, panicHandler_};
+    FlightLogTask flightLogTask_{flightState_, imuState_, highGImuState_, magnetometerState_, gpsState_, telemetryState_, flightLogStorage_, logger_};
     TelemetryTask telemetryTask_{loraHal_, imuState_, gpsState_, telemetryState_, flightState_, abortState_, logger_, config_};
     LoggerTask loggerTask_{logger_, logOutput_, config_};
 };

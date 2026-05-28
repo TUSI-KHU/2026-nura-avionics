@@ -40,6 +40,7 @@ bool FlightControllerApp::setup(uint32_t nowMs)
 #endif
     scheduler_.add(watchdogTask_);
     scheduler_.add(fsmTask_);
+    scheduler_.add(flightLogTask_);
     scheduler_.add(telemetryTask_);
     scheduler_.add(loggerTask_);
 

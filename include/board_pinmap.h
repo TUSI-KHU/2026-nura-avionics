@@ -95,6 +95,15 @@ struct UbloxM6 final
     static constexpr uint32_t baud = 9600UL;
 };
 
+struct MicroSD final
+{
+#if defined(BUILTIN_SDCARD)
+    static constexpr uint8_t csPin = BUILTIN_SDCARD;
+#else
+    static constexpr uint8_t csPin = 10U;
+#endif
+};
+
 struct Ra01DevelopmentLoRa final
 {
     static constexpr uint8_t ssPin = 10U;

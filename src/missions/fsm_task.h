@@ -77,6 +77,16 @@ private:
     void transitionTo(State next, uint32_t nowMs);
     bool consumeForceRecoveryDeployRequest(uint32_t nowMs);
     bool forceRecoveryDeployAllowed() const;
+    void recordDecision(FlightDecisionKind kind,
+                        FlightDecisionResult result,
+                        uint16_t reason,
+                        uint32_t timestampMs,
+                        float value0,
+                        float value1,
+                        float value2,
+                        float value3,
+                        uint8_t count0,
+                        uint8_t count1);
     bool consumeFlightAccelSample(uint32_t nowMs,
                                   uint32_t &lastSeenMs,
                                   AccelSource &lastSeenSource,

@@ -104,6 +104,27 @@ void FlightStateMachineTask::tickArmed(uint32_t nowMs)
         launchConfirmCount_ = 0U;
     }
 
+    uint16_t reason = accel.source == AccelSource::HIGH_G ? DECISION_REASON_PRIMARY_SENSOR : DECISION_REASON_FALLBACK_SENSOR;
+    reason = static_cast<uint16_t>(reason |
+                                   (accel.normG >= NuraConstants::Flight::kLaunchAccelThresholdG
+                                        ? DECISION_REASON_THRESHOLD_MET
+                                        : DECISION_REASON_THRESHOLD_NOT_MET));
+    const bool launchAccepted = launchConfirmCount_ >= NuraConstants::Flight::kLaunchConfirmSamples;
+    if (launchAccepted)
+    {
+        reason = static_cast<uint16_t>(reason | DECISION_REASON_CONFIRMATION_MET);
+    }
+    recordDecision(FlightDecisionKind::LAUNCH_ACCEL,
+                   launchAccepted ? FlightDecisionResult::ACCEPT : FlightDecisionResult::OBSERVE,
+                   reason,
+                   accel.sampleMs,
+                   accel.normG,
+                   NuraConstants::Flight::kLaunchAccelThresholdG,
+                   0.0f,
+                   0.0f,
+                   launchConfirmCount_,
+                   static_cast<uint8_t>(accel.source));
+
     if (launchConfirmCount_ >= NuraConstants::Flight::kLaunchConfirmSamples)
     {
         transitionTo(State::LAUNCH, accel.sampleMs);
@@ -127,6 +148,27 @@ void FlightStateMachineTask::tickLaunch(uint32_t nowMs)
         burnoutConfirmCount_ = 0U;
     }
 
+    uint16_t reason = accel.source == AccelSource::HIGH_G ? DECISION_REASON_PRIMARY_SENSOR : DECISION_REASON_FALLBACK_SENSOR;
+    reason = static_cast<uint16_t>(reason |
+                                   (accel.normG < NuraConstants::Flight::kBurnoutAccelThresholdG
+                                        ? DECISION_REASON_THRESHOLD_MET
+                                        : DECISION_REASON_THRESHOLD_NOT_MET));
+    const bool burnoutAccepted = burnoutConfirmCount_ >= NuraConstants::Flight::kBurnoutConfirmSamples;
+    if (burnoutAccepted)
+    {
+        reason = static_cast<uint16_t>(reason | DECISION_REASON_CONFIRMATION_MET);
+    }
+    recordDecision(FlightDecisionKind::BURNOUT_ACCEL,
+                   burnoutAccepted ? FlightDecisionResult::ACCEPT : FlightDecisionResult::OBSERVE,
+                   reason,
+                   accel.sampleMs,
+                   accel.normG,
+                   NuraConstants::Flight::kBurnoutAccelThresholdG,
+                   0.0f,
+                   0.0f,
+                   burnoutConfirmCount_,
+                   static_cast<uint8_t>(accel.source));
+
     if (burnoutConfirmCount_ >= NuraConstants::Flight::kBurnoutConfirmSamples)
     {
         transitionTo(State::COAST, accel.sampleMs);
@@ -138,6 +180,16 @@ void FlightStateMachineTask::tickCoast(uint32_t nowMs)
     const uint32_t coastElapsedMs = nowMs - flightState_.coastMs;
     if (coastElapsedMs >= NuraConstants::Flight::kApogeeTimeoutMs)
     {
+        recordDecision(FlightDecisionKind::APOGEE_TIMER,
+                       FlightDecisionResult::ACCEPT,
+                       DECISION_REASON_TIMEOUT,
+                       nowMs,
+                       static_cast<float>(coastElapsedMs),
+                       static_cast<float>(NuraConstants::Flight::kApogeeTimeoutMs),
+                       telemetryState_.barometer.altitudeM,
+                       maxCoastAltitudeM_,
+                       0U,
+                       0U);
         transitionTo(State::APOGEE, nowMs);
         return;
     }
@@ -168,6 +220,16 @@ void FlightStateMachineTask::tickCoast(uint32_t nowMs)
     {
         apogeeConfirmCount_ = 0U;
         descentConfirmCount_ = 0U;
+        recordDecision(FlightDecisionKind::APOGEE_PREDICTION,
+                       FlightDecisionResult::REJECT,
+                       DECISION_REASON_TOO_EARLY,
+                       telemetryState_.barometer.lastUpdatedMs,
+                       currentAltitudeM,
+                       static_cast<float>(launchElapsedMs),
+                       static_cast<float>(NuraConstants::Flight::kApogeeMinFlightTimeMs),
+                       maxCoastAltitudeM_,
+                       apogeeConfirmCount_,
+                       descentConfirmCount_);
         return;
     }
 
@@ -187,6 +249,35 @@ void FlightStateMachineTask::tickCoast(uint32_t nowMs)
     else
     {
         descentConfirmCount_ = 0U;
+    }
+
+    const bool predictionAccepted = apogeeConfirmCount_ >= NuraConstants::Flight::kApogeeConfirmSamples;
+    const bool descentAccepted = descentConfirmCount_ >= NuraConstants::Flight::kApogeeDescentConfirmSamples;
+    if (predictionAccepted)
+    {
+        recordDecision(FlightDecisionKind::APOGEE_PREDICTION,
+                       FlightDecisionResult::ACCEPT,
+                       DECISION_REASON_CONFIRMATION_MET,
+                       telemetryState_.barometer.lastUpdatedMs,
+                       currentAltitudeM,
+                       maxCoastAltitudeM_,
+                       0.0f,
+                       0.0f,
+                       apogeeConfirmCount_,
+                       descentConfirmCount_);
+    }
+    else
+    {
+        recordDecision(FlightDecisionKind::APOGEE_DESCENT,
+                       descentAccepted ? FlightDecisionResult::ACCEPT : FlightDecisionResult::OBSERVE,
+                       descentAccepted ? DECISION_REASON_CONFIRMATION_MET : DECISION_REASON_THRESHOLD_NOT_MET,
+                       telemetryState_.barometer.lastUpdatedMs,
+                       currentAltitudeM,
+                       maxCoastAltitudeM_,
+                       maxCoastAltitudeM_ - currentAltitudeM,
+                       NuraConstants::Flight::kApogeeDropThresholdM,
+                       apogeeConfirmCount_,
+                       descentConfirmCount_);
     }
 
     if (apogeeConfirmCount_ >= NuraConstants::Flight::kApogeeConfirmSamples ||
@@ -236,7 +327,18 @@ void FlightStateMachineTask::tickDrogue(uint32_t nowMs)
 
     const bool mainAltitudeReached = barometerPrimaryUsable(nowMs) &&
                                      telemetryState_.barometer.altitudeM <= NuraConstants::Flight::kMainDeployAltitudeM;
-    if (mainAltitudeReached || drogueElapsedMs >= NuraConstants::Flight::kMainTimeoutMs)
+    const bool mainTimerReached = drogueElapsedMs >= NuraConstants::Flight::kMainTimeoutMs;
+    recordDecision(FlightDecisionKind::MAIN_DEPLOY,
+                   (mainAltitudeReached || mainTimerReached) ? FlightDecisionResult::ACCEPT : FlightDecisionResult::OBSERVE,
+                   mainAltitudeReached ? DECISION_REASON_THRESHOLD_MET : (mainTimerReached ? DECISION_REASON_TIMEOUT : DECISION_REASON_THRESHOLD_NOT_MET),
+                   nowMs,
+                   telemetryState_.barometer.altitudeM,
+                   NuraConstants::Flight::kMainDeployAltitudeM,
+                   static_cast<float>(drogueElapsedMs),
+                   static_cast<float>(NuraConstants::Flight::kMainTimeoutMs),
+                   0U,
+                   0U);
+    if (mainAltitudeReached || mainTimerReached)
     {
         transitionTo(State::DEPLOY, nowMs);
     }
@@ -257,9 +359,23 @@ void FlightStateMachineTask::tickDeploy(uint32_t nowMs)
         return;
     }
 
-    if (consumeLandingSample() && landingStable())
+    if (consumeLandingSample())
     {
-        transitionTo(State::GROUND, telemetryState_.barometer.lastUpdatedMs);
+        const bool stable = landingStable();
+        recordDecision(FlightDecisionKind::LANDING,
+                       stable ? FlightDecisionResult::ACCEPT : FlightDecisionResult::OBSERVE,
+                       stable ? DECISION_REASON_CONFIRMATION_MET : DECISION_REASON_THRESHOLD_NOT_MET,
+                       telemetryState_.barometer.lastUpdatedMs,
+                       telemetryState_.barometer.altitudeM,
+                       NuraConstants::Flight::kLandingStableAltitudeRangeM,
+                       static_cast<float>(landingSampleCount_),
+                       static_cast<float>(NuraConstants::Flight::kLandingStableWindowSamples),
+                       landingSampleCount_,
+                       0U);
+        if (stable)
+        {
+            transitionTo(State::GROUND, telemetryState_.barometer.lastUpdatedMs);
+        }
     }
 }
 
@@ -288,12 +404,32 @@ bool FlightStateMachineTask::consumeForceRecoveryDeployRequest(uint32_t nowMs)
 
     if (!forceRecoveryDeployAllowed())
     {
+        recordDecision(FlightDecisionKind::FORCE_DEPLOY,
+                       FlightDecisionResult::REJECT,
+                       DECISION_REASON_FORCED,
+                       nowMs,
+                       static_cast<float>(requestSeq),
+                       static_cast<float>(flightState_.stateEnteredMs),
+                       0.0f,
+                       0.0f,
+                       0U,
+                       0U);
         LOGW(logger_, nowMs, "fsm", "force deploy rejected by state");
         return false;
     }
 
     flightState_.forceRecoveryDeployExecuted = true;
     flightState_.forceRecoveryDeployExecutedSeq = requestSeq;
+    recordDecision(FlightDecisionKind::FORCE_DEPLOY,
+                   FlightDecisionResult::ACCEPT,
+                   DECISION_REASON_FORCED,
+                   nowMs,
+                   static_cast<float>(requestSeq),
+                   static_cast<float>(flightState_.stateEnteredMs),
+                   0.0f,
+                   0.0f,
+                   0U,
+                   0U);
     transitionTo(State::APOGEE, nowMs);
     return true;
 }
@@ -301,6 +437,33 @@ bool FlightStateMachineTask::consumeForceRecoveryDeployRequest(uint32_t nowMs)
 bool FlightStateMachineTask::forceRecoveryDeployAllowed() const
 {
     return stateAllowsForceRecoveryDeploy(flightState_.state);
+}
+
+void FlightStateMachineTask::recordDecision(FlightDecisionKind kind,
+                                            FlightDecisionResult result,
+                                            uint16_t reason,
+                                            uint32_t timestampMs,
+                                            float value0,
+                                            float value1,
+                                            float value2,
+                                            float value3,
+                                            uint8_t count0,
+                                            uint8_t count1)
+{
+    FlightDecisionTrace &trace = flightState_.decisionTrace;
+    ++trace.seq;
+    trace.timestampMs = timestampMs;
+    trace.state = flightState_.state;
+    trace.kind = kind;
+    trace.result = result;
+    trace.reason = reason;
+    trace.value0 = value0;
+    trace.value1 = value1;
+    trace.value2 = value2;
+    trace.value3 = value3;
+    trace.count0 = count0;
+    trace.count1 = count1;
+    flightState_.pushDecisionTrace(trace);
 }
 
 void FlightStateMachineTask::onEnter(State next, uint32_t nowMs)
@@ -525,6 +688,19 @@ bool FlightStateMachineTask::baroFaultAttitudeFallbackReady(uint32_t nowMs)
         attitudeFallbackConfirmCount_ = 0U;
     }
 
+    const bool accepted = attitudeFallbackConfirmCount_ >= NuraConstants::Flight::kBaroFaultAttitudeFallbackConfirmSamples;
+    recordDecision(FlightDecisionKind::BARO_FAULT_TILT,
+                   accepted ? FlightDecisionResult::ACCEPT : FlightDecisionResult::OBSERVE,
+                   static_cast<uint16_t>(DECISION_REASON_SENSOR_FAULT |
+                                         (accepted ? DECISION_REASON_CONFIRMATION_MET : DECISION_REASON_THRESHOLD_NOT_MET)),
+                   imu.lastUpdatedMs,
+                   imu.tiltAngleDeg,
+                   NuraConstants::Flight::kBaroFaultAttitudeFallbackTiltDeg,
+                   static_cast<float>(launchElapsedMs),
+                   static_cast<float>(NuraConstants::Flight::kBaroFaultAttitudeFallbackMinFlightTimeMs),
+                   attitudeFallbackConfirmCount_,
+                   0U);
+
     return attitudeFallbackConfirmCount_ >= NuraConstants::Flight::kBaroFaultAttitudeFallbackConfirmSamples;
 }
 
@@ -678,6 +854,16 @@ bool FlightStateMachineTask::apogeePredictionReady(float currentAltitudeM)
     if (apogeeSampleCount_ < NuraConstants::Flight::kApogeeFitWindowSamples ||
         currentAltitudeM < NuraConstants::Flight::kMinApogeeDetectAltM)
     {
+        recordDecision(FlightDecisionKind::APOGEE_PREDICTION,
+                       FlightDecisionResult::REJECT,
+                       DECISION_REASON_QUALITY_REJECT,
+                       telemetryState_.barometer.lastUpdatedMs,
+                       currentAltitudeM,
+                       static_cast<float>(apogeeSampleCount_),
+                       NuraConstants::Flight::kMinApogeeDetectAltM,
+                       0.0f,
+                       apogeeConfirmCount_,
+                       descentConfirmCount_);
         return false;
     }
 
@@ -687,6 +873,16 @@ bool FlightStateMachineTask::apogeePredictionReady(float currentAltitudeM)
         fit.a <= -NuraConstants::Flight::kApogeeMaxCurvature ||
         fit.rmseM > NuraConstants::Flight::kApogeeMaxFitRmseM)
     {
+        recordDecision(FlightDecisionKind::APOGEE_PREDICTION,
+                       FlightDecisionResult::REJECT,
+                       DECISION_REASON_QUALITY_REJECT,
+                       telemetryState_.barometer.lastUpdatedMs,
+                       currentAltitudeM,
+                       fit.a,
+                       fit.rmseM,
+                       NuraConstants::Flight::kApogeeMaxFitRmseM,
+                       apogeeConfirmCount_,
+                       descentConfirmCount_);
         return false;
     }
 
@@ -698,6 +894,16 @@ bool FlightStateMachineTask::apogeePredictionReady(float currentAltitudeM)
     if (!isfinite(tApogee) || tApogee <= lastT ||
         (tApogee - lastT) > NuraConstants::Flight::kApogeeMaxPredictAheadS)
     {
+        recordDecision(FlightDecisionKind::APOGEE_PREDICTION,
+                       FlightDecisionResult::REJECT,
+                       DECISION_REASON_QUALITY_REJECT,
+                       telemetryState_.barometer.lastUpdatedMs,
+                       currentAltitudeM,
+                       tApogee,
+                       lastT,
+                       NuraConstants::Flight::kApogeeMaxPredictAheadS,
+                       apogeeConfirmCount_,
+                       descentConfirmCount_);
         return false;
     }
 
@@ -708,20 +914,51 @@ bool FlightStateMachineTask::apogeePredictionReady(float currentAltitudeM)
         rawMarginM > NuraConstants::Flight::kApogeeMaxAltMarginM ||
         !pushApogeePrediction(rawApogeeM))
     {
+        recordDecision(FlightDecisionKind::APOGEE_PREDICTION,
+                       FlightDecisionResult::REJECT,
+                       DECISION_REASON_QUALITY_REJECT,
+                       telemetryState_.barometer.lastUpdatedMs,
+                       currentAltitudeM,
+                       rawApogeeM,
+                       rawMarginM,
+                       NuraConstants::Flight::kApogeeMaxAltMarginM,
+                       apogeeConfirmCount_,
+                       descentConfirmCount_);
         return false;
     }
 
     float aggregatedApogeeM = 0.0f;
     if (!plusTwoSigmaApogee(aggregatedApogeeM))
     {
+        recordDecision(FlightDecisionKind::APOGEE_PREDICTION,
+                       FlightDecisionResult::REJECT,
+                       DECISION_REASON_QUALITY_REJECT,
+                       telemetryState_.barometer.lastUpdatedMs,
+                       currentAltitudeM,
+                       rawApogeeM,
+                       rawMarginM,
+                       static_cast<float>(apogeePredictionCount_),
+                       apogeeConfirmCount_,
+                       descentConfirmCount_);
         return false;
     }
 
     const float aggregatedMarginM = aggregatedApogeeM - currentAltitudeM;
-    return isfinite(aggregatedApogeeM) &&
-           aggregatedMarginM >= 0.0f &&
-           aggregatedMarginM <= NuraConstants::Flight::kApogeeDeployAltMarginM &&
-           aggregatedMarginM <= NuraConstants::Flight::kApogeeMaxAltMarginM;
+    const bool ready = isfinite(aggregatedApogeeM) &&
+                       aggregatedMarginM >= 0.0f &&
+                       aggregatedMarginM <= NuraConstants::Flight::kApogeeDeployAltMarginM &&
+                       aggregatedMarginM <= NuraConstants::Flight::kApogeeMaxAltMarginM;
+    recordDecision(FlightDecisionKind::APOGEE_PREDICTION,
+                   ready ? FlightDecisionResult::ACCEPT : FlightDecisionResult::OBSERVE,
+                   ready ? DECISION_REASON_THRESHOLD_MET : DECISION_REASON_THRESHOLD_NOT_MET,
+                   telemetryState_.barometer.lastUpdatedMs,
+                   currentAltitudeM,
+                   aggregatedApogeeM,
+                   aggregatedMarginM,
+                   fit.rmseM,
+                   apogeeConfirmCount_,
+                   descentConfirmCount_);
+    return ready;
 }
 
 bool FlightStateMachineTask::pushApogeePrediction(float predictionM)
