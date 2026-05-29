@@ -29,6 +29,12 @@ constexpr uint8_t kAuthKey[16] = {
     0x4e, 0x55, 0x52, 0x41, 0x2d, 0x56, 0x31, 0x4c,
     0x49, 0x54, 0x45, 0x2d, 0x54, 0x45, 0x53, 0x54};
 
+#if defined(NURA_RECEIVER_AUTO_COMMAND_TEST)
+constexpr bool kAutoCommandTestEnabled = true;
+#else
+constexpr bool kAutoCommandTestEnabled = false;
+#endif
+
 uint8_t selectedSpiMode = SPI_MODE0;
 uint8_t selectedSpiModeNumber = 0U;
 bool radioReady = false;
@@ -185,6 +191,35 @@ bool beginRadio()
     }
 
     return false;
+}
+
+const char *flightStateName(uint8_t state)
+{
+    switch (state)
+    {
+    case nura::FLIGHT_INIT:
+        return "INIT";
+    case nura::FLIGHT_SAFE:
+        return "SAFE";
+    case nura::FLIGHT_ARMED:
+        return "ARMED";
+    case nura::FLIGHT_LAUNCH:
+        return "LAUNCH";
+    case nura::FLIGHT_COAST:
+        return "COAST";
+    case nura::FLIGHT_APOGEE:
+        return "APOGEE";
+    case nura::FLIGHT_DROGUE:
+        return "DROGUE";
+    case nura::FLIGHT_DEPLOY:
+        return "DEPLOY";
+    case nura::FLIGHT_GROUND:
+        return "GROUND";
+    case nura::FLIGHT_FAULT:
+        return "FAULT";
+    default:
+        return "UNKNOWN";
+    }
 }
 
 const char *commandName(uint8_t commandId)
@@ -361,6 +396,11 @@ void startCommand(uint8_t commandId, int16_t param0, int16_t param1)
 
 void serviceCommandSender()
 {
+    if (!kAutoCommandTestEnabled)
+    {
+        return;
+    }
+
     if (!pending.active)
     {
         if (!forceDeployDone && fastRxCount >= 10UL && gpsRxCount >= 1UL && millis() > 3000UL)
@@ -400,16 +440,62 @@ void handleFast(const nura::ParsedFrame &frame)
     }
     ++fastRxCount;
 
+    const uint8_t stateCode = nura::flightStateFromStatus(fast.statusWord);
+    const float accelXG = static_cast<float>(fast.lowAccelXCg) * 0.01f;
+    const float accelYG = static_cast<float>(fast.lowAccelYCg) * 0.01f;
+    const float accelZG = static_cast<float>(fast.lowAccelZCg) * 0.01f;
+    const float gyroXDps = static_cast<float>(fast.gyroXDps10) * 0.1f;
+    const float gyroYDps = static_cast<float>(fast.gyroYDps10) * 0.1f;
+    const float gyroZDps = static_cast<float>(fast.gyroZDps10) * 0.1f;
+
     Serial.print("rx type=FAST seq=");
     Serial.print(frame.seq);
     Serial.print(" boot_ms=");
     Serial.print(static_cast<unsigned long>(fast.bootMs));
     Serial.print(" state=");
-    Serial.print(nura::flightStateFromStatus(fast.statusWord));
+    Serial.print(flightStateName(stateCode));
+    Serial.print(" state_code=");
+    Serial.print(stateCode);
+    Serial.print(" status=0x");
+    if (fast.statusWord < 0x1000U)
+    {
+        Serial.print('0');
+    }
+    if (fast.statusWord < 0x0100U)
+    {
+        Serial.print('0');
+    }
+    if (fast.statusWord < 0x0010U)
+    {
+        Serial.print('0');
+    }
+    Serial.print(fast.statusWord, HEX);
     Serial.print(" baro_dp_2pa=");
     Serial.print(fast.baroDp2Pa);
+    Serial.print(" accel_g=(");
+    Serial.print(accelXG, 2);
+    Serial.print(',');
+    Serial.print(accelYG, 2);
+    Serial.print(',');
+    Serial.print(accelZG, 2);
+    Serial.print(')');
+    Serial.print(" gyro_dps=(");
+    Serial.print(gyroXDps, 1);
+    Serial.print(',');
+    Serial.print(gyroYDps, 1);
+    Serial.print(',');
+    Serial.print(gyroZDps, 1);
+    Serial.print(')');
     Serial.print(" batt_mv=");
     Serial.print(fast.battMv);
+    Serial.print(" health=");
+    Serial.print((fast.statusWord & nura::STATUS_LOW_IMU_OK) != 0U ? "imu" : "-");
+    Serial.print(',');
+    Serial.print((fast.statusWord & nura::STATUS_BARO_OK) != 0U ? "baro" : "-");
+    Serial.print(',');
+    Serial.print((fast.statusWord & nura::STATUS_GPS_OK) != 0U ? "gps" : "-");
+    Serial.print(',');
+    Serial.print((fast.statusWord & nura::STATUS_RADIO_OK) != 0U ? "radio" : "-");
     Serial.print(" rssi=");
     Serial.print(LoRa.packetRssi());
     Serial.print(" snr=");
@@ -426,16 +512,38 @@ void handleGps(const nura::ParsedFrame &frame)
     }
     ++gpsRxCount;
 
+    const double latitudeDeg = static_cast<double>(gps.latitudeE7) * 0.0000001;
+    const double longitudeDeg = static_cast<double>(gps.longitudeE7) * 0.0000001;
+    const float altitudeM = static_cast<float>(gps.gpsAltDm) * 0.1f;
+    const float speedMps = static_cast<float>(gps.speedCms) * 0.01f;
+    const float courseDeg = static_cast<float>(gps.courseCdeg) * 0.01f;
+    const float hdop = static_cast<float>(gps.hdopX10) * 0.1f;
+    const float ageS = static_cast<float>(gps.age100Ms) * 0.1f;
+
     Serial.print("rx type=GPS seq=");
     Serial.print(frame.seq);
     Serial.print(" fix=");
-    Serial.print((gps.fixFlags & 0x01U) != 0U ? "yes" : "no");
+    Serial.print((gps.fixFlags & 0x02U) != 0U ? "yes" : "no");
     Serial.print(" lat_e7=");
     Serial.print(static_cast<long>(gps.latitudeE7));
     Serial.print(" lon_e7=");
     Serial.print(static_cast<long>(gps.longitudeE7));
+    Serial.print(" lat_deg=");
+    Serial.print(latitudeDeg, 7);
+    Serial.print(" lon_deg=");
+    Serial.print(longitudeDeg, 7);
+    Serial.print(" alt_m=");
+    Serial.print(altitudeM, 1);
+    Serial.print(" speed_mps=");
+    Serial.print(speedMps, 2);
+    Serial.print(" course_deg=");
+    Serial.print(courseDeg, 2);
+    Serial.print(" hdop=");
+    Serial.print(hdop, 1);
     Serial.print(" sats=");
     Serial.print(gps.satellites);
+    Serial.print(" age_s=");
+    Serial.print(ageS, 1);
     Serial.print(" rssi=");
     Serial.print(LoRa.packetRssi());
     Serial.print(" snr=");
@@ -542,6 +650,11 @@ void receiveFrames()
 
 void printCompletionIfReady()
 {
+    if (!kAutoCommandTestEnabled)
+    {
+        return;
+    }
+
     if (completionPrinted || !forceDeployDone || !deprecatedAbortDone)
     {
         return;
@@ -568,6 +681,8 @@ void setup()
     Serial.println("role=receiver board=teensy41 protocol=v1_lite");
     Serial.println("packet_set=FAST,GPS,CONTROL");
     Serial.println("rf=freq433_sf7_bw125_cr45_dev");
+    Serial.print("mode=");
+    Serial.println(kAutoCommandTestEnabled ? "pair_test_auto_commands" : "telemetry_receive_only");
 
     radioReady = beginRadio();
     if (!radioReady)

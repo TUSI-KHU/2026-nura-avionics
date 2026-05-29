@@ -33,9 +33,9 @@ def log(message: str) -> None:
     teensy_pair.log(message)
 
 
-def build_project(project_dir: Path, label: str) -> Path:
-    teensy_pair.run_command([PIO, "run", "-d", str(project_dir)], label=f"build-{label}", cwd=ROOT)
-    hex_path = project_dir / ".pio" / "build" / "teensy41" / "firmware.hex"
+def build_project(project_dir: Path, label: str, env: str = "teensy41") -> Path:
+    teensy_pair.run_command([PIO, "run", "-d", str(project_dir), "-e", env], label=f"build-{label}", cwd=ROOT)
+    hex_path = project_dir / ".pio" / "build" / env / "firmware.hex"
     teensy_pair.require_file(hex_path, f"{label} build did not produce firmware.hex.")
     log(f"{label} hex ready: {hex_path}")
     return hex_path
@@ -167,7 +167,7 @@ def main() -> int:
 
     if not args.monitor_only:
         sender_hex = build_project(SENDER_DIR, "sender")
-        receiver_hex = build_project(RECEIVER_DIR, "receiver")
+        receiver_hex = build_project(RECEIVER_DIR, "receiver", env="pair_test")
 
     if args.build_only:
         log("build-only requested; stopping before upload/monitor")
