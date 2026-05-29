@@ -236,14 +236,16 @@ def program_current_bootloader(hex_path: Path, label: str, port: TeensyPort | No
         f"-path={hex_path.parent}",
         f"-tools={TEENSY_TOOL_DIR}",
         "-board=TEENSY41",
-        "-reboot",
     ]
+    if port is None or not port.is_bootloader:
+        command.append("-reboot")
     if port is not None:
         command.extend([
             f"-port={port.address}",
-            f"-portlabel={port.device}",
             "-portprotocol=Teensy",
         ])
+        if port.device != "[no_device]":
+            command.append(f"-portlabel={port.device}")
     run_command(command, label=f"upload-{label}")
 
 
