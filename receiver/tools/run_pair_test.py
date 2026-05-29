@@ -2,15 +2,17 @@
 from __future__ import annotations
 
 import argparse
+import os
 import queue
 import re
+import shutil
 import sys
 import threading
 import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SENSOR_TEST_DIR = ROOT / "sensor_test"
+SENSOR_TEST_DIR = ROOT / "test" / "sensor_test"
 if str(SENSOR_TEST_DIR) not in sys.path:
     sys.path.insert(0, str(SENSOR_TEST_DIR))
 
@@ -23,6 +25,8 @@ except ImportError as exc:
 SENDER_DIR = ROOT / "sender"
 RECEIVER_DIR = ROOT / "receiver"
 BAUD = 115200
+PIO_FALLBACK = Path.home() / ".platformio" / "penv" / ("Scripts" if os.name == "nt" else "bin") / ("pio.exe" if os.name == "nt" else "pio")
+PIO = shutil.which("pio") or str(PIO_FALLBACK)
 
 
 def log(message: str) -> None:
@@ -30,7 +34,7 @@ def log(message: str) -> None:
 
 
 def build_project(project_dir: Path, label: str) -> Path:
-    teensy_pair.run_command(["pio", "run", "-d", str(project_dir)], label=f"build-{label}", cwd=ROOT)
+    teensy_pair.run_command([PIO, "run", "-d", str(project_dir)], label=f"build-{label}", cwd=ROOT)
     hex_path = project_dir / ".pio" / "build" / "teensy41" / "firmware.hex"
     teensy_pair.require_file(hex_path, f"{label} build did not produce firmware.hex.")
     log(f"{label} hex ready: {hex_path}")
@@ -193,4 +197,3 @@ if __name__ == "__main__":
     except Exception as exc:
         log(f"ERROR: {exc}")
         raise SystemExit(1)
-

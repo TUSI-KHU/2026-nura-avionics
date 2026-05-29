@@ -34,7 +34,7 @@ uint8_t selectedSpiModeNumber = 0U;
 bool radioReady = false;
 uint16_t downlinkSeq = 0U;
 uint32_t lastFastMs = 0UL;
-uint32_t lastGpsMs = 0UL;그
+uint32_t lastGpsMs = 0UL;
 bool deployFired = false;
 nura::Parser parser;
 
@@ -602,4 +602,3 @@ void loop()
         return;
     }
 }
-

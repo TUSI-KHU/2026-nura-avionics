@@ -30,9 +30,19 @@ SENDER_SKETCH = SENSOR_TEST_DIR / "sx127x_lora_teensy_sender.ino"
 RECEIVER_SKETCH = SENSOR_TEST_DIR / "sx127x_lora_teensy_receiver.ino"
 BUILD_ROOT = Path("/tmp/nura-lora-teensy-pair")
 TEENSY_TOOL_DIR = Path.home() / ".platformio" / "packages" / "tool-teensy"
-TEENSY_PORTS = TEENSY_TOOL_DIR / "teensy_ports"
-TEENSY_REBOOT = TEENSY_TOOL_DIR / "teensy_reboot"
-TEENSY_LOADER = TEENSY_TOOL_DIR / "teensy_loader_cli"
+
+
+def teensy_tool(name: str) -> Path:
+    executable = TEENSY_TOOL_DIR / name
+    if executable.exists() or os.name != "nt":
+        return executable
+    return TEENSY_TOOL_DIR / f"{name}.exe"
+
+
+TEENSY_PORTS = teensy_tool("teensy_ports")
+TEENSY_REBOOT = teensy_tool("teensy_reboot")
+TEENSY_LOADER = teensy_tool("teensy_loader_cli")
+TEENSY_POST_COMPILE = teensy_tool("teensy_post_compile")
 LORA_LIB_DIR = ROOT / ".pio" / "libdeps" / "build" / "LoRa"
 BAUD = 115200
 
@@ -46,7 +56,10 @@ class TeensyPort:
 
     @property
     def is_serial(self) -> bool:
-        return self.mode.lower() == "serial" and self.device.startswith("/dev/tty")
+        return self.mode.lower() == "serial" and (
+            self.device.startswith("/dev/tty") or self.device.startswith("/dev/cu.")
+            or re.match(r"^COM\d+$", self.device, re.IGNORECASE)
+        )
 
     @property
     def is_bootloader(self) -> bool:
@@ -91,7 +104,7 @@ def require_file(path: Path, hint: str) -> None:
 
 def parse_teensy_ports(raw: str) -> list[TeensyPort]:
     ports: list[TeensyPort] = []
-    pattern = re.compile(r"^(?P<address>/sys/\S+)\s+(?P<device>/\S+)\s+\((?P<board>[^)]*)\)\s+(?P<mode>\S+)")
+    pattern = re.compile(r"^(?P<address>(?:/sys/|usb:)\S+)\s+(?P<device>(?:/\S+|COM\d+|\[no_device\]))\s+\((?P<board>[^)]*)\)\s+(?P<mode>\S+)", re.IGNORECASE)
     for line in raw.splitlines():
         match = pattern.match(line.strip())
         if not match:
@@ -208,12 +221,30 @@ def build_sketch(sketch: Path, build_name: str) -> Path:
     return hex_path
 
 
-def program_current_bootloader(hex_path: Path, label: str) -> None:
-    require_file(TEENSY_LOADER, "Install PlatformIO Teensy tools first.")
-    run_command(
-        [str(TEENSY_LOADER), "--mcu=TEENSY41", "-w", "-v", str(hex_path)],
-        label=f"upload-{label}",
-    )
+def program_current_bootloader(hex_path: Path, label: str, port: TeensyPort | None = None) -> None:
+    if TEENSY_LOADER.exists():
+        run_command(
+            [str(TEENSY_LOADER), "--mcu=TEENSY41", "-w", "-v", str(hex_path)],
+            label=f"upload-{label}",
+        )
+        return
+
+    require_file(TEENSY_POST_COMPILE, "Install PlatformIO Teensy tools first.")
+    command = [
+        str(TEENSY_POST_COMPILE),
+        f"-file={hex_path.stem}",
+        f"-path={hex_path.parent}",
+        f"-tools={TEENSY_TOOL_DIR}",
+        "-board=TEENSY41",
+        "-reboot",
+    ]
+    if port is not None:
+        command.extend([
+            f"-port={port.address}",
+            f"-portlabel={port.device}",
+            "-portprotocol=Teensy",
+        ])
+    run_command(command, label=f"upload-{label}")
 
 
 def request_bootloader(port: TeensyPort, label: str) -> None:
@@ -254,7 +285,7 @@ def upload_to_serial_port(hex_path: Path, port: TeensyPort, label: str) -> Teens
     request_bootloader(port, label)
     bootloader_port = wait_for_address_mode(port.address, "Bootloader", timeout_s=12)
     log(f"{label}: bootloader visible: {bootloader_port.device} at {bootloader_port.address}")
-    program_current_bootloader(hex_path, label)
+    program_current_bootloader(hex_path, label, bootloader_port)
     serial_port = wait_for_address_mode(port.address, "Serial", timeout_s=15)
     log(f"{label}: serial after upload: {serial_port.device} at {serial_port.address}")
     return serial_port
@@ -282,11 +313,11 @@ def upload_pair(sender_hex: Path, receiver_hex: Path, args: argparse.Namespace) 
 
         if tx_target.is_bootloader:
             log(f"TX target is already bootloader: {tx_target.address}")
-            program_current_bootloader(sender_hex, "tx")
+            program_current_bootloader(sender_hex, "tx", tx_target)
             tx_port = wait_for_address_mode(tx_target.address, "Serial", timeout_s=15)
         if rx_target.is_bootloader:
             log(f"RX target is already bootloader: {rx_target.address}")
-            program_current_bootloader(receiver_hex, "rx")
+            program_current_bootloader(receiver_hex, "rx", rx_target)
             rx_port = wait_for_address_mode(rx_target.address, "Serial", timeout_s=15)
 
         if not tx_target.is_bootloader:
@@ -309,7 +340,7 @@ def upload_pair(sender_hex: Path, receiver_hex: Path, args: argparse.Namespace) 
         log("auto assignment: bootloader board -> TX, existing serial board -> RX")
         log(f"TX bootloader address: {tx_bootloader.address}")
         log(f"RX serial port: {rx_serial.device} at {rx_serial.address}")
-        program_current_bootloader(sender_hex, "tx")
+        program_current_bootloader(sender_hex, "tx", tx_bootloader)
         tx_port = wait_for_address_mode(tx_bootloader.address, "Serial", timeout_s=15)
         rx_port = upload_to_serial_port(receiver_hex, rx_serial, "rx")
         return tx_port, rx_port
