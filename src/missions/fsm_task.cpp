@@ -44,6 +44,11 @@ bool FlightStateMachineTask::tick(uint32_t nowMs)
         return true;
     }
 
+    if (tickBenchAutoFlow(nowMs))
+    {
+        return true;
+    }
+
     switch (flightState_.state)
     {
     case State::INIT:
@@ -80,6 +85,91 @@ bool FlightStateMachineTask::tick(uint32_t nowMs)
     }
 
     return true;
+}
+
+bool FlightStateMachineTask::tickBenchAutoFlow(uint32_t nowMs)
+{
+#if defined(NURA_BENCH_FSM_AUTOFLOW)
+    if (abortState_.status.active)
+    {
+        return false;
+    }
+
+    const uint32_t elapsedMs = nowMs - flightState_.stateEnteredMs;
+    switch (flightState_.state)
+    {
+    case State::SAFE:
+        if (elapsedMs >= NuraConstants::BenchIntegration::kFsmAutoArmDelayMs)
+        {
+            LOGW(logger_, nowMs, "bench", "auto arm");
+            transitionTo(State::ARMED, nowMs);
+            return true;
+        }
+        break;
+    case State::ARMED:
+        if (elapsedMs >= NuraConstants::BenchIntegration::kFsmAutoLaunchDelayMs)
+        {
+            recordDecision(FlightDecisionKind::LAUNCH_ACCEL,
+                           FlightDecisionResult::ACCEPT,
+                           DECISION_REASON_FORCED,
+                           nowMs,
+                           static_cast<float>(elapsedMs),
+                           static_cast<float>(NuraConstants::BenchIntegration::kFsmAutoLaunchDelayMs),
+                           0.0f,
+                           0.0f,
+                           0U,
+                           0U);
+            LOGW(logger_, nowMs, "bench", "auto launch");
+            transitionTo(State::LAUNCH, nowMs);
+            return true;
+        }
+        break;
+    case State::LAUNCH:
+        if (elapsedMs >= NuraConstants::BenchIntegration::kFsmAutoBurnoutDelayMs)
+        {
+            recordDecision(FlightDecisionKind::BURNOUT_ACCEL,
+                           FlightDecisionResult::ACCEPT,
+                           DECISION_REASON_FORCED,
+                           nowMs,
+                           static_cast<float>(elapsedMs),
+                           static_cast<float>(NuraConstants::BenchIntegration::kFsmAutoBurnoutDelayMs),
+                           0.0f,
+                           0.0f,
+                           0U,
+                           0U);
+            LOGW(logger_, nowMs, "bench", "auto coast");
+            transitionTo(State::COAST, nowMs);
+            return true;
+        }
+        break;
+    case State::DEPLOY:
+        if (elapsedMs >= NuraConstants::BenchIntegration::kFsmAutoGroundDelayMs)
+        {
+            mainPyroOff_ = true;
+            flightState_.mainSequenceComplete = true;
+            recordDecision(FlightDecisionKind::LANDING,
+                           FlightDecisionResult::ACCEPT,
+                           DECISION_REASON_FORCED,
+                           nowMs,
+                           static_cast<float>(elapsedMs),
+                           static_cast<float>(NuraConstants::BenchIntegration::kFsmAutoGroundDelayMs),
+                           0.0f,
+                           0.0f,
+                           0U,
+                           0U);
+            LOGW(logger_, nowMs, "bench", "auto ground");
+            transitionTo(State::GROUND, nowMs);
+            return true;
+        }
+        break;
+    default:
+        break;
+    }
+#else
+    (void)nowMs;
+#endif
+
+    return false;
 }
 
 uint32_t FlightStateMachineTask::periodMs() const

@@ -1,6 +1,9 @@
 #include "magnetometer_task.h"
 
+#include <Arduino.h>
+
 #include "board_pinmap.h"
+#include "nura_constants.h"
 
 MagnetometerTask::MagnetometerTask(LIS3MDLHAL &magnetometer,
                                    MagnetometerState &magnetometerState,
@@ -72,8 +75,21 @@ bool MagnetometerTask::recover(uint32_t nowMs)
 bool MagnetometerTask::initialize(uint32_t nowMs)
 {
     (void)nowMs;
-    const bool ok = magnetometer_.begin(BoardPinMap::LIS3MDL::i2cAddress,
-                                        BoardPinMap::I2cBus::wire());
+    bool ok = false;
+    for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
+    {
+        ok = magnetometer_.begin(BoardPinMap::LIS3MDL::i2cAddress,
+                                 BoardPinMap::I2cBus::wire());
+        if (ok)
+        {
+            break;
+        }
+        if ((attempt + 1U) < NuraConstants::Sensors::kSensorInitRetryAttempts)
+        {
+            delay(NuraConstants::Sensors::kSensorInitRetryDelayMs);
+        }
+    }
+
     magnetometerState_.connected = ok;
     magnetometerState_.hasNewData = false;
     telemetryState_.health.magOk = false;

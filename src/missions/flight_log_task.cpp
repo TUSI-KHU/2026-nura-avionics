@@ -72,6 +72,10 @@ bool FlightLogTask::init()
     {
         LOGW(logger_, 0U, "flight_log", "storage offline");
     }
+    else
+    {
+        LOGI(logger_, 0U, "flight_log", "storage online");
+    }
 
     enqueueEvent(nura_log::EventId::BOOT, 0U, flightState_.state, flightState_.state, 0U, 0U);
     return true;

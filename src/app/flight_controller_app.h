@@ -5,6 +5,7 @@
 #include "core/logger/logger.h"
 #include "core/recoverable_task/recoverable_task.h"
 #include "core/scheduler.h"
+#include "nura_constants.h"
 #include "state/abort_state.h"
 #include "state/flight_state.h"
 #include "state/gps_state.h"
@@ -32,6 +33,9 @@
 #include "hal/sx127x_lora_hal.h"
 #include "logging/flight_log_mirror_storage.h"
 #include "logging/flight_log_storage.h"
+#if !defined(NURA_MOCK_TELEMETRY)
+#include "logging/program_flash_flight_log_storage.h"
+#endif
 #include "logging/sd_flight_log_storage.h"
 #include "missions/flight_log_task.h"
 #include "missions/fsm_task.h"
@@ -68,7 +72,12 @@ private:
     UbloxM6GNSSHAL gnssHal_;
 #endif
     Sx127xLoRaHAL loraHal_;
+#if defined(NURA_MOCK_TELEMETRY)
     NullFlightLogStorage spiFlashLogStorage_;
+#else
+    LittleFS_Program programFlashFs_;
+    ProgramFlashFlightLogStorage spiFlashLogStorage_{programFlashFs_, NuraConstants::Logger::kFlightLogProgramFlashBytes};
+#endif
     SdFlightLogStorage sdLogStorage_{BoardPinMap::MicroSD::csPin};
     FlightLogMirrorStorage flightLogStorage_{spiFlashLogStorage_, sdLogStorage_};
     BlinkingPanicHandler panicHandler_{config_};

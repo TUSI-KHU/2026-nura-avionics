@@ -23,10 +23,14 @@ namespace App
 {
 constexpr unsigned long kSerialBaudRate = 115200UL;
 constexpr uint16_t kFaultBlinkIntervalMs = 1000U;
+constexpr uint32_t kBoardPowerSettleDelayMs = 2000UL;
+constexpr uint32_t kBusSettleDelayMs = 250UL;
 } // namespace App
 
 namespace Sensors
 {
+constexpr uint8_t kSensorInitRetryAttempts = 5U;
+constexpr uint32_t kSensorInitRetryDelayMs = 150UL;
 constexpr uint8_t kImuReadFailureThreshold = 3U;
 constexpr uint8_t kImuMaxRecoveryAttempts = 5U;
 constexpr uint32_t kImuRecoveryIntervalMs = 1000UL;
@@ -69,8 +73,9 @@ namespace Logger
 constexpr uint8_t kDrainBudget = 4U;
 constexpr uint8_t kOutputFailThreshold = 3U;
 constexpr uint16_t kFlightLogRamBufferBytes = 16U * 1024U;
-constexpr uint16_t kFlightLogFlashSectorBytes = 4U * 1024U;
-constexpr uint32_t kFlightLogFlashBytes = 8UL * 1024UL * 1024UL;
+constexpr uint32_t kFlightLogProgramFlashBytes = 2UL * 1024UL * 1024UL;
+constexpr uint32_t kFlightLogFileSegmentBytes = 256UL * 1024UL;
+constexpr uint32_t kFlightLogMinFreeBytes = 64UL * 1024UL;
 constexpr uint16_t kFlightLogFastPeriodMs = 20U;
 constexpr uint16_t kFlightLogSlowPeriodMs = 100U;
 constexpr uint8_t kFlightLogDrainRecordsPerTick = 8U;
@@ -166,6 +171,14 @@ constexpr uint8_t kLandingStableWindowSamples = 20U;
 constexpr float kLandingStableAltitudeRangeM = 0.5f;
 constexpr uint32_t kLandingMaxBarometerSampleGapMs = 150UL;
 } // namespace Flight
+
+namespace BenchIntegration
+{
+constexpr uint32_t kFsmAutoArmDelayMs = 1000UL;
+constexpr uint32_t kFsmAutoLaunchDelayMs = 1000UL;
+constexpr uint32_t kFsmAutoBurnoutDelayMs = 500UL;
+constexpr uint32_t kFsmAutoGroundDelayMs = 1000UL;
+} // namespace BenchIntegration
 
 namespace LSM6DSO32
 {

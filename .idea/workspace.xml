@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="BackendCodeEditorMiscSettings">
-    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="4" type="long" />
+    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="5" type="long" />
     <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexedValue" value="true" type="bool" />
   </component>
   <component name="CMakeProjectFlavorService">
@@ -21,18 +21,34 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="IMU fault 로직 추가">
-      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_5_18_26,_10_15 PM_[Changes]/shelved.patch" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_5_18_26__10_15PM__Changes_.xml" beforeDir="false" />
+    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="add logger logic">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/include/board_pinmap.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/board_pinmap.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/documents/flight_logging_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/flight_logging_v1.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/include/nura_constants.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/nura_constants.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/platformio.ini" beforeDir="false" afterPath="$PROJECT_DIR$/platformio.ini" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/readme.md" beforeDir="false" afterPath="$PROJECT_DIR$/readme.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/flight_controller_app.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/flight_controller_app.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/flight_controller_app.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/flight_controller_app.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gnss_test_main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/embedded/gnss_state_test_main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/w25q_spi_flash_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/w25q_spi_flash_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hardware_integration_test_main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/embedded/hardware_integration_test_main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/logging/flight_log_flash_format.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/logging/flight_log_flash_format.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/logging/spi_flash_circular_log_storage.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/logging/spi_flash_circular_log_storage.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/missions/flight_log_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/flight_log_task.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/state/flight_state.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/state/flight_state.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/barometer_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/barometer_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/high_g_imu_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/high_g_imu_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/imu_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/imu_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/magnetometer_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/magnetometer_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/fsm_replay/flight_state_machine_replay.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/fsm_replay/flight_state_machine_replay.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/fsm_replay/run_fsm_replay_tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/test/fsm_replay/run_fsm_replay_tests.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/logging/logging_tests.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/logging/logging_tests.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/logging/run_logging_tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/test/logging/run_logging_tests.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -133,6 +149,7 @@
 }</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/test" />
       <recent name="$PROJECT_DIR$/documents" />
       <recent name="$PROJECT_DIR$/sensor_test" />
       <recent name="$PROJECT_DIR$" />
@@ -254,7 +271,7 @@
       <workItem from="1779011764123" duration="33223000" />
       <workItem from="1779463272711" duration="295000" />
       <workItem from="1779514240913" duration="21663000" />
-      <workItem from="1779943422742" duration="1252000" />
+      <workItem from="1779943422742" duration="7329000" />
     </task>
     <task id="LOCAL-00001" summary="port on teensy4.1">
       <option name="closed" value="true" />
@@ -408,7 +425,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779696174128</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="add logger logic">
+      <option name="closed" value="true" />
+      <created>1779945771990</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1779945771990</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -431,6 +456,7 @@
     <MESSAGE value="Grounding status 수정" />
     <MESSAGE value="baro fault 감지 및 실시 드로그 로직(IMU기반) 추가" />
     <MESSAGE value="IMU fault 로직 추가" />
-    <option name="LAST_COMMIT_MESSAGE" value="IMU fault 로직 추가" />
+    <MESSAGE value="add logger logic" />
+    <option name="LAST_COMMIT_MESSAGE" value="add logger logic" />
   </component>
 </project>

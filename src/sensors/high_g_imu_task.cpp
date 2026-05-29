@@ -80,7 +80,20 @@ bool HighGImuTask::recover(uint32_t nowMs)
 
 bool HighGImuTask::initializeDevice(uint32_t logTs)
 {
-    const bool ok = imu_.begin(csPin_, SPI, range_);
+    bool ok = false;
+    for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
+    {
+        ok = imu_.begin(csPin_, SPI, range_);
+        if (ok)
+        {
+            break;
+        }
+        if ((attempt + 1U) < NuraConstants::Sensors::kSensorInitRetryAttempts)
+        {
+            delay(NuraConstants::Sensors::kSensorInitRetryDelayMs);
+        }
+    }
+
     imuState_.whoAmI = imu_.readWhoAmI();
     imuState_.connected = ok;
     imuState_.hasNewData = false;

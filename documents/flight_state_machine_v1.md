@@ -26,7 +26,7 @@ Included in this version:
 
 Excluded from this version:
 
-- SD/SPI Flash logging behavior, except TODO notes.
+- Detailed post-flight log extraction tooling.
 - Detailed non-barometer sensor fault policy.
 - Hardware-in-the-loop replay with real recorded flight logs.
 
@@ -35,8 +35,10 @@ Excluded from this version:
 - After `INIT`, sensor acquisition tasks run continuously in every state.
 - The FSM reads the latest shared sensor/state values; it does not directly
   perform sensor bus reads.
-- Logging is not part of the current FSM implementation. Add TODO markers where
-  logging events should be emitted later.
+- Boot waits for board power and bus settle time before task initialization.
+  Individual sensor `begin()` calls retry before the task declares init failure.
+- Flight logging records state transitions and decision traces, but the FSM
+  itself still owns the recovery decisions.
 - Barometer fault fallback is implemented for apogee/main decisions. High-g
   acceleration fallback is implemented only for launch and burnout detection.
   Broader sensor degraded-mode policy is still TODO.
@@ -72,6 +74,10 @@ Initial implementation constants:
 
 | Constant | Initial value | Unit | Source / note |
 | --- | ---: | --- | --- |
+| `BOARD_POWER_SETTLE_DELAY_MS` | `2000` | ms | Team bench decision; allow the new board sensors, SD, and program flash logger to power up before bus/device init |
+| `BUS_SETTLE_DELAY_MS` | `250` | ms | Team bench decision; allow SPI/I2C bus pins and pullups to settle before sensor `begin()` calls |
+| `SENSOR_INIT_RETRY_ATTEMPTS` | `5` | attempts | Team bench decision; retry device `begin()` before treating init as failed |
+| `SENSOR_INIT_RETRY_DELAY_MS` | `150` | ms | Team bench decision; delay between sensor init retries |
 | `ACCEL_FALLBACK_MAX_SAMPLE_AGE_MS` | `50` | ms | Freshness bound for high-g/low-g acceleration samples used by launch and burnout detection |
 | `LAUNCH_ACCEL_THRESHOLD_G` | `2.0` | g | Team decision, based on 2025 acceleration-norm logs |
 | `LAUNCH_CONFIRM_SAMPLES` | `4` | samples | Team decision; consecutive selected-acceleration samples |
@@ -122,6 +128,10 @@ Initial implementation constants:
 | `LANDING_MAX_BARO_SAMPLE_GAP_MS` | `150` | ms | Derived from 50 ms barometer period; reset landing window after stale samples |
 | `APOGEE_TIMEOUT_MS` | `12000` | ms | Initial fallback, must be reviewed against simulation / flight data |
 | `MAIN_TIMEOUT_MS` | `15000` | ms | Initial fallback, must be reviewed against descent policy |
+| `BENCH_FSM_AUTO_ARM_DELAY_MS` | `1000` | ms | Bench integration only; active only with `NURA_BENCH_FSM_AUTOFLOW` |
+| `BENCH_FSM_AUTO_LAUNCH_DELAY_MS` | `1000` | ms | Bench integration only; replaces missing arming/launch stimulus |
+| `BENCH_FSM_AUTO_BURNOUT_DELAY_MS` | `500` | ms | Bench integration only; lets the existing coast/apogee timers run |
+| `BENCH_FSM_AUTO_GROUND_DELAY_MS` | `1000` | ms | Bench integration only; allows GROUND without a real landing barometer profile |
 
 Notes:
 
@@ -138,7 +148,7 @@ Notes:
 
 | State | Entry action | Periodic action | Timeout | Fallback | Entry condition from previous state |
 | --- | --- | --- | --- | --- | --- |
-| `INIT` | Initialize sensors, initialize calibration, build barometer ground baseline, force pyro outputs OFF. TODO: initialize SD/SPI Flash logging later. | Check initialization completion. | TODO init timeout. | `FAULT` or `SAFE`, final policy TBD. | Boot starts here. |
+| `INIT` | Wait for board/bus settle, initialize sensors, initialize calibration, build barometer ground baseline, initialize program-flash/SD logging, force pyro outputs OFF. | Check initialization completion. | TODO init timeout. | `FAULT` or `SAFE`, final policy TBD. | Boot starts here. |
 | `SAFE` | Force pyro outputs OFF. Reset flight-local counters and detector state. | Watch arming switch / arming command. Sensor tasks continue globally. | None for first implementation. | None. | `INIT` completed. |
 | `ARMED` | Reset launch detector consecutive count. Reset launch timestamp. Reset coast/apogee detector scratch state. | Compute selected acceleration norm and update launch confirmation count. | Optional arming timeout TODO. | `SAFE` if disarmed, final disarm policy TBD. | Human arming switch / arming command is active. |
 | `LAUNCH` | Save `launch_time_ms`. Reset burnout confirmation count. TODO: log launch event later. | Continue selected acceleration norm monitoring and update burnout confirmation count. | Optional motor-burn timeout TODO. | `COAST` when motor-burn timeout policy is defined. | In `ARMED`, selected acceleration norm is `>= LAUNCH_ACCEL_THRESHOLD_G` for `LAUNCH_CONFIRM_SAMPLES` consecutive samples. |
@@ -148,6 +158,79 @@ Notes:
 | `DEPLOY` | Start main pyro pulse. Reset landing detector scratch state. TODO: support backup main pyro only if hardware/team policy requires it. TODO: log main deploy later. | End main pulse after `PYRO_FIRE_DURATION_MS`; after the pulse is complete, push fresh filtered barometer AGL samples into the landing detector. | None for first implementation. | None; timeout policy deferred to sensor fault / recovery policy. | In `DROGUE`, altitude AGL is `<= MAIN_DEPLOY_ALTITUDE_M_AGL`, or `MAIN_TIMEOUT_MS` fallback fires. |
 | `GROUND` | Force pyro outputs OFF. TODO: close/flush logs and enter recovery telemetry mode later. | TODO: recovery GPS/telemetry behavior. | None. | None. | Main deploy sequence is complete and the landing detector is stable. |
 | `FAULT` | Force pyro outputs OFF. Set fault flag. TODO: log fault later. | Hold fault state. | None. | None. | Initialization failure or future critical fault policy. |
+
+## Bench Integration Auto-Flow
+
+Purpose: support radio/protocol integration tests on the real `main.cpp` app
+when the rocket is not actually flying and no arming switch or pyro hardware is
+connected yet.
+
+Build gate:
+
+```text
+NURA_BENCH_FSM_AUTOFLOW == 1
+```
+
+Current PlatformIO usage: this flag is enabled only for `debug_dev_radio`.
+It is not enabled for `build` or `build_dev_radio`.
+
+Inputs and units:
+
+- System time in ms.
+- Current FSM state.
+- Abort state.
+
+No sensor value is treated as valid just because this mode is enabled. The mode
+does not modify barometer, IMU, GPS, LoRa, or storage health.
+
+Allowed states and actions:
+
+```text
+SAFE   -> ARMED  after BENCH_FSM_AUTO_ARM_DELAY_MS
+ARMED  -> LAUNCH after BENCH_FSM_AUTO_LAUNCH_DELAY_MS
+LAUNCH -> COAST  after BENCH_FSM_AUTO_BURNOUT_DELAY_MS
+DEPLOY -> GROUND after BENCH_FSM_AUTO_GROUND_DELAY_MS
+```
+
+The normal `COAST -> APOGEE`, `APOGEE -> DROGUE`, and `DROGUE -> DEPLOY`
+paths still use the existing timer/sequence logic. This keeps the integration
+test close to the real state order while removing only the currently missing
+bench inputs.
+
+Forbidden states:
+
+- The mode must not run when `abortState.status.active == true`.
+- The mode must not be enabled in a flight build.
+- The mode must not energize pyro outputs directly. Current pyro behavior is
+  still the existing FSM TODO/timing latch because real pyro HAL/pinmap is not
+  defined yet.
+
+Threshold sources:
+
+- All four bench delays are team integration-test decisions. They are not
+  flight thresholds and must not be used as launch, burnout, or landing logic.
+
+Failure modes considered:
+
+- Missing arming switch: bypassed only in bench build.
+- No launch acceleration on the table: bypassed only in bench build.
+- No barometer landing profile after main deploy: bypassed only in bench build.
+- Active abort: auto-flow is inhibited.
+
+Fallback behavior:
+
+- If auto-flow is disabled, the normal FSM behavior is unchanged.
+- If auto-flow reaches `COAST`, existing apogee and main timer fallbacks still
+  drive the recovery sequence.
+
+Verification plan:
+
+- Host replay builds both normal FSM and `NURA_BENCH_FSM_AUTOFLOW` variants.
+- The bench variant must reach `GROUND` without sensor events and without
+  calling the panic handler.
+- Hardware integration test: flash `debug_dev_radio`, connect receiver, and
+  verify telemetry reports `SAFE -> ARMED -> LAUNCH -> COAST -> APOGEE ->
+  DROGUE -> DEPLOY -> GROUND`.
 
 ## Detector Details
 
@@ -598,7 +681,7 @@ while keeping the flight-state transition and recovery sequence under the FSM.
 
 ## TODO For Later Work
 
-- SD/SPI Flash logging policy and storage buffer sizing.
+- Program-flash/SD logging policy and storage buffer sizing.
 - Broader non-barometer degraded-mode transitions beyond high-g/low-g launch
   and burnout fallback.
 - Barometer oversampling configuration for 50 ms sampling.

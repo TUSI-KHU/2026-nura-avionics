@@ -1,7 +1,7 @@
 # NURA Flight Logging V1
 
-Status: Draft implementation  
-Target storage: 8 MB SPI NOR flash primary, microSD mirror  
+Status: Draft implementation
+Target storage: Teensy 4.1 U3 program flash primary, microSD mirror
 Target controller: Teensy 4.1
 
 ## Purpose
@@ -13,18 +13,32 @@ destroy the primary flight record.
 
 ## Storage Policy
 
-### Primary SPI Flash
+### Primary Program Flash
 
-Assume an 8 MB SPI NOR flash device, such as a W25Q64-class part.
+The current avionics board uses the Teensy 4.1 U3 program flash
+(`W25Q64JVXGIM` on the PJRC schematic) as the non-removable log target. This is
+the same physical flash family that stores firmware, so the backend mounts only
+a fixed tail region of program flash through Teensy `LittleFS_Program`.
 
-The SPI flash is treated as a circular blackbox:
+Initial allocation: `2 MB`, defined by
+`NuraConstants::Logger::kFlightLogProgramFlashBytes`. The remaining flash stays
+available for firmware. If the firmware image ever grows too large for this
+allocation, `LittleFS_Program::begin()` fails and the SD mirror can still carry
+the log.
+
+The enabled backend is file-backed:
 
 ```text
-if flash becomes full before GROUND:
-    erase the oldest 4 KB sector
-    keep appending new records
+on boot:
+    mount the configured program-flash tail region with LittleFS_Program
+    create/open /NURA_LOG/FLxxx.NLG
 
-if flight state enters GROUND:
+while logging:
+    append complete encoded frames
+    rotate to a new file segment after 256 KB
+    delete the lowest-numbered older log file if free space is low
+
+on GROUND:
     write the final GROUND event
     flush pending records
     stop all further flash writes
@@ -33,21 +47,10 @@ if flight state enters GROUND:
 The stop-on-ground rule prevents long recovery waits from overwriting the actual
 boost, coast, apogee, drogue, and main-deploy data.
 
-Each flash sector starts with a 64-byte reserved header area. The current header
-contains:
-
-- magic/version.
-- sector size and payload offset.
-- boot session id.
-- monotonic sector sequence.
-- header CRC.
-
-On boot, the flash backend scans sector headers, finds the newest valid sector,
-opens a new session, and starts writing at the next sector. Records are not
-split across sectors; if a complete binary frame does not fit in the remaining
-payload area, the backend advances to the next erased sector first. Post-flight
-tools can therefore recover frames by scanning sector payloads and verifying
-each frame CRC.
+Important operational note: uploading firmware may change or erase the
+program-flash filesystem region depending on the loader and image layout. Treat
+U3 as the flight blackbox during a powered mission, and treat microSD as the
+easier post-test extraction path.
 
 ### microSD Mirror
 
@@ -58,8 +61,8 @@ the first free name from `FL000.NLG` through `FL999.NLG`.
 SD failure must not affect the flight state machine. When flash and SD are both
 enabled, `FlightLogMirrorStorage` keeps writing as long as at least one target
 accepts the record. A failed target is disabled for the rest of the session.
-The current app build enables SD as the available mirror path and leaves the
-SPI flash primary on a null backend until the flash CS pin is assigned.
+The current app build enables program flash as the primary path and SD as the
+mirror path.
 
 ## Buffering
 
@@ -68,7 +71,7 @@ Two buffers are used:
 | Buffer | Size | Purpose |
 | --- | ---: | --- |
 | Encoded RAM FIFO | 16 KB | Holds complete encoded records before storage writes. If full, oldest records are dropped first. |
-| Flash sector buffer | 4 KB | Matches the SPI flash erase sector. Used by the flash backend for sector-aligned staging / write policy. |
+| Program flash filesystem | 2 MB | LittleFS region at the tail of U3 program flash. The backend appends complete encoded frames to `.NLG` files. |
 
 The RAM FIFO stores already encoded binary frames, not C++ structs. This keeps
 the storage backend independent from sensor/state structures.
@@ -200,10 +203,8 @@ only.
 | 16 KB encoded RAM FIFO | `src/logging/flight_log_ram_buffer.*` |
 | Storage backend interface / null backend | `src/logging/flight_log_storage.h` |
 | Mirror fan-out backend | `src/logging/flight_log_mirror_storage.*` |
+| U3 program flash `.NLG` backend | `src/logging/program_flash_flight_log_storage.*` |
 | microSD `.NLG` backend | `src/logging/sd_flight_log_storage.*` |
-| SPI flash sector format helpers | `src/logging/flight_log_flash_format.*` |
-| W25Q-class SPI NOR HAL | `src/hal/w25q_spi_flash_hal.*` |
-| 8 MB circular SPI flash backend | `src/logging/spi_flash_circular_log_storage.*` |
 | Periodic snapshot/event/decision task | `src/missions/flight_log_task.*` |
 | FSM decision trace source | `src/state/flight_state.h`, `src/missions/fsm_task.cpp` |
 | Dump decoder / CSV exporter | `tools/decode_flight_log.py` |
@@ -211,10 +212,7 @@ only.
 
 ## Known TODOs
 
-- Confirm the actual flash chip JEDEC ID and capacity on hardware.
-- Assign final SPI flash CS pin in `BoardPinMap` before enabling the flash
-  backend in production builds. The FC app currently mirrors from a null flash
-  backend to SD so SD can be tested immediately without touching unassigned
-  flash hardware.
+- Decide whether post-flight tooling should merge multiple 256 KB `.NLG`
+  segments automatically.
 - Measure flash erase latency and SD write latency on the actual board.
 - Add low-g raw register counts if the HAL exposes them.

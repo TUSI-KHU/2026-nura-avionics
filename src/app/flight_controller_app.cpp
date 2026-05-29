@@ -1,14 +1,18 @@
 #include "app/flight_controller_app.h"
 
+#include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
 
 #include "board_pinmap.h"
+#include "nura_constants.h"
 
 bool FlightControllerApp::setup(uint32_t nowMs)
 {
     // 로그 출력용 시리얼을 먼저 연다.
     logOutput_.begin(config_.serialBaudRate());
+    delay(NuraConstants::App::kBoardPowerSettleDelayMs);
+    nowMs = millis();
 
     pinMode(BoardPinMap::LSM6DSO32::csPin, OUTPUT);
     pinMode(BoardPinMap::H3LIS331DL::csPin, OUTPUT);
@@ -27,6 +31,8 @@ bool FlightControllerApp::setup(uint32_t nowMs)
     i2c.begin();
     i2c.setClock(BoardPinMap::I2cBus::clockHz);
 #endif
+    delay(NuraConstants::App::kBusSettleDelayMs);
+    nowMs = millis();
 
     // 태스크 등록 순서는 실제 실행 순서에도 영향을 준다.
 #if defined(NURA_MOCK_TELEMETRY)

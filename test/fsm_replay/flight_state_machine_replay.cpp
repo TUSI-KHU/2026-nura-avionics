@@ -833,10 +833,57 @@ bool checkHighGPreferredOverLowG()
     }
     return pass("high_g_preferred");
 }
+
+#if defined(NURA_BENCH_FSM_AUTOFLOW)
+bool checkBenchAutoFlow()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
+    fsm.init();
+
+    const uint32_t endMs = NuraConstants::BenchIntegration::kFsmAutoArmDelayMs +
+                           NuraConstants::BenchIntegration::kFsmAutoLaunchDelayMs +
+                           NuraConstants::BenchIntegration::kFsmAutoBurnoutDelayMs +
+                           NuraConstants::Flight::kApogeeTimeoutMs +
+                           NuraConstants::Flight::kDrogueBackupDelayMs +
+                           NuraConstants::Flight::kPyroFireDurationMs +
+                           NuraConstants::Flight::kMainTimeoutMs +
+                           NuraConstants::BenchIntegration::kFsmAutoGroundDelayMs +
+                           1000U;
+
+    for (uint32_t nowMs = 0U; nowMs <= endMs; nowMs += kTickMs)
+    {
+        fsm.tick(nowMs);
+    }
+
+    if (panic.panicked)
+    {
+        return fail("bench_auto_flow", "panic handler was called");
+    }
+    if (flight.state != State::GROUND)
+    {
+        return fail("bench_auto_flow", "bench auto-flow did not reach GROUND without sensor events");
+    }
+    return pass("bench_auto_flow");
+}
+#endif
 } // namespace
 
 int main()
 {
+    bool ok = true;
+
+#if defined(NURA_BENCH_FSM_AUTOFLOW)
+    ok = checkBenchAutoFlow() && ok;
+    return ok ? 0 : 1;
+#else
     const Scenario scenarios[] = {
         {"nominal_clean", 1.0f, 2.55f, 10.5f, 400.0f, 25.0f, 0.0f, false, false, false},
         {"low_apogee_clean", 1.0f, 2.45f, 9.8f, 250.0f, 22.0f, 0.0f, false, false, false},
@@ -845,7 +892,6 @@ int main()
         {"baro_dropout", 1.0f, 2.55f, 10.5f, 400.0f, 25.0f, 0.4f, false, true, false},
     };
 
-    bool ok = true;
     for (const Scenario &scenario : scenarios)
     {
         ok = checkFullFlight(scenario) && ok;
@@ -869,4 +915,5 @@ int main()
     ok = checkMockHalScenario("mock_hal_pad_false_accel", MockFlightScenarioId::PAD_FALSE_ACCEL) && ok;
 
     return ok ? 0 : 1;
+#endif
 }

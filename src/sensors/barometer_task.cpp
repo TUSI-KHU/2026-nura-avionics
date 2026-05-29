@@ -1,9 +1,11 @@
 #include "barometer_task.h"
 
+#include <Arduino.h>
 #include <Wire.h>
 #include <math.h>
 
 #include "board_pinmap.h"
+#include "nura_constants.h"
 
 namespace
 {
@@ -110,7 +112,20 @@ uint32_t BarometerTask::periodMs() const
 bool BarometerTask::initialize(uint32_t nowMs)
 {
     lastInitAttemptMs_ = nowMs;
-    const bool ok = barometer_.begin(BoardPinMap::I2cBus::wire());
+    bool ok = false;
+    for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
+    {
+        ok = barometer_.begin(BoardPinMap::I2cBus::wire());
+        if (ok)
+        {
+            break;
+        }
+        if ((attempt + 1U) < NuraConstants::Sensors::kSensorInitRetryAttempts)
+        {
+            delay(NuraConstants::Sensors::kSensorInitRetryDelayMs);
+        }
+    }
+
     if (ok)
     {
         LOGI(logger_, nowMs, "baro", "mpl3115a2 initialized");

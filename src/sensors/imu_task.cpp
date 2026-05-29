@@ -1,5 +1,6 @@
 #include "imu_task.h"
 
+#include <Arduino.h>
 #include <math.h>
 
 #include "nura_constants.h"
@@ -114,9 +115,16 @@ bool IMUTask::initializeDevice(uint32_t logTs)
 {
     (void)logTs;
 
-    if (imu_.begin(config_.imuCsPin()))
+    for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
     {
-        return true;
+        if (imu_.begin(config_.imuCsPin()))
+        {
+            return true;
+        }
+        if ((attempt + 1U) < NuraConstants::Sensors::kSensorInitRetryAttempts)
+        {
+            delay(NuraConstants::Sensors::kSensorInitRetryDelayMs);
+        }
     }
 
     return false;

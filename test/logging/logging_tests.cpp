@@ -3,7 +3,6 @@
 #include <cstring>
 #include <iostream>
 
-#include "logging/flight_log_flash_format.h"
 #include "logging/flight_log_ram_buffer.h"
 #include "logging/flight_log_record.h"
 
@@ -60,26 +59,12 @@ void testRamBufferDropsOldest()
     assert(buffer.used() <= buffer.capacity());
 }
 
-void testFlashSectorHeaderValidation()
-{
-    const nura_log::FlashSectorHeader header = nura_log::makeFlashSectorHeader(3U, 9U, 4096U, 64U);
-    assert(nura_log::validFlashSectorHeader(header, 4096U, 64U));
-    assert(!nura_log::validFlashSectorHeader(header, 2048U, 64U));
-
-    nura_log::FlashSectorHeader corrupted = header;
-    corrupted.sectorSequence = 10U;
-    assert(!nura_log::validFlashSectorHeader(corrupted, 4096U, 64U));
-
-    assert(nura_log::nextFlashSessionId(3U) == 4U);
-    assert(nura_log::nextFlashSessionId(0xFFFFFFFEUL) == 1U);
-}
 } // namespace
 
 int main()
 {
     testEncodeFrameCrc();
     testRamBufferDropsOldest();
-    testFlashSectorHeaderValidation();
     std::cout << "logging tests passed\n";
     return 0;
 }

@@ -78,9 +78,8 @@ src/state/      small shared state stores
 protocol/       shared NURA V1 Lite encoder/parser header
 sender/         standalone avionics-side LoRa protocol test firmware
 receiver/       standalone ground-side LoRa protocol test firmware and pair-test tool
-sensor_test/    isolated hardware bring-up sketches and helper scripts
+test/           embedded diagnostics, replay tests, and host-side checks
 documents/      protocol, requirements, schedule exports, and architecture assets
-test/           PlatformIO test sources
 ```
 
 ## PlatformIO Environments
@@ -91,6 +90,8 @@ test/           PlatformIO test sources
 | `debug` | same firmware with verbose logging |
 | `mock_test` | root firmware with mock telemetry and SX1278 bench radio flags |
 | `gnss_state_test` | isolated GNSS state integration sketch |
+| `hardware_integration_test` | isolated sensor/radio hardware bring-up sketch |
+| `storage_logger_test` | end-to-end program-flash plus SD logger verification |
 
 Common commands:
 
@@ -99,6 +100,7 @@ pio run -e build
 pio run -e debug
 pio run -e mock_test
 pio run -e gnss_state_test
+pio run -e storage_logger_test
 ```
 
 Upload and monitor:
@@ -107,6 +109,10 @@ Upload and monitor:
 pio run -e build -t upload
 pio device monitor -b 115200
 ```
+
+The root PlatformIO environments use a custom Teensy upload command that retries
+the loader after the common first soft-reboot write failure, so uploads should
+work through the normal `pio run ... -t upload` path.
 
 Standalone sender/receiver builds:
 

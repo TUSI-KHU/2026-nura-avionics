@@ -74,6 +74,7 @@ private:
     void tickApogee(uint32_t nowMs);
     void tickDrogue(uint32_t nowMs);
     void tickDeploy(uint32_t nowMs);
+    bool tickBenchAutoFlow(uint32_t nowMs);
     void transitionTo(State next, uint32_t nowMs);
     bool consumeForceRecoveryDeployRequest(uint32_t nowMs);
     bool forceRecoveryDeployAllowed() const;

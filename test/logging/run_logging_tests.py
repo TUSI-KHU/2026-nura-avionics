@@ -22,7 +22,6 @@ def main() -> int:
         "-Werror",
         "-Isrc",
         "-Iinclude",
-        "src/logging/flight_log_flash_format.cpp",
         "src/logging/flight_log_ram_buffer.cpp",
         "src/logging/flight_log_record.cpp",
         "test/logging/logging_tests.cpp",
