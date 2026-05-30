@@ -21,34 +21,15 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="add logger logic">
+    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="flash 로직추가 (미완)">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/documents/flight_logging_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/flight_logging_v1.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/documents/project-architecture.svg" beforeDir="false" afterPath="$PROJECT_DIR$/documents/project-architecture.svg" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/include/nura_constants.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/nura_constants.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/platformio.ini" beforeDir="false" afterPath="$PROJECT_DIR$/platformio.ini" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/readme.md" beforeDir="false" afterPath="$PROJECT_DIR$/readme.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/flight_controller_app.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/flight_controller_app.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/flight_controller_app.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/flight_controller_app.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gnss_test_main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/embedded/gnss_state_test_main.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hal/w25q_spi_flash_hal.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hal/w25q_spi_flash_hal.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hardware_integration_test_main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/embedded/hardware_integration_test_main.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/logging/flight_log_flash_format.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/logging/flight_log_flash_format.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/logging/spi_flash_circular_log_storage.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/logging/spi_flash_circular_log_storage.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/missions/flight_log_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/flight_log_task.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sensors/barometer_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/barometer_task.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sensors/high_g_imu_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/high_g_imu_task.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sensors/imu_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/imu_task.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sensors/magnetometer_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/magnetometer_task.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/fsm_replay/flight_state_machine_replay.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/fsm_replay/flight_state_machine_replay.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/fsm_replay/run_fsm_replay_tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/test/fsm_replay/run_fsm_replay_tests.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/logging/logging_tests.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/logging/logging_tests.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/logging/run_logging_tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/test/logging/run_logging_tests.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/logging/program_flash_flight_log_storage.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/logging/program_flash_flight_log_storage.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/embedded/storage_logger_main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/embedded/storage_logger_main.cpp" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -271,7 +252,7 @@
       <workItem from="1779011764123" duration="33223000" />
       <workItem from="1779463272711" duration="295000" />
       <workItem from="1779514240913" duration="21663000" />
-      <workItem from="1779943422742" duration="7329000" />
+      <workItem from="1779943422742" duration="7973000" />
     </task>
     <task id="LOCAL-00001" summary="port on teensy4.1">
       <option name="closed" value="true" />
@@ -433,7 +414,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779945771990</updated>
     </task>
-    <option name="localTasksCounter" value="21" />
+    <task id="LOCAL-00021" summary="flash 로직추가 (미완)">
+      <option name="closed" value="true" />
+      <created>1780065248334</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1780065248334</updated>
+    </task>
+    <option name="localTasksCounter" value="22" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -457,6 +446,7 @@
     <MESSAGE value="baro fault 감지 및 실시 드로그 로직(IMU기반) 추가" />
     <MESSAGE value="IMU fault 로직 추가" />
     <MESSAGE value="add logger logic" />
-    <option name="LAST_COMMIT_MESSAGE" value="add logger logic" />
+    <MESSAGE value="flash 로직추가 (미완)" />
+    <option name="LAST_COMMIT_MESSAGE" value="flash 로직추가 (미완)" />
   </component>
 </project>

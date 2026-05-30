@@ -53,7 +53,11 @@ bool ProgramFlashFlightLogStorage::append(const uint8_t *data, uint16_t length)
         return false;
     }
 
-    reclaimSpace(static_cast<uint32_t>(length) + NuraConstants::Logger::kFlightLogMinFreeBytes);
+    if (!reclaimSpace(static_cast<uint32_t>(length) + NuraConstants::Logger::kFlightLogMinFreeBytes))
+    {
+        healthy_ = false;
+        return false;
+    }
 
     const size_t written = file_.write(data, length);
     if (written != length)

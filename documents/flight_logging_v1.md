@@ -20,7 +20,7 @@ The current avionics board uses the Teensy 4.1 U3 program flash
 the same physical flash family that stores firmware, so the backend mounts only
 a fixed tail region of program flash through Teensy `LittleFS_Program`.
 
-Initial allocation: `2 MB`, defined by
+Initial allocation: `6 MB`, defined by
 `NuraConstants::Logger::kFlightLogProgramFlashBytes`. The remaining flash stays
 available for firmware. If the firmware image ever grows too large for this
 allocation, `LittleFS_Program::begin()` fails and the SD mirror can still carry
@@ -71,7 +71,7 @@ Two buffers are used:
 | Buffer | Size | Purpose |
 | --- | ---: | --- |
 | Encoded RAM FIFO | 16 KB | Holds complete encoded records before storage writes. If full, oldest records are dropped first. |
-| Program flash filesystem | 2 MB | LittleFS region at the tail of U3 program flash. The backend appends complete encoded frames to `.NLG` files. |
+| Program flash filesystem | 6 MB | LittleFS region at the tail of U3 program flash. The backend appends complete encoded frames to `.NLG` files. |
 
 The RAM FIFO stores already encoded binary frames, not C++ structs. This keeps
 the storage backend independent from sensor/state structures.

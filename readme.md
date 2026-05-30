@@ -22,24 +22,26 @@ Runtime flow:
 Production task order:
 
 ```text
-IMUTask -> BarometerTask -> GNSSTask -> WatchdogTask -> FSMTask -> TelemetryTask -> LoggerTask
+IMUTask -> HighGImuTask -> MagnetometerTask -> BarometerTask -> GNSSTask -> WatchdogTask -> FSMTask -> FlightLogTask -> TelemetryTask -> LoggerTask
 ```
 
 Mock telemetry task order:
 
 ```text
-MockTelemetrySourceTask -> WatchdogTask -> FSMTask -> TelemetryTask -> LoggerTask
+MockTelemetrySourceTask -> WatchdogTask -> FSMTask -> FlightLogTask -> TelemetryTask -> LoggerTask
 ```
 
 ## Current Firmware Scope
 
 - Board target: Teensy 4.1 with Arduino framework through PlatformIO.
 - Low-g IMU path: `LSM6DSO32HAL` -> `IMUTask` -> `ImuState`.
-- Barometer path: `MS5611HAL` -> `BarometerTask` -> `TelemetryState`.
+- Barometer path: `MPL3115A2HAL` -> `BarometerTask` -> `TelemetryState`.
 - GNSS path: `UbloxM6GNSSHAL` -> `GNSSTask` -> `GpsState`.
-- High-g IMU scaffold: `H3LIS331DLHAL`, `HighGImuTask`, and `HighGImuState` exist for integration.
+- High-g IMU path: `H3LIS331DLHAL` -> `HighGImuTask` -> `HighGImuState`.
+- Magnetometer path: `LIS3MDLHAL` -> `MagnetometerTask` -> `MagnetometerState`.
 - LoRa path: `Sx127xLoRaHAL` plus `TelemetryTask`.
 - Protocol: fixed-length NURA V1 Lite frames in `protocol/include/nura_protocol_v1_lite.h`.
+- Flight logging: U3 program flash primary plus microSD mirror through `FlightLogTask`, with `.NLG` parsing tools under `log_parser/`.
 - Mock path: `MockFlightDataHAL` and `MockTelemetrySourceTask` feed deterministic telemetry for bench protocol tests.
 
 Additional sensor HALs and sketches remain under `src/hal` and `sensor_test` for isolated hardware bring-up.
@@ -76,6 +78,7 @@ src/sensors/    sensor acquisition tasks
 src/missions/   FSM, watchdog, telemetry, logger, and mock source tasks
 src/state/      small shared state stores
 protocol/       shared NURA V1 Lite encoder/parser header
+log_parser/     host-side .NLG binary flight-log parser
 sender/         standalone avionics-side LoRa protocol test firmware
 receiver/       standalone ground-side LoRa protocol test firmware and pair-test tool
 test/           embedded diagnostics, replay tests, and host-side checks
@@ -134,7 +137,7 @@ Use the shared schedule sheet as the source of truth for deadlines and team coor
 - Build each hardware path through `HAL -> Task -> State`, then integrate it into the flight app.
 - Verify individual sensors with Arduino/PlatformIO sketches before relying on them in the flight controller.
 - Keep LoRa as a lossy telemetry and control link, not as the primary raw-data recorder.
-- Store high-rate raw flight data locally through future Flash/SD logging outputs.
+- Store high-rate raw flight data locally through U3 program flash and the microSD mirror.
 - Validate changes through unit tests, mock tests, and full hardware tests before treating them as flight-ready.
 - Keep the ground station decoder aligned with `protocol/include/nura_protocol_v1_lite.h`.
 

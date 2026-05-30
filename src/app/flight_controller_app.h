@@ -73,13 +73,13 @@ private:
 #endif
     Sx127xLoRaHAL loraHal_;
 #if defined(NURA_MOCK_TELEMETRY)
-    NullFlightLogStorage spiFlashLogStorage_;
+    NullFlightLogStorage programFlashLogStorage_;
 #else
     LittleFS_Program programFlashFs_;
-    ProgramFlashFlightLogStorage spiFlashLogStorage_{programFlashFs_, NuraConstants::Logger::kFlightLogProgramFlashBytes};
+    ProgramFlashFlightLogStorage programFlashLogStorage_{programFlashFs_, NuraConstants::Logger::kFlightLogProgramFlashBytes};
 #endif
     SdFlightLogStorage sdLogStorage_{BoardPinMap::MicroSD::csPin};
-    FlightLogMirrorStorage flightLogStorage_{spiFlashLogStorage_, sdLogStorage_};
+    FlightLogMirrorStorage flightLogStorage_{programFlashLogStorage_, sdLogStorage_};
     BlinkingPanicHandler panicHandler_{config_};
     SerialLogOutput logOutput_;
 #if defined(NURA_MOCK_TELEMETRY)

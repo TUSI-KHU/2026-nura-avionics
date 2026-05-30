@@ -14,7 +14,7 @@
 
 namespace
 {
-constexpr uint32_t kSerialWaitMs = 2500UL;
+constexpr uint32_t kSerialWaitMs = 60000UL;
 constexpr uint16_t kExpectedMinFrames = 8U;
 
 LittleFS_Program programFs;
@@ -39,6 +39,52 @@ FlightLogTask flightLogTask(flightState,
                             telemetryState,
                             mirrorStorage,
                             logger);
+
+void printHexByte(uint8_t value)
+{
+    if (value < 0x10U)
+    {
+        Serial.print('0');
+    }
+    Serial.print(value, HEX);
+}
+
+bool dumpLogFile(FS &fs, const char *path, const char *label)
+{
+    File file = fs.open(path, FILE_READ);
+    if (!file)
+    {
+        Serial.print("NURA_DUMP_FAIL ");
+        Serial.print(label);
+        Serial.print(" path=");
+        Serial.println(path);
+        return false;
+    }
+
+    Serial.print("NURA_DUMP_BEGIN ");
+    Serial.print(label);
+    Serial.print(" path=");
+    Serial.print(path);
+    Serial.print(" bytes=");
+    Serial.println(file.size());
+
+    uint8_t buffer[32] = {};
+    while (file.available() > 0)
+    {
+        const size_t bytesRead = file.read(buffer, sizeof(buffer));
+        for (size_t i = 0; i < bytesRead; ++i)
+        {
+            printHexByte(buffer[i]);
+        }
+        Serial.println();
+    }
+
+    file.close();
+
+    Serial.print("NURA_DUMP_END ");
+    Serial.println(label);
+    return true;
+}
 
 bool verifyLogFile(FS &fs, const char *path, const char *label, uint16_t minFrames)
 {
@@ -82,7 +128,8 @@ bool verifyLogFile(FS &fs, const char *path, const char *label, uint16_t minFram
         }
 
         const size_t remaining = frameLength - sizeof(nura_log::FrameHeader);
-        if (file.read(frame + sizeof(nura_log::FrameHeader), remaining) != static_cast<int>(remaining))
+        const size_t bodyRead = file.read(frame + sizeof(nura_log::FrameHeader), remaining);
+        if (bodyRead != remaining)
         {
             ok = false;
             break;
@@ -240,7 +287,10 @@ bool runMirrorLoggerTest()
     Serial.print(" total=");
     Serial.println(static_cast<uint32_t>(programStorage.totalBytes()));
 
-    return programOk && sdOk;
+    const bool programDumpOk = programOk && dumpLogFile(programFs, programStorage.path(), "PROGRAM_FLASH");
+    const bool sdDumpOk = sdOk && dumpLogFile(SD, sdStorage.path(), "SD");
+
+    return programOk && sdOk && programDumpOk && sdDumpOk;
 }
 } // namespace
 
@@ -254,6 +304,21 @@ void setup()
     }
 
     Serial.println();
+    Serial.println("NURA STORAGE LOGGER READY");
+    Serial.println("SEND D TO START");
+    while (true)
+    {
+        if (Serial.available() > 0)
+        {
+            const char command = static_cast<char>(Serial.read());
+            if (command == 'D' || command == 'd')
+            {
+                break;
+            }
+        }
+        delay(10);
+    }
+
     Serial.println("NURA STORAGE LOGGER END-TO-END TEST");
     const bool ok = runMirrorLoggerTest();
     Serial.print("NURA STORAGE LOGGER END-TO-END ");
