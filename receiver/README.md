@@ -1,6 +1,13 @@
 # NURA LoRa Receiver
 
-Ground-side Teensy 4.1 receiver for NURA V1 Lite telemetry.
+Ground-side Teensy 4.1 receiver for authenticated NURA V2 Lite telemetry.
+
+Use the `sx1276_ground` environment for the 920.9 MHz SX1276 ground radio.
+The default `teensy41` environment remains the 433 MHz development setup.
+The SX1276 ground environment fixes the SPI bus to MODE0; automatic mode
+probing remains limited to the development environment.
+The standalone ground wiring is `CS=10`, `RESET=9`, and `DIO0=2`; it is
+intentionally independent of the flight-computer pin map.
 
 The implementation follows `documents/nura_lora_packet_protocol_v1.md` and the shared protocol header in `protocol/include/nura_protocol_v1_lite.h`.
 

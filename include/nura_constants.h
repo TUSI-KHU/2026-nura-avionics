@@ -2,6 +2,17 @@
 
 #include <stdint.h>
 
+#if __has_include("nura_radio_secrets.h")
+#include "nura_radio_secrets.h"
+#define NURA_RADIO_IDENTITY_PROVISIONED 1
+#else
+#define NURA_RADIO_VEHICLE_ID 0x4E555241UL
+#define NURA_RADIO_AUTH_KEY_BYTES                                              \
+    0x4e, 0x55, 0x52, 0x41, 0x2d, 0x56, 0x31, 0x4c,                         \
+        0x49, 0x54, 0x45, 0x2d, 0x54, 0x45, 0x53, 0x54
+#define NURA_RADIO_IDENTITY_PROVISIONED 0
+#endif
+
 namespace NuraConstants
 {
 namespace Physics
@@ -108,9 +119,10 @@ constexpr uint32_t kGpsPeriodMs = 1000UL;
 constexpr uint32_t kSensorFreshMs = 1500UL;
 constexpr uint8_t kAckQueueDepth = 4U;
 constexpr uint8_t kRecentCommandDepth = 4U;
+constexpr uint32_t kVehicleId = NURA_RADIO_VEHICLE_ID;
 constexpr uint8_t kControlAuthKey[16] = {
-    0x4e, 0x55, 0x52, 0x41, 0x2d, 0x56, 0x31, 0x4c,
-    0x49, 0x54, 0x45, 0x2d, 0x54, 0x45, 0x53, 0x54};
+    NURA_RADIO_AUTH_KEY_BYTES};
+constexpr bool kRadioIdentityProvisioned = NURA_RADIO_IDENTITY_PROVISIONED != 0;
 } // namespace Telemetry
 
 namespace Buzzer
@@ -130,7 +142,7 @@ constexpr uint8_t kTransitionBeepCount = 5U;
 namespace LoRa
 {
 constexpr long kFlightFrequencyHz = 920900000L;
-constexpr uint32_t kFlightSpiFrequencyHz = 8000000UL;
+constexpr uint32_t kFlightSpiFrequencyHz = 2000000UL;
 constexpr int kFlightTxPowerDbm = 17;
 constexpr uint8_t kFlightInitAttempts = 1U;
 constexpr uint8_t kFlightSpiMode = 0x00U; // Teensy SPI_MODE0.
@@ -150,6 +162,8 @@ constexpr uint8_t kExpectedVersion = 0x12U;
 
 namespace Flight
 {
+// No flight pyro GPIO, arming input, or continuity input is assigned yet.
+constexpr bool kPyroOutputImplemented = false;
 constexpr uint32_t kAccelFallbackMaxSampleAgeMs = 50UL;
 
 constexpr float kLaunchAccelThresholdG = 2.0f;

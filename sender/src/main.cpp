@@ -2,6 +2,7 @@
 #include <SPI.h>
 
 #include "board_pinmap.h"
+#include "nura_constants.h"
 #include "nura_protocol_v1_lite.h"
 
 #define private public
@@ -25,10 +26,6 @@ constexpr uint8_t kLoraInitAttempts = 5U;
 constexpr uint32_t kFastIntervalMs = 200UL;
 constexpr uint32_t kGpsIntervalMs = 1000UL;
 
-constexpr uint8_t kAuthKey[16] = {
-    0x4e, 0x55, 0x52, 0x41, 0x2d, 0x56, 0x31, 0x4c,
-    0x49, 0x54, 0x45, 0x2d, 0x54, 0x45, 0x53, 0x54};
-
 uint8_t selectedSpiMode = SPI_MODE0;
 uint8_t selectedSpiModeNumber = 0U;
 bool radioReady = false;
@@ -36,7 +33,6 @@ uint16_t downlinkSeq = 0U;
 uint32_t lastFastMs = 0UL;
 uint32_t lastGpsMs = 0UL;
 bool deployFired = false;
-nura::Parser parser;
 
 struct AckQueue
 {
@@ -344,7 +340,15 @@ bool sendRawFrame(uint8_t type, const uint8_t *payload, uint8_t payloadLen, cons
 {
     uint8_t frame[nura::kMaxFrameLen];
     const uint16_t seq = downlinkSeq++;
-    const size_t frameLen = nura::encodeFrame(type, seq, payload, payloadLen, frame, sizeof(frame));
+    const size_t frameLen = nura::encodeFrame(type,
+                                               NuraConstants::Telemetry::kVehicleId,
+                                               seq,
+                                               nura::FrameDirection::DOWNLINK,
+                                               NuraConstants::Telemetry::kControlAuthKey,
+                                               payload,
+                                               payloadLen,
+                                               frame,
+                                               sizeof(frame));
     if (frameLen == 0U)
     {
         Serial.print("FAIL: encode_frame type=");
@@ -469,7 +473,9 @@ void handleCommand(const nura::ParsedFrame &frame, const nura::ControlPayload &c
     Serial.print(" frame_seq=");
     Serial.println(frame.seq);
 
-    if (!nura::verifyControlAuthTag(command, frame.seq, kAuthKey))
+    if (!nura::verifyControlAuthTag(command,
+                                    frame.seq,
+                                    NuraConstants::Telemetry::kControlAuthKey))
     {
         enqueueAck(command, nura::ACK_REJECTED, nura::RESULT_AUTH_FAILED, nura::REJECT_AUTH_TAG_MISMATCH);
         return;
@@ -521,6 +527,9 @@ void receiveCommands()
         return;
     }
 
+    uint8_t buffer[nura::kMaxFrameLen];
+    size_t count = 0U;
+    bool overflow = false;
     while (LoRa.available())
     {
         const int value = LoRa.read();
@@ -529,20 +538,38 @@ void receiveCommands()
             break;
         }
 
-        nura::ParsedFrame frame;
-        if (!parser.feed(static_cast<uint8_t>(value), frame))
+        if (count < sizeof(buffer))
         {
-            continue;
+            buffer[count] = static_cast<uint8_t>(value);
         }
+        else
+        {
+            overflow = true;
+        }
+        ++count;
+    }
 
-        if (frame.type == nura::MESSAGE_CONTROL)
-        {
-            nura::ControlPayload control;
-            if (nura::decodeControlPayload(frame.payload, frame.payloadLen, control))
-            {
-                handleCommand(frame, control);
-            }
-        }
+    if (overflow || count != static_cast<size_t>(packetSize))
+    {
+        return;
+    }
+
+    nura::ParsedFrame frame;
+    if (!nura::decodeFrame(buffer,
+                           count,
+                           NuraConstants::Telemetry::kVehicleId,
+                           nura::FrameDirection::UPLINK,
+                           NuraConstants::Telemetry::kControlAuthKey,
+                           frame) ||
+        frame.type != nura::MESSAGE_CONTROL)
+    {
+        return;
+    }
+
+    nura::ControlPayload control;
+    if (nura::decodeControlPayload(frame.payload, frame.payloadLen, control))
+    {
+        handleCommand(frame, control);
     }
 }
 } // namespace
@@ -555,10 +582,12 @@ void setup()
     }
 
     Serial.println();
-    Serial.println("NURA V1 Lite sender avionics emulator");
-    Serial.println("role=sender board=teensy41 protocol=v1_lite");
+    Serial.println("NURA V2 Lite authenticated sender avionics emulator");
+    Serial.println("role=sender board=teensy41 protocol=v2_lite_auth");
     Serial.println("packet_set=FAST,GPS,CONTROL");
     Serial.println("rf=freq433_sf7_bw125_cr45_dev");
+    Serial.print("identity=");
+    Serial.println(NuraConstants::Telemetry::kRadioIdentityProvisioned ? "provisioned" : "public_bench_unsafe_for_flight");
 
     radioReady = beginRadio();
     if (!radioReady)

@@ -16,14 +16,24 @@ bool FlightControllerApp::setup(uint32_t nowMs)
 
     pinMode(BoardPinMap::LSM6DSO32::csPin, OUTPUT);
     pinMode(BoardPinMap::H3LIS331DL::csPin, OUTPUT);
-    pinMode(BoardPinMap::Ra01DevelopmentLoRa::ssPin, OUTPUT);
+    pinMode(BoardPinMap::Sx1262LoRa::ssPin, OUTPUT);
     digitalWrite(BoardPinMap::LSM6DSO32::csPin, HIGH);
     digitalWrite(BoardPinMap::H3LIS331DL::csPin, HIGH);
-    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, HIGH);
+    digitalWrite(BoardPinMap::Sx1262LoRa::ssPin, HIGH);
     SPI.setMOSI(BoardPinMap::SpiBus::mosiPin);
     SPI.setMISO(BoardPinMap::SpiBus::misoPin);
     SPI.setSCK(BoardPinMap::SpiBus::sckPin);
     SPI.begin();
+#if !defined(NURA_DISABLE_LORA)
+    SPI1.setMISO(BoardPinMap::Spi1Bus::misoPin);
+    SPI1.setMOSI(BoardPinMap::Spi1Bus::mosiPin);
+    SPI1.setSCK(BoardPinMap::Spi1Bus::sckPin);
+    SPI1.begin();
+#if defined(NURA_BENCH_SX1262_RXE_LOW)
+    pinMode(BoardPinMap::Sx1262LoRa::rxEnablePin, OUTPUT);
+    digitalWrite(BoardPinMap::Sx1262LoRa::rxEnablePin, LOW);
+#endif
+#endif
 #if !defined(NURA_MOCK_TELEMETRY)
     TwoWire &i2c0 = BoardPinMap::I2c0Bus::wire();
     i2c0.setSDA(BoardPinMap::I2c0Bus::sdaPin);

@@ -58,7 +58,8 @@ GPS, GY-GPS6MV2 / u-blox M6
 - Baud: 9600 by current firmware default.
 
 LoRa, flight SX1262
-- SPI data bus: SPI0 D11/D12/D13.
+- SPI data bus: SPI1 MISO D1, MOSI D26, SCK D27.
+- SPI clock: 2 MHz, verified by the 2026-06-22 avionics radio bench test.
 - NSS -> D9.
 - RXE -> D30. This is not an SX1262 reset pin; its required polarity and TX/RX behavior must be confirmed from the PCB schematic before flight-radio enable.
 - DIO1 -> D31.
@@ -76,14 +77,14 @@ Pyro channels, firing order
 - The D21 voltage-sense input is distinct from both pyro channels. Before enabling
   real output, still LED/scope-test D28/D29/D36/D37 with no e-matches attached.
 
-SPI1 reserved / secondary SPI pads
+SPI1 / flight LoRa bus
 - MISO1 -> D1.
 - MOSI1 -> D26.
 - SCK1 -> D27.
-- No current sensor task uses SPI1 yet.
+- SX1262 uses this bus; sensors remain on SPI0.
 
 Expected quick bring-up observations
 - I2C scanner should find MPL3115A2 at 0x60 on Wire 18/19.
 - I2C scanner should find LIS3MDL at 0x1C on Wire1 17/16.
 - SPI0 WHOAMI/probe should use LSM6DSO32 CS D10 and H3LIS331DL CS D0.
-- LoRa probe should use NSS D9, reset/enable D30, DIO0 D31.
+- LoRa probe should use SPI1, NSS D9, RXE D30, DIO1 D31, and BUSY D32.

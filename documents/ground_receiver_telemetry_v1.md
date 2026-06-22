@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The ground-side Teensy receiver decodes NURA V1 Lite LoRa frames from the avionics radio and prints engineering-unit telemetry for GCS or serial-monitor use.
+The ground-side Teensy receiver decodes authenticated NURA V2 Lite LoRa frames from the avionics radio and prints engineering-unit telemetry for GCS or serial-monitor use.
 
 The default receiver firmware is receive-only. It must not transmit recovery/control commands when connected to real avionics hardware.
 
@@ -39,6 +39,10 @@ GPS_TLM inputs from avionics:
 
 CONTROL/ACK inputs are decoded for operator visibility and pair-test validation.
 
+Each LoRa PHY packet must contain exactly one complete NURA V2 Lite frame. The
+receiver rejects oversized, truncated, concatenated, wrong-sync, wrong-version,
+unknown-type, and bad-CRC frames before payload decoding.
+
 ## Allowed States
 
 Receive-only mode is allowed for lab, integration, pad, and flight-rehearsal telemetry observation, subject to local radio legality and team operating procedures.
@@ -70,12 +74,23 @@ pack voltage in millivolts.
 - GCS emits FORCE_DEPLOY_RECOVERY after merely receiving telemetry.
 - Serial output hides real sensor values, making hardware integration failures hard to identify.
 - Pair-test automation breaks when the default receiver is made receive-only.
+- A foreign or malformed LoRa packet is accepted across PHY packet boundaries.
+- An oversized packet writes beyond the fixed receive buffer.
+- A valid-format packet carries another vehicle ID, direction, key, or a
+  modified authenticated field.
 
 ## Fallback Behavior
 
 If `NURA_RECEIVER_AUTO_COMMAND_TEST` is not defined, `serviceCommandSender()` and pair-test completion printing return without transmitting commands.
 
 Telemetry decode and CONTROL/ACK visibility remain active in both receiver environments.
+
+The receiver accepts a frame only when its authenticated `vehicle_id`, direction,
+payload, sequence, and tag match the configured secret. CRC remains a corruption
+check and is not treated as identity. The checked-in fallback identity and key
+are public bench values, so they do not establish sender authenticity against an
+adversary. Flight use requires the same provisioned `nura_radio_secrets.h` on
+the avionics and GCS build machines.
 
 ## Verification Plan
 

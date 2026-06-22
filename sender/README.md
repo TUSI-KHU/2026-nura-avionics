@@ -1,4 +1,4 @@
-# NURA LoRa Sender
+# NURA LoRa V2 Sender Bench Emulator
 
 This folder is reserved for the avionics-side LoRa sender implementation.
 

@@ -2,6 +2,7 @@
 #include <SPI.h>
 
 #include "board_pinmap.h"
+#include "nura_constants.h"
 #include "nura_protocol_v1_lite.h"
 
 #define private public
@@ -11,8 +12,16 @@
 namespace
 {
 constexpr unsigned long kSerialBaud = 115200UL;
-constexpr long kLoraFrequencyHz = 920900000L;
+#if defined(NURA_GROUND_SX1276)
+constexpr long kLoraFrequencyHz = NuraConstants::LoRa::kFlightFrequencyHz;
+#else
+constexpr long kLoraFrequencyHz = 433000000L;
+#endif
 constexpr uint32_t kLoraSpiFrequencyHz = 125000UL;
+constexpr uint8_t kLoraSsPin = 10U;
+constexpr uint8_t kLoraResetPin = 9U;
+constexpr int8_t kLoraLibraryResetPin = -1;
+constexpr uint8_t kLoraDio0Pin = 2U;
 constexpr int kLoraTxPowerDbm = 10;
 constexpr int kLoraSpreadingFactor = 7;
 constexpr long kLoraSignalBandwidthHz = 125000L;
@@ -20,15 +29,14 @@ constexpr int kLoraCodingRateDenominator = 5;
 constexpr long kLoraPreambleLength = 8L;
 constexpr int kLoraSyncWord = 0x12;
 constexpr uint8_t kLoraRegVersion = 0x42U;
+constexpr uint8_t kLoraRegRssiValue = 0x1BU;
+constexpr int16_t kLoraHfRssiOffsetDbm = -157;
 constexpr uint8_t kLoraExpectedVersion = 0x12U;
 constexpr uint8_t kLoraInitAttempts = 5U;
+constexpr uint32_t kRssiSampleIntervalMs = 5UL;
 
 constexpr uint32_t kCommandRetryIntervalMs = 250UL;
 constexpr uint8_t kCommandMaxAttempts = 8U;
-
-constexpr uint8_t kAuthKey[16] = {
-    0x4e, 0x55, 0x52, 0x41, 0x2d, 0x56, 0x31, 0x4c,
-    0x49, 0x54, 0x45, 0x2d, 0x54, 0x45, 0x53, 0x54};
 
 #if defined(NURA_RECEIVER_AUTO_COMMAND_TEST)
 constexpr bool kAutoCommandTestEnabled = true;
@@ -38,17 +46,26 @@ constexpr bool kAutoCommandTestEnabled = false;
 
 uint8_t selectedSpiMode = SPI_MODE0;
 uint8_t selectedSpiModeNumber = 0U;
+uint8_t lastMode0Version = 0U;
+uint8_t lastMode1Version = 0U;
+uint8_t lastMode2Version = 0U;
+uint8_t lastMode3Version = 0U;
 bool radioReady = false;
 uint16_t uplinkFrameSeq = 0U;
 uint16_t nextCommandSeq = 1U;
-nura::Parser parser;
 uint32_t fastRxCount = 0UL;
 uint32_t gpsRxCount = 0UL;
 uint32_t controlAckRxCount = 0UL;
+uint32_t phyRxCount = 0UL;
+uint32_t frameDecodeFailCount = 0UL;
 bool forceDeployDone = false;
 bool deprecatedAbortDone = false;
 bool completionPrinted = false;
 uint32_t forceDeployDoneMs = 0UL;
+uint32_t lastStatusMs = 0UL;
+uint32_t lastRssiSampleMs = 0UL;
+int16_t currentRssiDbm = -200;
+int16_t peakRssiDbm = -200;
 
 struct PendingCommand
 {
@@ -67,11 +84,6 @@ PendingCommand pending;
 
 void beginSpi()
 {
-#if defined(CORE_TEENSY)
-    SPI.setMOSI(BoardPinMap::SpiBus::mosiPin);
-    SPI.setMISO(BoardPinMap::SpiBus::misoPin);
-    SPI.setSCK(BoardPinMap::SpiBus::sckPin);
-#endif
     SPI.begin();
 }
 
@@ -88,35 +100,33 @@ void printHexByte(uint8_t value)
 uint8_t readLoraRegisterRaw(uint8_t address, uint8_t spiMode)
 {
     SPISettings settings(kLoraSpiFrequencyHz, MSBFIRST, spiMode);
-    pinMode(BoardPinMap::Ra01DevelopmentLoRa::ssPin, OUTPUT);
-    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, HIGH);
+    pinMode(kLoraSsPin, OUTPUT);
+    digitalWrite(kLoraSsPin, HIGH);
     SPI.beginTransaction(settings);
-    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, LOW);
+    digitalWrite(kLoraSsPin, LOW);
     delayMicroseconds(20);
     SPI.transfer(address & 0x7FU);
     const uint8_t value = SPI.transfer(0x00U);
     delayMicroseconds(20);
-    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, HIGH);
+    digitalWrite(kLoraSsPin, HIGH);
     SPI.endTransaction();
     return value;
 }
 
 void resetRadio()
 {
-    pinMode(BoardPinMap::Ra01DevelopmentLoRa::ssPin, OUTPUT);
-    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, HIGH);
-    pinMode(BoardPinMap::Ra01DevelopmentLoRa::resetPin, OUTPUT);
-    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::resetPin, LOW);
+    pinMode(kLoraSsPin, OUTPUT);
+    digitalWrite(kLoraSsPin, HIGH);
+    pinMode(kLoraResetPin, OUTPUT);
+    digitalWrite(kLoraResetPin, LOW);
     delay(50);
-    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::resetPin, HIGH);
+    digitalWrite(kLoraResetPin, HIGH);
     delay(500);
 }
 
 bool beginRadio()
 {
-    LoRa.setPins(BoardPinMap::Ra01DevelopmentLoRa::ssPin,
-                 BoardPinMap::Ra01DevelopmentLoRa::libraryResetPin,
-                 BoardPinMap::Ra01DevelopmentLoRa::dio0Pin);
+    LoRa.setPins(kLoraSsPin, kLoraLibraryResetPin, kLoraDio0Pin);
     LoRa.setSPIFrequency(kLoraSpiFrequencyHz);
 
     for (uint8_t attempt = 1U; attempt <= kLoraInitAttempts; ++attempt)
@@ -124,39 +134,53 @@ bool beginRadio()
         beginSpi();
         resetRadio();
 
-        const uint8_t mode0Version = readLoraRegisterRaw(kLoraRegVersion, SPI_MODE0);
-        const uint8_t mode1Version = readLoraRegisterRaw(kLoraRegVersion, SPI_MODE1);
-        const uint8_t mode2Version = readLoraRegisterRaw(kLoraRegVersion, SPI_MODE2);
-        const uint8_t mode3Version = readLoraRegisterRaw(kLoraRegVersion, SPI_MODE3);
+        lastMode0Version = readLoraRegisterRaw(kLoraRegVersion, SPI_MODE0);
+#if !defined(NURA_GROUND_SX1276)
+        lastMode1Version = readLoraRegisterRaw(kLoraRegVersion, SPI_MODE1);
+        lastMode2Version = readLoraRegisterRaw(kLoraRegVersion, SPI_MODE2);
+        lastMode3Version = readLoraRegisterRaw(kLoraRegVersion, SPI_MODE3);
+#endif
 
         Serial.print("init_attempt=");
         Serial.print(attempt);
         Serial.print(" m0=");
-        printHexByte(mode0Version);
+        printHexByte(lastMode0Version);
         Serial.print(" m1=");
-        printHexByte(mode1Version);
+        printHexByte(lastMode1Version);
         Serial.print(" m2=");
-        printHexByte(mode2Version);
+        printHexByte(lastMode2Version);
         Serial.print(" m3=");
-        printHexByte(mode3Version);
+        printHexByte(lastMode3Version);
         Serial.println();
 
-        if (mode1Version == kLoraExpectedVersion)
-        {
-            selectedSpiMode = SPI_MODE1;
-            selectedSpiModeNumber = 1U;
-        }
-        else if (mode0Version == kLoraExpectedVersion)
+#if defined(NURA_GROUND_SX1276)
+        if (lastMode0Version == kLoraExpectedVersion)
         {
             selectedSpiMode = SPI_MODE0;
             selectedSpiModeNumber = 0U;
         }
-        else if (mode2Version == kLoraExpectedVersion)
+        else
+        {
+            delay(250);
+            continue;
+        }
+#else
+        if (lastMode1Version == kLoraExpectedVersion)
+        {
+            selectedSpiMode = SPI_MODE1;
+            selectedSpiModeNumber = 1U;
+        }
+        else if (lastMode0Version == kLoraExpectedVersion)
+        {
+            selectedSpiMode = SPI_MODE0;
+            selectedSpiModeNumber = 0U;
+        }
+        else if (lastMode2Version == kLoraExpectedVersion)
         {
             selectedSpiMode = SPI_MODE2;
             selectedSpiModeNumber = 2U;
         }
-        else if (mode3Version == kLoraExpectedVersion)
+        else if (lastMode3Version == kLoraExpectedVersion)
         {
             selectedSpiMode = SPI_MODE3;
             selectedSpiModeNumber = 3U;
@@ -166,6 +190,7 @@ bool beginRadio()
             delay(250);
             continue;
         }
+#endif
 
         LoRa._spiSettings = SPISettings(kLoraSpiFrequencyHz, MSBFIRST, selectedSpiMode);
         Serial.print("selected_spi_mode=");
@@ -326,13 +351,19 @@ bool sendControlCommand(PendingCommand &cmd)
     control.validUntilMs = 0UL;
     control.param0 = cmd.param0;
     control.param1 = cmd.param1;
-    nura::makeControlAuthTag(control, cmd.frameSeq, kAuthKey, control.authOrAck);
+    nura::makeControlAuthTag(control,
+                             cmd.frameSeq,
+                             NuraConstants::Telemetry::kControlAuthKey,
+                             control.authOrAck);
 
     uint8_t payload[nura::kControlPayloadLen];
     uint8_t frame[nura::kMaxFrameLen];
     nura::encodeControlPayload(control, payload, sizeof(payload));
     const size_t frameLen = nura::encodeFrame(nura::MESSAGE_CONTROL,
+                                              NuraConstants::Telemetry::kVehicleId,
                                               cmd.frameSeq,
+                                              nura::FrameDirection::UPLINK,
+                                              NuraConstants::Telemetry::kControlAuthKey,
                                               payload,
                                               nura::kControlPayloadLen,
                                               frame,
@@ -583,7 +614,10 @@ void handleControl(const nura::ParsedFrame &frame)
     Serial.print(" reason=");
     Serial.println(reasonName(reason));
 
-    if (!pending.active || control.commandSeq != pending.commandSeq || control.commandId != pending.commandId)
+    if (!pending.active ||
+        control.commandSeq != pending.commandSeq ||
+        control.commandId != pending.commandId ||
+        control.nonce != pending.nonce)
     {
         return;
     }
@@ -618,7 +652,11 @@ void receiveFrames()
     {
         return;
     }
+    ++phyRxCount;
 
+    uint8_t buffer[nura::kMaxFrameLen];
+    size_t count = 0U;
+    bool overflow = false;
     while (LoRa.available())
     {
         const int value = LoRa.read();
@@ -627,26 +665,47 @@ void receiveFrames()
             break;
         }
 
-        nura::ParsedFrame frame;
-        if (!parser.feed(static_cast<uint8_t>(value), frame))
+        if (count < sizeof(buffer))
         {
-            continue;
+            buffer[count] = static_cast<uint8_t>(value);
         }
+        else
+        {
+            overflow = true;
+        }
+        ++count;
+    }
 
-        switch (frame.type)
-        {
-        case nura::MESSAGE_FAST_TLM:
-            handleFast(frame);
-            break;
-        case nura::MESSAGE_GPS_TLM:
-            handleGps(frame);
-            break;
-        case nura::MESSAGE_CONTROL:
-            handleControl(frame);
-            break;
-        default:
-            break;
-        }
+    if (overflow || count != static_cast<size_t>(packetSize))
+    {
+        return;
+    }
+
+    nura::ParsedFrame frame;
+    if (!nura::decodeFrame(buffer,
+                           count,
+                           NuraConstants::Telemetry::kVehicleId,
+                           nura::FrameDirection::DOWNLINK,
+                           NuraConstants::Telemetry::kControlAuthKey,
+                           frame))
+    {
+        ++frameDecodeFailCount;
+        return;
+    }
+
+    switch (frame.type)
+    {
+    case nura::MESSAGE_FAST_TLM:
+        handleFast(frame);
+        break;
+    case nura::MESSAGE_GPS_TLM:
+        handleGps(frame);
+        break;
+    case nura::MESSAGE_CONTROL:
+        handleControl(frame);
+        break;
+    default:
+        break;
     }
 }
 
@@ -679,10 +738,16 @@ void setup()
     }
 
     Serial.println();
-    Serial.println("NURA V1 Lite receiver GCS emulator");
-    Serial.println("role=receiver board=teensy41 protocol=v1_lite");
+    Serial.println("NURA V2 Lite authenticated receiver GCS emulator");
+    Serial.println("role=receiver board=teensy41 protocol=v2_lite_auth");
     Serial.println("packet_set=FAST,GPS,CONTROL");
+#if defined(NURA_GROUND_SX1276)
+    Serial.println("rf=freq920900000_sf7_bw125_cr45_sx1276_ground");
+#else
     Serial.println("rf=freq433_sf7_bw125_cr45_dev");
+#endif
+    Serial.print("identity=");
+    Serial.println(NuraConstants::Telemetry::kRadioIdentityProvisioned ? "provisioned" : "public_bench_unsafe_for_flight");
     Serial.print("mode=");
     Serial.println(kAutoCommandTestEnabled ? "pair_test_auto_commands" : "telemetry_receive_only");
 
@@ -698,6 +763,45 @@ void setup()
 
 void loop()
 {
+    const uint32_t nowMs = millis();
+    if (radioReady && (nowMs - lastRssiSampleMs) >= kRssiSampleIntervalMs)
+    {
+        lastRssiSampleMs = nowMs;
+        currentRssiDbm = kLoraHfRssiOffsetDbm +
+                         static_cast<int16_t>(LoRa.readRegister(kLoraRegRssiValue));
+        if (currentRssiDbm > peakRssiDbm)
+        {
+            peakRssiDbm = currentRssiDbm;
+        }
+    }
+
+    if ((nowMs - lastStatusMs) >= 1000UL)
+    {
+        lastStatusMs = nowMs;
+        Serial.print("status radio=");
+        Serial.print(radioReady ? "ready" : "not_ready");
+        Serial.print(" spi_mode=");
+        Serial.print(selectedSpiModeNumber);
+        Serial.print(" m0=");
+        printHexByte(lastMode0Version);
+        Serial.print(" m1=");
+        printHexByte(lastMode1Version);
+        Serial.print(" m2=");
+        printHexByte(lastMode2Version);
+        Serial.print(" m3=");
+        printHexByte(lastMode3Version);
+        Serial.print(" phy_rx=");
+        Serial.print(phyRxCount);
+        Serial.print(" decode_fail=");
+        Serial.print(frameDecodeFailCount);
+        Serial.print(" rssi_now_dbm=");
+        Serial.print(currentRssiDbm);
+        Serial.print(" rssi_peak_dbm=");
+        Serial.print(peakRssiDbm);
+        Serial.println();
+        peakRssiDbm = currentRssiDbm;
+    }
+
     if (!radioReady)
     {
         return;

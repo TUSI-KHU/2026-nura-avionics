@@ -244,7 +244,10 @@ namespace
         }
 
         const size_t frameLen = nura::encodeFrame(nura::MESSAGE_FAST_TLM,
+                                                  NuraConstants::Telemetry::kVehicleId,
                                                   0U,
+                                                  nura::FrameDirection::DOWNLINK,
+                                                  NuraConstants::Telemetry::kControlAuthKey,
                                                   payload,
                                                   nura::kFastPayloadLen,
                                                   frame,

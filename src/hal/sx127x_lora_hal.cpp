@@ -113,12 +113,12 @@ bool Sx127xLoRaHAL::receive(uint8_t *buffer, size_t capacity, Sx127xLoRaPacket &
         if (count < capacity)
         {
             buffer[count] = static_cast<uint8_t>(value);
-            ++count;
         }
         else
         {
             overflow = true;
         }
+        ++count;
     }
 
     packet.length = count;

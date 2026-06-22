@@ -8,12 +8,15 @@ namespace nura
 {
 static constexpr uint8_t kSync0 = 0xAAU;
 static constexpr uint8_t kSync1 = 0x55U;
-static constexpr uint8_t kVersion = 1U;
+static constexpr uint8_t kVersion = 2U;
 
 static constexpr uint8_t kFastPayloadLen = 22U;
 static constexpr uint8_t kGpsPayloadLen = 18U;
 static constexpr uint8_t kControlPayloadLen = 24U;
-static constexpr uint8_t kFrameOverhead = 7U;
+static constexpr uint8_t kFrameHeaderLen = 9U;
+static constexpr uint8_t kFrameAuthTagLen = 8U;
+static constexpr uint8_t kFrameCrcLen = 2U;
+static constexpr uint8_t kFrameOverhead = kFrameHeaderLen + kFrameAuthTagLen + kFrameCrcLen;
 static constexpr uint8_t kMaxPayloadLen = kControlPayloadLen;
 static constexpr uint8_t kMaxFrameLen = kFrameOverhead + kMaxPayloadLen;
 
@@ -22,6 +25,12 @@ enum MessageType : uint8_t
     MESSAGE_FAST_TLM = 0x1U,
     MESSAGE_GPS_TLM = 0x2U,
     MESSAGE_CONTROL = 0x3U,
+};
+
+enum class FrameDirection : uint8_t
+{
+    UPLINK = 0x55U,
+    DOWNLINK = 0x44U,
 };
 
 enum ControlSubtype : uint8_t
@@ -150,6 +159,7 @@ struct ControlPayload
 struct ParsedFrame
 {
     uint8_t type = 0U;
+    uint32_t vehicleId = 0UL;
     uint16_t seq = 0U;
     uint8_t payloadLen = 0U;
     uint8_t payload[kMaxPayloadLen] = {0};
@@ -362,27 +372,6 @@ inline bool decodeControlPayload(const uint8_t *in, size_t length, ControlPayloa
     return true;
 }
 
-inline size_t encodeFrame(uint8_t type, uint16_t seq, const uint8_t *payload, uint8_t payloadLen, uint8_t *out, size_t capacity)
-{
-    const uint8_t expectedPayloadLen = payloadLengthForType(type);
-    const size_t frameLen = static_cast<size_t>(kFrameOverhead) + expectedPayloadLen;
-    if (out == nullptr || payload == nullptr || expectedPayloadLen == 0U ||
-        payloadLen != expectedPayloadLen || capacity < frameLen)
-    {
-        return 0U;
-    }
-
-    out[0] = kSync0;
-    out[1] = kSync1;
-    out[2] = makeVerType(type);
-    writeU16(out + 3, seq);
-    memcpy(out + 5, payload, expectedPayloadLen);
-
-    const uint16_t crc = crc16CcittFalse(out + 2, static_cast<size_t>(1U + 2U + expectedPayloadLen));
-    writeU16(out + 5 + expectedPayloadLen, crc);
-    return frameLen;
-}
-
 inline uint64_t rotateLeft64(uint64_t value, uint8_t shift)
 {
     return (value << shift) | (value >> (64U - shift));
@@ -465,6 +454,103 @@ inline void writeU64Le(uint8_t *out, uint64_t value)
     }
 }
 
+inline void makeFrameAuthTag(const uint8_t *frame,
+                             uint8_t payloadLen,
+                             FrameDirection direction,
+                             const uint8_t key[16],
+                             uint8_t out[kFrameAuthTagLen])
+{
+    uint8_t input[1U + 7U + kMaxPayloadLen];
+    input[0] = static_cast<uint8_t>(direction);
+    const size_t authenticatedLen = static_cast<size_t>(7U + payloadLen);
+    memcpy(input + 1, frame + 2, authenticatedLen);
+    writeU64Le(out, sipHash24(input, authenticatedLen + 1U, key));
+}
+
+inline size_t encodeFrame(uint8_t type,
+                          uint32_t vehicleId,
+                          uint16_t seq,
+                          FrameDirection direction,
+                          const uint8_t key[16],
+                          const uint8_t *payload,
+                          uint8_t payloadLen,
+                          uint8_t *out,
+                          size_t capacity)
+{
+    const uint8_t expectedPayloadLen = payloadLengthForType(type);
+    const size_t frameLen = static_cast<size_t>(kFrameOverhead) + expectedPayloadLen;
+    if (out == nullptr || key == nullptr || payload == nullptr || expectedPayloadLen == 0U ||
+        payloadLen != expectedPayloadLen || capacity < frameLen)
+    {
+        return 0U;
+    }
+
+    out[0] = kSync0;
+    out[1] = kSync1;
+    out[2] = makeVerType(type);
+    writeU32(out + 3, vehicleId);
+    writeU16(out + 7, seq);
+    memcpy(out + kFrameHeaderLen, payload, expectedPayloadLen);
+
+    uint8_t *authTag = out + kFrameHeaderLen + expectedPayloadLen;
+    makeFrameAuthTag(out, expectedPayloadLen, direction, key, authTag);
+    const uint16_t crc = crc16CcittFalse(out + 2,
+                                         static_cast<size_t>(7U + expectedPayloadLen + kFrameAuthTagLen));
+    writeU16(authTag + kFrameAuthTagLen, crc);
+    return frameLen;
+}
+
+inline bool decodeFrame(const uint8_t *frame,
+                        size_t length,
+                        uint32_t expectedVehicleId,
+                        FrameDirection direction,
+                        const uint8_t key[16],
+                        ParsedFrame &out)
+{
+    if (frame == nullptr || key == nullptr || length < kFrameOverhead ||
+        frame[0] != kSync0 || frame[1] != kSync1)
+    {
+        return false;
+    }
+
+    const uint8_t version = frameVersion(frame[2]);
+    const uint8_t type = frameType(frame[2]);
+    const uint8_t payloadLen = payloadLengthForType(type);
+    const size_t expectedFrameLen = static_cast<size_t>(kFrameOverhead) + payloadLen;
+    if (version != kVersion || payloadLen == 0U || length != expectedFrameLen ||
+        readU32(frame + 3) != expectedVehicleId)
+    {
+        return false;
+    }
+
+    const uint16_t receivedCrc = readU16(frame + length - kFrameCrcLen);
+    const uint16_t computedCrc = crc16CcittFalse(frame + 2, length - 2U - kFrameCrcLen);
+    if (receivedCrc != computedCrc)
+    {
+        return false;
+    }
+
+    uint8_t expectedTag[kFrameAuthTagLen];
+    makeFrameAuthTag(frame, payloadLen, direction, key, expectedTag);
+    const uint8_t *receivedTag = frame + kFrameHeaderLen + payloadLen;
+    uint8_t tagDiff = 0U;
+    for (uint8_t i = 0U; i < kFrameAuthTagLen; ++i)
+    {
+        tagDiff |= static_cast<uint8_t>(expectedTag[i] ^ receivedTag[i]);
+    }
+    if (tagDiff != 0U)
+    {
+        return false;
+    }
+
+    out.type = type;
+    out.vehicleId = expectedVehicleId;
+    out.seq = readU16(frame + 7);
+    out.payloadLen = payloadLen;
+    memcpy(out.payload, frame + kFrameHeaderLen, payloadLen);
+    return true;
+}
+
 inline void makeControlAuthTag(const ControlPayload &control, uint16_t frameSeq, const uint8_t key[16], uint8_t out[8])
 {
     uint8_t input[19];
@@ -491,129 +577,6 @@ inline bool verifyControlAuthTag(const ControlPayload &control, uint16_t frameSe
     }
     return diff == 0U;
 }
-
-class Parser
-{
-public:
-    bool feed(uint8_t byte, ParsedFrame &out)
-    {
-        switch (state_)
-        {
-        case State::ScanSync0:
-            if (byte == kSync0)
-            {
-                buffer_[0] = byte;
-                state_ = State::ScanSync1;
-            }
-            return false;
-
-        case State::ScanSync1:
-            if (byte == kSync1)
-            {
-                buffer_[1] = byte;
-                index_ = 2U;
-                state_ = State::ReadType;
-            }
-            else if (byte != kSync0)
-            {
-                reset();
-            }
-            return false;
-
-        case State::ReadType:
-        {
-            buffer_[index_++] = byte;
-            const uint8_t version = frameVersion(byte);
-            const uint8_t type = frameType(byte);
-            payloadLen_ = payloadLengthForType(type);
-            if (version != kVersion || payloadLen_ == 0U)
-            {
-                reset();
-                if (byte == kSync0)
-                {
-                    buffer_[0] = byte;
-                    state_ = State::ScanSync1;
-                }
-                return false;
-            }
-            state_ = State::ReadSeq0;
-            return false;
-        }
-
-        case State::ReadSeq0:
-            buffer_[index_++] = byte;
-            state_ = State::ReadSeq1;
-            return false;
-
-        case State::ReadSeq1:
-            buffer_[index_++] = byte;
-            payloadRead_ = 0U;
-            state_ = payloadLen_ == 0U ? State::ReadCrc0 : State::ReadPayload;
-            return false;
-
-        case State::ReadPayload:
-            buffer_[index_++] = byte;
-            ++payloadRead_;
-            if (payloadRead_ >= payloadLen_)
-            {
-                state_ = State::ReadCrc0;
-            }
-            return false;
-
-        case State::ReadCrc0:
-            buffer_[index_++] = byte;
-            state_ = State::ReadCrc1;
-            return false;
-
-        case State::ReadCrc1:
-        {
-            buffer_[index_++] = byte;
-            const uint16_t receivedCrc = readU16(buffer_ + index_ - 2U);
-            const uint16_t computedCrc = crc16CcittFalse(buffer_ + 2, static_cast<size_t>(1U + 2U + payloadLen_));
-            const bool valid = receivedCrc == computedCrc;
-            if (valid)
-            {
-                out.type = frameType(buffer_[2]);
-                out.seq = readU16(buffer_ + 3);
-                out.payloadLen = payloadLen_;
-                memcpy(out.payload, buffer_ + 5, payloadLen_);
-            }
-            reset();
-            return valid;
-        }
-        }
-
-        reset();
-        return false;
-    }
-
-    void reset()
-    {
-        state_ = State::ScanSync0;
-        index_ = 0U;
-        payloadLen_ = 0U;
-        payloadRead_ = 0U;
-    }
-
-private:
-    enum class State : uint8_t
-    {
-        ScanSync0,
-        ScanSync1,
-        ReadType,
-        ReadSeq0,
-        ReadSeq1,
-        ReadPayload,
-        ReadCrc0,
-        ReadCrc1,
-    };
-
-    State state_ = State::ScanSync0;
-    uint8_t buffer_[kMaxFrameLen] = {0};
-    uint8_t index_ = 0U;
-    uint8_t payloadLen_ = 0U;
-    uint8_t payloadRead_ = 0U;
-};
 
 inline uint16_t statusWithFlightState(uint16_t status, uint8_t flightState)
 {

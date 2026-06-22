@@ -40,7 +40,7 @@ MockTelemetrySourceTask -> WatchdogTask -> FSMTask -> FlightLogTask -> Telemetry
 - High-g IMU path: `H3LIS331DLHAL` -> `HighGImuTask` -> `HighGImuState`.
 - Magnetometer path: `LIS3MDLHAL` -> `MagnetometerTask` -> `MagnetometerState`.
 - LoRa path: `Sx127xLoRaHAL` plus `TelemetryTask`.
-- Protocol: fixed-length NURA V1 Lite frames in `protocol/include/nura_protocol_v1_lite.h`.
+- Protocol: fixed-length authenticated NURA V2 Lite frames in `protocol/include/nura_protocol_v1_lite.h`.
 - Flight logging: U3 program flash primary plus microSD mirror through `FlightLogTask`, with `.NLG` parsing tools under `log_parser/`.
 - Mock path: `MockFlightDataHAL` and `MockTelemetrySourceTask` feed deterministic telemetry for bench protocol tests.
 
@@ -50,7 +50,7 @@ Additional sensor HALs and sketches remain under `src/hal` and `sensor_test` for
 
 The active protocol is documented in `documents/nura_lora_packet_protocol_v1.md`.
 
-V1 Lite keeps only three message classes:
+V2 Lite keeps only three message classes:
 
 | Message | Direction | Purpose |
 | --- | --- | --- |
@@ -77,7 +77,7 @@ src/hal/        board, bus, sensor, radio, panic, and log-output adapters
 src/sensors/    sensor acquisition tasks
 src/missions/   FSM, watchdog, telemetry, logger, and mock source tasks
 src/state/      small shared state stores
-protocol/       shared NURA V1 Lite encoder/parser header
+protocol/       shared NURA V2 Lite authenticated frame codec header
 log_parser/     host-side .NLG binary flight-log parser
 sender/         standalone avionics-side LoRa protocol test firmware
 receiver/       standalone ground-side LoRa protocol test firmware and pair-test tool

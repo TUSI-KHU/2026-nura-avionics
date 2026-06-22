@@ -115,6 +115,11 @@ const char *TelemetryTask::name() const
 
 bool TelemetryTask::init()
 {
+    if (!NuraConstants::Telemetry::kRadioIdentityProvisioned)
+    {
+        LOGW(logger_, 0U, "telemetry", "public bench radio identity; unsafe for flight");
+    }
+
     radioReady_ = radio_.begin(buildRadioConfig());
     if (!radioReady_)
     {
@@ -168,23 +173,31 @@ bool TelemetryTask::receiveControl(uint32_t nowMs)
         return false;
     }
 
-    bool handled = false;
-    for (size_t i = 0U; i < packet.length; ++i)
+    if (packet.length != nura::kFrameOverhead + nura::kControlPayloadLen)
     {
-        nura::ParsedFrame frame;
-        if (!parser_.feed(buffer[i], frame) || frame.type != nura::MESSAGE_CONTROL)
-        {
-            continue;
-        }
-
-        nura::ControlPayload control;
-        if (nura::decodeControlPayload(frame.payload, frame.payloadLen, control))
-        {
-            handleCommand(frame, control, nowMs);
-            handled = true;
-        }
+        return false;
     }
-    return handled;
+
+    nura::ParsedFrame frame;
+    if (!nura::decodeFrame(buffer,
+                           packet.length,
+                           NuraConstants::Telemetry::kVehicleId,
+                           nura::FrameDirection::UPLINK,
+                           NuraConstants::Telemetry::kControlAuthKey,
+                           frame) ||
+        frame.type != nura::MESSAGE_CONTROL)
+    {
+        return false;
+    }
+
+    nura::ControlPayload control;
+    if (!nura::decodeControlPayload(frame.payload, frame.payloadLen, control))
+    {
+        return false;
+    }
+
+    handleCommand(frame, control, nowMs);
+    return true;
 }
 
 void TelemetryTask::enqueueDeferredCommandAcks()
@@ -257,7 +270,15 @@ bool TelemetryTask::sendGpsTelemetry(uint32_t nowMs)
 bool TelemetryTask::sendRawFrame(uint8_t type, const uint8_t *payload, uint8_t payloadLen)
 {
     uint8_t frame[nura::kMaxFrameLen];
-    const size_t frameLen = nura::encodeFrame(type, downlinkSeq_++, payload, payloadLen, frame, sizeof(frame));
+    const size_t frameLen = nura::encodeFrame(type,
+                                               NuraConstants::Telemetry::kVehicleId,
+                                               downlinkSeq_++,
+                                               nura::FrameDirection::DOWNLINK,
+                                               NuraConstants::Telemetry::kControlAuthKey,
+                                               payload,
+                                               payloadLen,
+                                               frame,
+                                               sizeof(frame));
     if (frameLen == 0U)
     {
         LOGW(logger_, 0U, "telemetry", "frame encode failed");
@@ -300,6 +321,15 @@ void TelemetryTask::handleCommand(const nura::ParsedFrame &frame, const nura::Co
     switch (command.commandId)
     {
     case nura::COMMAND_FORCE_DEPLOY_RECOVERY:
+        if (!NuraConstants::Flight::kPyroOutputImplemented)
+        {
+            enqueueAck(command,
+                       nura::ACK_REJECTED,
+                       nura::RESULT_ACTUATOR_FAULT,
+                       nura::REJECT_DEPLOYMENT_INHIBITED);
+            return;
+        }
+
         if (command.param0 != 0)
         {
             enqueueAck(command, nura::ACK_REJECTED, nura::RESULT_BAD_FORMAT, nura::REJECT_DEPLOYMENT_INHIBITED);

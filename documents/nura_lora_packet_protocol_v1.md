@@ -1,11 +1,11 @@
-# NURA LoRa Packet Protocol V1 Lite
+# NURA LoRa Packet Protocol V2 Authenticated Lite
 
 Status: Draft for implementation  
 Target vehicle: 2026 NURA avionics, sub-1 km class university rocket  
 Target radios: flight SX1262 and ground SX1276, both using the same proprietary LoRa PHY profile at 920.9 MHz
 Target controller: Teensy 4.1  
 
-This document defines the NURA V1 Lite application-layer packet format carried inside a LoRa PHY packet. V1 Lite intentionally removes nonessential packet classes so the radio spends less time transmitting and more time available for uplink commands.
+This document defines the authenticated NURA V2 Lite application-layer packet format carried inside a LoRa PHY packet. The filename is retained to avoid breaking existing repository links. V2 intentionally removes nonessential packet classes so the radio spends less time transmitting and more time available for uplink commands.
 
 This document is not a legal certification or RF compliance report. Frequency, output power, antenna gain, and LBT behavior must be verified against the final competition and Korean radio requirements before flight.
 
@@ -77,7 +77,9 @@ header mode, and PHY CRC are an interoperability contract: the flight SX1262
 and ground SX1276 must use the same values. Transmit power is local to each
 radio and is not required to match.
 
-Flight SX1262 HAL wiring is NSS D9, DIO1 D31, and BUSY D32. The currently
+Flight SX1262 HAL wiring is SPI1 at 2 MHz (MISO D1, MOSI D26, SCK D27),
+NSS D9, DIO1 D31, and BUSY D32. The 2 MHz host SPI clock was verified by the
+2026-06-22 avionics radio bench test. The currently
 recorded PCB data has no Teensy-controlled `NRESET`, so the driver uses
 no-reset mode. Its `TCXO` setting is `0 V`, which assumes a crystal rather than
 a DIO3-controlled TCXO. `RXE` D30 is intentionally left untouched until its
@@ -85,13 +87,23 @@ schematic role and polarity are confirmed. SX1262 initialization and two-way
 packet exchange are mandatory hardware acceptance tests before this profile is
 used outside the bench.
 
+The experimental `debug_radio_bench` environment runs the real sensor and FSM
+tasks while holding RXE D30 low behind `NURA_BENCH_SX1262_RXE_LOW`. Its purpose
+is downlink telemetry integration on the bench; it is forbidden for flight and
+does not enable physical pyro outputs. The LOW assumption comes from the
+successful 2026-06-22 2 dBm SX1262-to-SX1276 bench test. Acceptance requires
+SX1262 initialization, authenticated FAST/GPS reception, increasing sequence
+numbers, and zero decode failures. RXE polarity and bidirectional switching
+must still be confirmed from the PCB schematic before the flight build may
+drive this pin.
+
 At SF7/BW125/CR4/5/preamble 8/CRC on/explicit header, approximate airtime is:
 
-| V1 Lite frame | Frame size | Approx. airtime |
+| V2 Lite frame | Frame size | Approx. airtime |
 | --- | ---: | ---: |
-| FAST_TLM | 29 B | 66.8 ms |
-| GPS_TLM | 25 B | 61.7 ms |
-| CONTROL | 31 B | 71.9 ms |
+| FAST_TLM | 41 B | 87.3 ms |
+| GPS_TLM | 37 B | 82.2 ms |
+| CONTROL | 43 B | 87.3 ms |
 
 Nominal schedule:
 
@@ -122,23 +134,25 @@ If the link degrades:
 
 ## 4. Application Frame
 
-V1 Lite uses fixed-length payloads selected by message type. There is no `payload_len` field. This reduces overhead and parser complexity.
+V2 Lite uses fixed-length payloads selected by message type. There is no `payload_len` field. This reduces overhead and parser complexity.
 
-Frame overhead: 7 bytes.
+Frame overhead: 19 bytes.
 
 | Offset | Type | Field | Description |
 | ---: | --- | --- | --- |
 | 0 | u8 | sync0 | Fixed 0xAA |
 | 1 | u8 | sync1 | Fixed 0x55 |
 | 2 | u8 | ver_type | Upper nibble = version, lower nibble = message type |
-| 3 | u16 | seq | Direction-local sequence number |
-| 5 | bytes | payload | Fixed length by message type |
-| 5 + payload_len | u16 | crc16 | CRC over ver_type through payload |
+| 3 | u32 | vehicle_id | Expected vehicle identity |
+| 7 | u16 | seq | Direction-local sequence number |
+| 9 | bytes | payload | Fixed length by message type |
+| 9 + payload_len | u8[8] | frame_auth_tag | SipHash-2-4 over direction, header, and payload |
+| 17 + payload_len | u16 | crc16 | CRC over ver_type through authentication tag |
 
 `ver_type`:
 
 ```text
-bits 7..4: protocol version = 1
+bits 7..4: protocol version = 2
 bits 3..0: message type
 ```
 
@@ -146,9 +160,9 @@ Message types:
 
 | Type | Name | Direction | Payload bytes | Frame bytes |
 | ---: | --- | --- | ---: | ---: |
-| 0x1 | FAST_TLM | Avionics to GCS | 22 | 29 |
-| 0x2 | GPS_TLM | Avionics to GCS | 18 | 25 |
-| 0x3 | CONTROL | Bidirectional | 24 | 31 |
+| 0x1 | FAST_TLM | Avionics to GCS | 22 | 41 |
+| 0x2 | GPS_TLM | Avionics to GCS | 18 | 37 |
+| 0x3 | CONTROL | Bidirectional | 24 | 43 |
 | 0x4..0xF | Reserved | - | - | - |
 
 All multi-byte integers are little-endian.
@@ -166,39 +180,56 @@ Initial value: 0xFFFF
 RefIn: false
 RefOut: false
 XorOut: 0x0000
-Coverage: ver_type, seq, payload
+Coverage: ver_type, vehicle_id, seq, payload, frame_auth_tag
 Excluded: sync0, sync1, crc16 field
 ```
 
 Frames with CRC failure must be dropped. A CRC-failed CONTROL/CMD must not be ACKed because command identity and payload integrity are not trustworthy.
 
-## 6. Parser State Machine
+### 5.1 Frame Authentication
 
-Receivers must implement a bounded byte-stream parser:
+Every frame carries an 8-byte SipHash-2-4 tag. The authenticated input is:
 
 ```text
-SCAN_SYNC -> READ_TYPE -> READ_SEQ -> READ_FIXED_PAYLOAD -> READ_CRC -> VALIDATE -> DISPATCH
+direction_domain, ver_type, vehicle_id, seq, payload
+```
+
+`direction_domain` is `0x55` for uplink and `0x44` for downlink. It is not
+transmitted; each endpoint supplies the expected direction while verifying.
+This prevents a valid downlink frame from being reflected into the uplink path.
+
+The receiver must compare `vehicle_id` with its configured vehicle, verify the
+tag with the shared 128-bit key, and reject the frame before payload dispatch if
+either check fails. The public fallback ID/key in the repository are for bench
+tests only. Flight builds require a gitignored `include/nura_radio_secrets.h`.
+
+## 6. Packet Validation
+
+Each LoRa PHY packet must carry exactly one complete application frame:
+
+```text
+READ_BOUNDED_PACKET -> CHECK_LENGTH/TYPE -> CHECK_CRC -> CHECK_ID/MAC -> DISPATCH
 ```
 
 Rules:
 
 - Unknown version is a parse error.
-- Unknown message type is ignored after sync recovery.
+- Unknown message type is rejected.
 - Payload length is determined only by message type.
-- CRC failure returns the parser to SCAN_SYNC.
+- Short, long, concatenated, and oversized PHY packets are rejected.
 - The parser must not allocate dynamic memory.
-- The parser must recover from arbitrary invalid bytes.
-- The parser must tolerate back-to-back frames in a serial stream.
+- The radio FIFO must still be drained when the packet exceeds the application
+  buffer, without writing past that buffer.
 
-Recommended maximum V1 Lite frame size:
+Maximum V2 Lite frame size:
 
 ```text
-NURA_V1_MAX_FRAME_LEN = 31 bytes
+NURA_V2_MAX_FRAME_LEN = 43 bytes
 ```
 
 ## 7. Fixed-Point Encoding
 
-Floating-point values are not transmitted in V1 Lite.
+Floating-point values are not transmitted in V2 Lite.
 
 Signed invalid sentinel:
 
@@ -223,7 +254,7 @@ Use saturating encode. If a value exceeds the valid range, clamp to the nearest 
 FAST_TLM carries the minimum high-rate flight state.
 
 Payload length: 22 bytes  
-Frame length: 29 bytes
+Frame length: 41 bytes
 
 | Offset | Type | Field | Unit / encoding |
 | ---: | --- | --- | --- |
@@ -329,7 +360,7 @@ High-g acceleration is intentionally not included in FAST_TLM V1 Lite. The high-
 GPS_TLM carries recovery-critical location at slow rate.
 
 Payload length: 18 bytes  
-Frame length: 25 bytes
+Frame length: 37 bytes
 
 | Offset | Type | Field | Unit / encoding |
 | ---: | --- | --- | --- |
@@ -364,7 +395,7 @@ Transmit GPS_TLM at the scheduled slow rate even when there is no fix. Use inval
 CONTROL is a fixed-length union packet. It carries both uplink commands and downlink ACKs.
 
 Payload length: 24 bytes  
-Frame length: 31 bytes
+Frame length: 43 bytes
 
 | Offset | Type | Field | CMD meaning | ACK meaning |
 | ---: | --- | --- | --- | --- |

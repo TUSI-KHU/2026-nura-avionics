@@ -48,7 +48,7 @@ private:
                    BoardPinMap::Sx1262LoRa::dio1Pin,
                    RADIOLIB_NC,
                    BoardPinMap::Sx1262LoRa::busyPin,
-                   SPI,
+                   SPI1,
                    SPISettings(NuraConstants::LoRa::kFlightSpiFrequencyHz,
                                MSBFIRST,
                                SPI_MODE0)};

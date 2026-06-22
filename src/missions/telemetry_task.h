@@ -77,7 +77,6 @@ private:
     const AbortState &abortState_;
     Logger &logger_;
     const IAppConfig &config_;
-    nura::Parser parser_;
     AckQueue ackQueue_;
     RecentCommand recentCommands_[NuraConstants::Telemetry::kRecentCommandDepth];
     nura::ControlPayload pendingForceDeployAck_;
