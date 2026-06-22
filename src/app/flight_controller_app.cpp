@@ -25,11 +25,17 @@ bool FlightControllerApp::setup(uint32_t nowMs)
     SPI.setSCK(BoardPinMap::SpiBus::sckPin);
     SPI.begin();
 #if !defined(NURA_MOCK_TELEMETRY)
-    TwoWire &i2c = BoardPinMap::I2cBus::wire();
-    i2c.setSDA(BoardPinMap::I2cBus::sdaPin);
-    i2c.setSCL(BoardPinMap::I2cBus::sclPin);
-    i2c.begin();
-    i2c.setClock(BoardPinMap::I2cBus::clockHz);
+    TwoWire &i2c0 = BoardPinMap::I2c0Bus::wire();
+    i2c0.setSDA(BoardPinMap::I2c0Bus::sdaPin);
+    i2c0.setSCL(BoardPinMap::I2c0Bus::sclPin);
+    i2c0.begin();
+    i2c0.setClock(BoardPinMap::I2c0Bus::clockHz);
+
+    TwoWire &i2c1 = BoardPinMap::I2c1Bus::wire();
+    i2c1.setSDA(BoardPinMap::I2c1Bus::sdaPin);
+    i2c1.setSCL(BoardPinMap::I2c1Bus::sclPin);
+    i2c1.begin();
+    i2c1.setClock(BoardPinMap::I2c1Bus::clockHz);
 #endif
     delay(NuraConstants::App::kBusSettleDelayMs);
     nowMs = millis();
@@ -43,11 +49,14 @@ bool FlightControllerApp::setup(uint32_t nowMs)
     scheduler_.add(magnetometerTask_);
     scheduler_.add(barometerTask_);
     scheduler_.add(gnssTask_);
+    scheduler_.add(powerSenseTask_);
 #endif
     scheduler_.add(watchdogTask_);
     scheduler_.add(fsmTask_);
     scheduler_.add(flightLogTask_);
+#if !defined(NURA_DISABLE_LORA)
     scheduler_.add(telemetryTask_);
+#endif
     scheduler_.add(loggerTask_);
 
     if (!scheduler_.init(nowMs))

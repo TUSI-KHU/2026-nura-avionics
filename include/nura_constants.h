@@ -58,6 +58,17 @@ constexpr uint32_t kGnssTaskPeriodMs = 50UL;
 constexpr uint16_t kGnssPollByteBudget = 128U;
 constexpr uint32_t kGnssMaxFixAgeMs = 2000UL;
 constexpr uint32_t kHighGSampleLogIntervalMs = 1000UL;
+constexpr uint32_t kPowerSenseTaskPeriodMs = 100UL;
+constexpr uint16_t kPowerSenseAdcReferenceMv = 3300U;
+constexpr uint8_t kPowerSenseAdcResolutionBits = 10U;
+constexpr uint16_t kPowerSenseDividerRatioNumerator = 5545U;
+constexpr uint16_t kPowerSenseDividerRatioDenominator = 1000U;
+constexpr uint16_t kPowerSenseExpectedMinBatteryMv = 11100U;
+constexpr uint16_t kPowerSenseExpectedMaxBatteryMv = 12600U;
+constexpr uint16_t kPowerSenseExpectedMinRawAdc = 620U;
+constexpr uint16_t kPowerSenseExpectedMaxRawAdc = 704U;
+constexpr uint16_t kPowerSenseMinValidBatteryMv = 6000U;
+constexpr uint16_t kPowerSenseMaxValidBatteryMv = 14000U;
 } // namespace Sensors
 
 namespace Tasks
@@ -102,21 +113,30 @@ constexpr uint8_t kControlAuthKey[16] = {
     0x49, 0x54, 0x45, 0x2d, 0x54, 0x45, 0x53, 0x54};
 } // namespace Telemetry
 
+namespace Buzzer
+{
+constexpr uint16_t kToneFrequencyHz = 2400U;
+constexpr uint16_t kInitSafeToneFrequencyHz = 2200U;
+constexpr uint16_t kArmedAlertToneFrequencyHz = 3000U;
+constexpr uint16_t kInitSafeBeepMs = 90U;
+constexpr uint16_t kInitSafeGapMs = 80U;
+constexpr uint8_t kInitSafeBeepCount = 7U;
+constexpr uint32_t kArmedAlertDurationMs = 5000UL;
+constexpr uint16_t kTransitionBeepMs = 80U;
+constexpr uint16_t kTransitionGapMs = 80U;
+constexpr uint8_t kTransitionBeepCount = 5U;
+} // namespace Buzzer
+
 namespace LoRa
 {
-constexpr long kDevFrequencyHz = 433000000L;
-constexpr uint32_t kDevSpiFrequencyHz = 125000UL;
-constexpr int kDevTxPowerDbm = 10;
-constexpr uint8_t kDevInitAttempts = 5U;
-constexpr uint8_t kDevSpiMode = 0x04U; // Teensy SPI_MODE1.
-constexpr bool kDevProbeSpiMode = true;
-
 constexpr long kFlightFrequencyHz = 920900000L;
 constexpr uint32_t kFlightSpiFrequencyHz = 8000000UL;
 constexpr int kFlightTxPowerDbm = 17;
 constexpr uint8_t kFlightInitAttempts = 1U;
 constexpr uint8_t kFlightSpiMode = 0x00U; // Teensy SPI_MODE0.
 constexpr bool kFlightProbeSpiMode = false;
+constexpr float kFlightTcxoVoltage = 0.0f; // 0 V assumes an XTAL, not a DIO3-controlled TCXO.
+constexpr bool kFlightUseRegulatorLdo = false;
 
 constexpr int kSpreadingFactor = 7;
 constexpr long kSignalBandwidthHz = 125000L;

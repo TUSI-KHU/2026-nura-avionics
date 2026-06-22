@@ -29,61 +29,84 @@
 
 #include <Wire.h>
 
-#define I2C_BUS Wire1
-#define I2C_SDA_PIN 17U
-#define I2C_SCL_PIN 16U
+#include "board_pinmap.h"
 
-void setup()
+struct ScanBus
 {
-  I2C_BUS.setSDA(I2C_SDA_PIN);
-  I2C_BUS.setSCL(I2C_SCL_PIN);
-  I2C_BUS.begin();
-  I2C_BUS.setClock(100000UL);
+  TwoWire *wire;
+  const char *name;
+  uint8_t sdaPin;
+  uint8_t sclPin;
+};
 
-  Serial.begin(9600);
-  while (!Serial);             // Leonardo: wait for serial monitor
-  Serial.println("\nI2C Scanner Wire1 17/16");
-}
+static ScanBus buses[] = {
+    {&Wire, "Wire 18/19 MPL3115A2", BoardPinMap::I2c0Bus::sdaPin, BoardPinMap::I2c0Bus::sclPin},
+    {&Wire1, "Wire1 17/16 LIS3MDL", BoardPinMap::I2c1Bus::sdaPin, BoardPinMap::I2c1Bus::sclPin},
+};
 
-
-void loop()
+static void scanBus(ScanBus &bus)
 {
   byte error, address;
-  int nDevices;
+  int nDevices = 0;
 
-  Serial.println("Scanning...");
+  Serial.print("Scanning ");
+  Serial.print(bus.name);
+  Serial.print(" SDA=");
+  Serial.print(bus.sdaPin);
+  Serial.print(" SCL=");
+  Serial.println(bus.sclPin);
 
-  nDevices = 0;
-  for(address = 1; address < 127; address++ )
+  for (address = 1; address < 127; address++)
   {
-    // The i2c_scanner uses the return value of
-    // the Write.endTransmisstion to see if
-    // a device did acknowledge to the address.
-    I2C_BUS.beginTransmission(address);
-    error = I2C_BUS.endTransmission();
+    bus.wire->beginTransmission(address);
+    error = bus.wire->endTransmission();
 
     if (error == 0)
     {
       Serial.print("I2C device found at address 0x");
-      if (address<16)
+      if (address < 16)
         Serial.print("0");
-      Serial.print(address,HEX);
+      Serial.print(address, HEX);
       Serial.println("  !");
 
       nDevices++;
     }
-    else if (error==4)
+    else if (error == 4)
     {
       Serial.print("Unknown error at address 0x");
-      if (address<16)
+      if (address < 16)
         Serial.print("0");
-      Serial.println(address,HEX);
+      Serial.println(address, HEX);
     }
   }
   if (nDevices == 0)
     Serial.println("No I2C devices found\n");
   else
     Serial.println("done\n");
+}
+
+void setup()
+{
+  for (ScanBus &bus : buses)
+  {
+    bus.wire->setSDA(bus.sdaPin);
+    bus.wire->setSCL(bus.sclPin);
+    bus.wire->begin();
+    bus.wire->setClock(100000UL);
+  }
+
+  Serial.begin(9600);
+  while (!Serial);             // Leonardo: wait for serial monitor
+  Serial.println("\nI2C Scanner Wire 18/19 + Wire1 17/16");
+}
+
+
+void loop()
+{
+  for (ScanBus &bus : buses)
+  {
+    scanBus(bus);
+  }
 
   delay(5000);           // wait 5 seconds for next scan
 }

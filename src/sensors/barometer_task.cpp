@@ -115,7 +115,7 @@ bool BarometerTask::initialize(uint32_t nowMs)
     bool ok = false;
     for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
     {
-        ok = barometer_.begin(BoardPinMap::I2cBus::wire());
+        ok = barometer_.begin(BoardPinMap::MPL3115A2::wire());
         if (ok)
         {
             break;

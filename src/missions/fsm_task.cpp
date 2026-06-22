@@ -9,7 +9,9 @@ FlightStateMachineTask::FlightStateMachineTask(FlightState &flightState,
                                                TelemetryState &telemetryState,
                                                Logger &logger,
                                                const IAppConfig &config,
-                                               IPanicHandler &panicHandler)
+                                               IPanicHandler &panicHandler,
+                                               IPyroOutput *pyroOutput,
+                                               IBuzzerOutput *buzzerOutput)
     : flightState_(flightState),
       abortState_(abortState),
       highGImuState_(highGImuState),
@@ -17,7 +19,9 @@ FlightStateMachineTask::FlightStateMachineTask(FlightState &flightState,
       telemetryState_(telemetryState),
       logger_(logger),
       config_(config),
-      panicHandler_(panicHandler) {}
+      panicHandler_(panicHandler),
+      pyroOutput_(pyroOutput),
+      buzzerOutput_(buzzerOutput) {}
 
 const char *FlightStateMachineTask::name() const
 {
@@ -26,6 +30,12 @@ const char *FlightStateMachineTask::name() const
 
 bool FlightStateMachineTask::init()
 {
+    if (!initializePyroOutput(0U))
+    {
+        return false;
+    }
+    initializeBuzzerOutput(0U);
+
     flightState_ = FlightState{};
     resetFlightScratch();
     return true;
@@ -33,6 +43,8 @@ bool FlightStateMachineTask::init()
 
 bool FlightStateMachineTask::tick(uint32_t nowMs)
 {
+    tickBuzzer(nowMs);
+
     if (abortState_.status.active && flightState_.state != State::SAFE)
     {
         transitionTo(State::SAFE, nowMs);
@@ -55,7 +67,10 @@ bool FlightStateMachineTask::tick(uint32_t nowMs)
         transitionTo(State::SAFE, nowMs);
         break;
     case State::SAFE:
-        // TODO: connect arming switch / command input.
+        if (!abortState_.status.active)
+        {
+            transitionTo(State::ARMED, nowMs);
+        }
         break;
     case State::ARMED:
         tickArmed(nowMs);
@@ -383,20 +398,20 @@ void FlightStateMachineTask::tickApogee(uint32_t nowMs)
 
     if (!primaryDrogueOff_ && elapsedMs >= NuraConstants::Flight::kPyroFireDurationMs)
     {
-        // TODO: drive drogue primary pyro OFF when pyro HAL/pinmap is defined.
+        setDroguePyro(false, nowMs);
         primaryDrogueOff_ = true;
     }
 
     if (!backupDrogueOn_ && elapsedMs >= NuraConstants::Flight::kDrogueBackupDelayMs)
     {
-        // TODO: drive drogue backup pyro ON when pyro HAL/pinmap is defined.
+        setDroguePyro(true, nowMs);
         backupDrogueOn_ = true;
     }
 
     if (backupDrogueOn_ && !backupDrogueOff_ &&
         elapsedMs >= (NuraConstants::Flight::kDrogueBackupDelayMs + NuraConstants::Flight::kPyroFireDurationMs))
     {
-        // TODO: drive drogue backup pyro OFF when pyro HAL/pinmap is defined.
+        setDroguePyro(false, nowMs);
         backupDrogueOff_ = true;
         flightState_.drogueSequenceComplete = true;
         transitionTo(State::DROGUE, nowMs);
@@ -439,7 +454,7 @@ void FlightStateMachineTask::tickDeploy(uint32_t nowMs)
     const uint32_t elapsedMs = nowMs - flightState_.deployMs;
     if (!mainPyroOff_ && elapsedMs >= NuraConstants::Flight::kPyroFireDurationMs)
     {
-        // TODO: drive main pyro OFF when pyro HAL/pinmap is defined.
+        setMainPyro(false, nowMs);
         mainPyroOff_ = true;
         flightState_.mainSequenceComplete = true;
     }
@@ -476,10 +491,220 @@ void FlightStateMachineTask::transitionTo(State next, uint32_t nowMs)
         return;
     }
 
+    const State previous = flightState_.state;
     LOGI(logger_, nowMs, "fsm", stateName(next));
     flightState_.state = next;
     flightState_.stateEnteredMs = nowMs;
     onEnter(next, nowMs);
+    signalBuzzerTransition(previous, next, nowMs);
+}
+
+bool FlightStateMachineTask::initializePyroOutput(uint32_t nowMs)
+{
+    if (pyroOutput_ == nullptr)
+    {
+        return true;
+    }
+
+    if (!pyroOutput_->begin())
+    {
+        LOGE(logger_, nowMs, "pyro", "init failed");
+        return false;
+    }
+
+    pyroAllOff(nowMs);
+    return true;
+}
+
+void FlightStateMachineTask::initializeBuzzerOutput(uint32_t nowMs)
+{
+    (void)nowMs;
+    buzzerPattern_ = BuzzerPattern::NONE;
+    queuedBuzzerPattern_ = BuzzerPattern::NONE;
+    buzzerPatternStartedMs_ = 0U;
+    buzzerToneHz_ = 0U;
+
+    if (buzzerOutput_ == nullptr)
+    {
+        return;
+    }
+
+    if (!buzzerOutput_->begin())
+    {
+        LOGW(logger_, nowMs, "buzzer", "init failed; muted");
+        buzzerOutput_ = nullptr;
+        return;
+    }
+
+    buzzerOutput_->silence();
+}
+
+void FlightStateMachineTask::signalBuzzerTransition(State previous, State next, uint32_t nowMs)
+{
+    if (previous == State::INIT && next == State::SAFE)
+    {
+        startBuzzerPattern(BuzzerPattern::INIT_SAFE_SEVEN, nowMs);
+        return;
+    }
+
+    if (previous == State::SAFE && next == State::ARMED)
+    {
+        startBuzzerPattern(BuzzerPattern::ARMED_FLAT_ALERT, nowMs);
+        return;
+    }
+
+    startBuzzerPattern(BuzzerPattern::TRANSITION_FIVE, nowMs);
+}
+
+void FlightStateMachineTask::startBuzzerPattern(BuzzerPattern pattern, uint32_t nowMs)
+{
+    if (buzzerOutput_ == nullptr || pattern == BuzzerPattern::NONE)
+    {
+        return;
+    }
+
+    if (pattern == BuzzerPattern::ARMED_FLAT_ALERT &&
+        buzzerPattern_ == BuzzerPattern::INIT_SAFE_SEVEN)
+    {
+        queuedBuzzerPattern_ = pattern;
+        return;
+    }
+
+    queuedBuzzerPattern_ = BuzzerPattern::NONE;
+    buzzerPattern_ = pattern;
+    buzzerPatternStartedMs_ = nowMs;
+    tickBuzzer(nowMs);
+}
+
+void FlightStateMachineTask::tickBuzzer(uint32_t nowMs)
+{
+    if (buzzerOutput_ == nullptr || buzzerPattern_ == BuzzerPattern::NONE)
+    {
+        return;
+    }
+
+    const uint32_t elapsedMs = nowMs - buzzerPatternStartedMs_;
+    uint16_t toneHz = 0U;
+    bool complete = false;
+
+    switch (buzzerPattern_)
+    {
+    case BuzzerPattern::INIT_SAFE_SEVEN:
+    {
+        const uint32_t slotMs = NuraConstants::Buzzer::kInitSafeBeepMs +
+                                NuraConstants::Buzzer::kInitSafeGapMs;
+        const uint32_t totalMs = slotMs * NuraConstants::Buzzer::kInitSafeBeepCount;
+        if (elapsedMs >= totalMs)
+        {
+            complete = true;
+            break;
+        }
+        if ((elapsedMs % slotMs) < NuraConstants::Buzzer::kInitSafeBeepMs)
+        {
+            toneHz = NuraConstants::Buzzer::kInitSafeToneFrequencyHz;
+        }
+        break;
+    }
+
+    case BuzzerPattern::ARMED_FLAT_ALERT:
+        if (elapsedMs >= NuraConstants::Buzzer::kArmedAlertDurationMs)
+        {
+            complete = true;
+            break;
+        }
+        toneHz = NuraConstants::Buzzer::kArmedAlertToneFrequencyHz;
+        break;
+
+    case BuzzerPattern::TRANSITION_FIVE:
+    {
+        const uint32_t slotMs = NuraConstants::Buzzer::kTransitionBeepMs +
+                                NuraConstants::Buzzer::kTransitionGapMs;
+        const uint32_t totalMs = slotMs * NuraConstants::Buzzer::kTransitionBeepCount;
+        if (elapsedMs >= totalMs)
+        {
+            complete = true;
+            break;
+        }
+        if ((elapsedMs % slotMs) < NuraConstants::Buzzer::kTransitionBeepMs)
+        {
+            toneHz = NuraConstants::Buzzer::kToneFrequencyHz;
+        }
+        break;
+    }
+
+    case BuzzerPattern::NONE:
+    default:
+        complete = true;
+        break;
+    }
+
+    if (!complete)
+    {
+        setBuzzerTone(toneHz);
+        return;
+    }
+
+    setBuzzerTone(0U);
+    buzzerPattern_ = BuzzerPattern::NONE;
+    if (queuedBuzzerPattern_ != BuzzerPattern::NONE)
+    {
+        const BuzzerPattern queued = queuedBuzzerPattern_;
+        queuedBuzzerPattern_ = BuzzerPattern::NONE;
+        startBuzzerPattern(queued, nowMs);
+    }
+}
+
+void FlightStateMachineTask::setBuzzerTone(uint16_t frequencyHz)
+{
+    if (buzzerOutput_ == nullptr || buzzerToneHz_ == frequencyHz)
+    {
+        return;
+    }
+
+    buzzerToneHz_ = frequencyHz;
+    if (frequencyHz == 0U)
+    {
+        buzzerOutput_->silence();
+        return;
+    }
+
+    buzzerOutput_->playTone(frequencyHz);
+}
+
+void FlightStateMachineTask::pyroAllOff(uint32_t nowMs)
+{
+    (void)nowMs;
+    if (pyroOutput_ == nullptr)
+    {
+        return;
+    }
+
+    pyroOutput_->allOff();
+    LOGI(logger_, nowMs, "pyro", "all off");
+}
+
+void FlightStateMachineTask::setDroguePyro(bool enabled, uint32_t nowMs)
+{
+    (void)nowMs;
+    if (pyroOutput_ == nullptr)
+    {
+        return;
+    }
+
+    pyroOutput_->setDrogue(enabled);
+    LOGI(logger_, nowMs, "pyro", enabled ? "drogue on" : "drogue off");
+}
+
+void FlightStateMachineTask::setMainPyro(bool enabled, uint32_t nowMs)
+{
+    (void)nowMs;
+    if (pyroOutput_ == nullptr)
+    {
+        return;
+    }
+
+    pyroOutput_->setMain(enabled);
+    LOGI(logger_, nowMs, "pyro", enabled ? "main on" : "main off");
 }
 
 bool FlightStateMachineTask::consumeForceRecoveryDeployRequest(uint32_t nowMs)
@@ -561,6 +786,7 @@ void FlightStateMachineTask::onEnter(State next, uint32_t nowMs)
     switch (next)
     {
     case State::SAFE:
+        pyroAllOff(nowMs);
         resetFlightScratch();
         break;
     case State::ARMED:
@@ -587,7 +813,7 @@ void FlightStateMachineTask::onEnter(State next, uint32_t nowMs)
         backupDrogueOff_ = false;
         flightState_.drogueSequenceComplete = false;
         telemetryState_.health.deployFired = true;
-        // TODO: drive drogue primary pyro ON when pyro HAL/pinmap is defined.
+        setDroguePyro(true, nowMs);
         break;
     case State::DROGUE:
         flightState_.drogueMs = nowMs;
@@ -598,11 +824,11 @@ void FlightStateMachineTask::onEnter(State next, uint32_t nowMs)
         mainPyroOff_ = false;
         flightState_.mainSequenceComplete = false;
         resetLandingScratch();
-        // TODO: drive main pyro ON when pyro HAL/pinmap is defined.
+        setMainPyro(true, nowMs);
         break;
     case State::GROUND:
     case State::FAULT:
-        // TODO: force all pyro outputs OFF when pyro HAL/pinmap is defined.
+        pyroAllOff(nowMs);
         break;
     default:
         break;

@@ -14,7 +14,7 @@ public:
     void tick(uint32_t nowMs);
 
 private:
-    static const uint8_t kMaxTasks = 10;
+    static const uint8_t kMaxTasks = 12;
 
     struct Entry
     {

@@ -8,7 +8,7 @@
 #define SERIAL_BAUD 115200
 #define I2C_SDA_PIN BoardPinMap::MPL3115A2::sdaPin
 #define I2C_SCL_PIN BoardPinMap::MPL3115A2::sclPin
-#define I2C_BUS Wire1
+#define I2C_BUS BoardPinMap::MPL3115A2::wire()
 #define MPL3115A2_SAMPLE_COUNT 40
 #define MPL3115A2_CONVERSION_TIMEOUT_MS 700
 #define MPL3115A2_SEA_LEVEL_HPA 1013.25f
@@ -113,7 +113,7 @@ void setup()
     I2C_BUS.setSDA(I2C_SDA_PIN);
     I2C_BUS.setSCL(I2C_SCL_PIN);
     I2C_BUS.begin();
-    I2C_BUS.setClock(BoardPinMap::I2cBus::clockHz);
+    I2C_BUS.setClock(BoardPinMap::I2c0Bus::clockHz);
 
     if (!baro.begin(&I2C_BUS))
     {

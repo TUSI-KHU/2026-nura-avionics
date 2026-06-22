@@ -9,10 +9,8 @@
 #define SERIAL_BAUD 115200
 #define I2C_SDA_PIN BoardPinMap::LIS3MDL::sdaPin
 #define I2C_SCL_PIN BoardPinMap::LIS3MDL::sclPin
-#define I2C1_SDA_PIN BoardPinMap::I2cBus::sdaPin
-#define I2C1_SCL_PIN BoardPinMap::I2cBus::sclPin
-#define I2C2_SDA_PIN 25
-#define I2C2_SCL_PIN 24
+#define I2C1_SDA_PIN BoardPinMap::LIS3MDL::sdaPin
+#define I2C1_SCL_PIN BoardPinMap::LIS3MDL::sclPin
 #define LIS3MDL_I2C_ADDR BoardPinMap::LIS3MDL::i2cAddress
 #define LIS3MDL_SAMPLE_COUNT 80
 #define LIS3MDL_SAMPLE_DELAY_MS 20
@@ -23,7 +21,7 @@
 
 Adafruit_LIS3MDL mag;
 static TwoWire *lisWire = &Wire1;
-static const char *detectedBusName = "Wire1";
+static const char *detectedBusName = "Wire1 17/16";
 static uint8_t detectedLisAddress = 0U;
 static bool lisReady = false;
 
@@ -239,10 +237,8 @@ static bool bitbangReadI2cRegister(const I2cPinPair &pair, uint8_t address, uint
 static bool bitbangDetectLis3mdl()
 {
     const I2cPinPair pairs[] = {
-        {"Wire1 normal", I2C1_SDA_PIN, I2C1_SCL_PIN},
-        {"Wire1 swapped", I2C1_SCL_PIN, I2C1_SDA_PIN},
-        {"Wire2 normal", I2C2_SDA_PIN, I2C2_SCL_PIN},
-        {"Wire2 swapped", I2C2_SCL_PIN, I2C2_SDA_PIN},
+        {"Wire1 17/16 normal", I2C1_SDA_PIN, I2C1_SCL_PIN},
+        {"Wire1 17/16 swapped", I2C1_SCL_PIN, I2C1_SDA_PIN},
     };
     const uint8_t addresses[] = {0x1CU, 0x1EU};
 
@@ -354,31 +350,22 @@ static void beginI2cBuses()
     pinMode(I2C_SCL_PIN, INPUT_PULLUP);
     pinMode(I2C1_SDA_PIN, INPUT_PULLUP);
     pinMode(I2C1_SCL_PIN, INPUT_PULLUP);
-    pinMode(I2C2_SDA_PIN, INPUT_PULLUP);
-    pinMode(I2C2_SCL_PIN, INPUT_PULLUP);
     delay(10);
 
     Wire1.setSDA(I2C1_SDA_PIN);
     Wire1.setSCL(I2C1_SCL_PIN);
     Wire1.begin();
     Wire1.setClock(10000UL);
-
-    Wire2.setSDA(I2C2_SDA_PIN);
-    Wire2.setSCL(I2C2_SCL_PIN);
-    Wire2.begin();
-    Wire2.setClock(10000UL);
 }
 
 static void scanAllI2c()
 {
-    scanI2c(Wire1, "Wire1", I2C1_SDA_PIN, I2C1_SCL_PIN);
-    scanI2c(Wire2, "Wire2", I2C2_SDA_PIN, I2C2_SCL_PIN);
+    scanI2c(Wire1, "Wire1 17/16", I2C1_SDA_PIN, I2C1_SCL_PIN);
 }
 
 static bool detectLis3mdl()
 {
-    return detectLis3mdlOnBus(Wire1, "Wire1") ||
-           detectLis3mdlOnBus(Wire2, "Wire2");
+    return detectLis3mdlOnBus(Wire1, "Wire1 17/16");
 }
 
 static bool validMag(const sensors_event_t &event)

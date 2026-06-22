@@ -2,7 +2,7 @@
 
 Status: Draft for implementation  
 Target vehicle: 2026 NURA avionics, sub-1 km class university rocket  
-Target radios: Semtech SX1276/SX1278 family, with SX1276/RFM95-class 920 MHz hardware preferred for flight  
+Target radios: flight SX1262 and ground SX1276, both using the same proprietary LoRa PHY profile at 920.9 MHz
 Target controller: Teensy 4.1  
 
 This document defines the NURA V1 Lite application-layer packet format carried inside a LoRa PHY packet. V1 Lite intentionally removes nonessential packet classes so the radio spends less time transmitting and more time available for uplink commands.
@@ -62,14 +62,28 @@ Recommended flight RF profile:
 
 | Parameter | Flight default | Notes |
 | --- | --- | --- |
-| Frequency plan | KR920-class 920 MHz channels | Use flight hardware appropriate for Korean 920 MHz operation. |
+| Frequency | 920.9 MHz | Must be identical on flight SX1262 and ground SX1276. |
 | Bandwidth | 125 kHz | Preferred for link margin and regional channel compatibility. |
 | Spreading factor | SF7 | Increase SF only after reducing traffic rate. |
 | Coding rate | CR 4/5 | Higher CR increases airtime. |
 | Preamble | 8 symbols | Default unless range tests show a need to change. |
+| Sync word | `0x12` | Must be identical on both radios. |
 | LoRa PHY CRC | Enabled | Application CRC is still required. |
 | Header mode | Explicit | Easier interoperability and debugging. |
 | EIRP | Must not exceed applicable limit | Include antenna gain and cable loss. |
+
+`frequency`, bandwidth, spreading factor, coding rate, preamble, sync word,
+header mode, and PHY CRC are an interoperability contract: the flight SX1262
+and ground SX1276 must use the same values. Transmit power is local to each
+radio and is not required to match.
+
+Flight SX1262 HAL wiring is NSS D9, DIO1 D31, and BUSY D32. The currently
+recorded PCB data has no Teensy-controlled `NRESET`, so the driver uses
+no-reset mode. Its `TCXO` setting is `0 V`, which assumes a crystal rather than
+a DIO3-controlled TCXO. `RXE` D30 is intentionally left untouched until its
+schematic role and polarity are confirmed. SX1262 initialization and two-way
+packet exchange are mandatory hardware acceptance tests before this profile is
+used outside the bench.
 
 At SF7/BW125/CR4/5/preamble 8/CRC on/explicit header, approximate airtime is:
 
@@ -222,7 +236,38 @@ Frame length: 29 bytes
 | 14 | i16 | gyro_x_dps10 | Gyro, `deg/s * 10` |
 | 16 | i16 | gyro_y_dps10 | Gyro, `deg/s * 10` |
 | 18 | i16 | gyro_z_dps10 | Gyro, `deg/s * 10` |
-| 20 | u16 | batt_mv | Battery voltage in mV |
+| 20 | u16 | batt_mv | Battery voltage in mV. `0` means unavailable or invalid. |
+
+`batt_mv` is intentionally kept as a raw unsigned millivolt value instead of a
+floating-point voltage. The avionics firmware currently derives it from the
+battery divider with a measured division ratio of 5.545:
+
+```text
+sense_mv   = raw_adc / 1023 * 3300
+batt_mv    = sense_mv * 5545 / 1000
+```
+
+This preserves 1 mV packet resolution while keeping the FAST payload at 22
+bytes. The field is not a flight-safety decision input in V1 Lite; if the ADC
+reading is stale or outside the sanity range, avionics sends `0`.
+
+Implementation notes for V1 Lite:
+
+- Purpose: ground visibility of the avionics battery pack voltage.
+- Source: D21 analog voltage divider. The final Pyro 1 outputs are D28/D29,
+  so the voltage input does not share a pyro output pin.
+- Calibration source: team board measurement/calculation: divider ratio 5.545;
+  12.6 V maps to 2.2723 V (about raw ADC 704) and 11.1 V maps to 2.0018 V
+  (about raw ADC 620) on a 10-bit, 3.3 V ADC.
+- Sanity range: firmware accepts 6.0 V to 14.0 V as a valid electrical reading.
+  The 11.1 V to 12.6 V values above are the expected 3S operating range, not a
+  state-machine or pyro threshold.
+- Allowed states: all states, because this is telemetry-only.
+- Forbidden use: do not use `batt_mv` as a pyro, arming, or state-transition
+  gate until the power hardware and threshold policy are separately validated.
+- Fallback behavior: invalid, stale, or unavailable samples downlink as `0`.
+- Verification: bench-feed the divider with known voltages, confirm receiver
+  `batt_mv` printout and local log `battery_mv` match the expected pack voltage.
 
 ### 8.1 FAST Status Word
 
@@ -509,7 +554,7 @@ The avionics sender must:
 - Skip telemetry when ACK must be sent.
 - Source FAST status bits from current subsystem health.
 - Source GPS_TLM from the latest GNSS parser state.
-- Log richer raw data locally to SD if available; do not push it over V1 Lite LoRa.
+- Log richer raw data locally to SPI/program flash as the primary recorder, with microSD as a mirror if available; do not push it over V1 Lite LoRa.
 
 ## 13. Receiver/GCS Requirements
 
@@ -580,6 +625,7 @@ Phase 4: Flight-like validation
 ## 16. References
 
 - Semtech SX1276/77/78/79 datasheet: LoRa packet duration and modem parameters. https://www.semtech.com/products/wireless-rf/lora-transceivers/sx1276
+- Semtech SX1262 product information: 150-960 MHz LoRa transceiver and +22 dBm maximum output capability. https://www.semtech.com/products/wireless-rf/lora-connect/sx1262
 - Semtech LoRa FAQ: SF and bandwidth trade off sensitivity/robustness against time-on-air. https://www.semtech.com/design-support/faq/faq-lora
 - LoRa Alliance RP002 Regional Parameters, KR920-923 channel plan and data-rate definitions. https://read.uberflip.com/i/1540208/24
 - The Things Network regional parameter summary, South Korea KR920-923. https://www.thethingsnetwork.org/docs/lorawan/regional-parameters/other/

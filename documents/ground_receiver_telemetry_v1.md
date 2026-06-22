@@ -6,6 +6,10 @@ The ground-side Teensy receiver decodes NURA V1 Lite LoRa frames from the avioni
 
 The default receiver firmware is receive-only. It must not transmit recovery/control commands when connected to real avionics hardware.
 
+The ground SX1276 uses the flight link profile: 920.9 MHz, BW 125 kHz, SF7,
+CR 4/5, preamble 8, sync word `0x12`, explicit header, and LoRa PHY CRC
+enabled. These settings must match the avionics SX1262 exactly.
+
 A separate `pair_test` PlatformIO environment enables automatic CONTROL/CMD transmission for the two-board bench protocol test only.
 
 ## Inputs and Units
@@ -19,7 +23,7 @@ FAST_TLM inputs from avionics:
 | `baro_dp_2pa` | pressure delta / 2 Pa |
 | `low_accel_*_cg` | g * 100 |
 | `gyro_*_dps10` | deg/s * 10 |
-| `batt_mv` | mV |
+| `batt_mv` | mV, `0` if avionics marks the voltage sample invalid/unavailable |
 
 GPS_TLM inputs from avionics:
 
@@ -56,6 +60,9 @@ The receive-only `teensy41` environment must remain the default build for real a
 The command gate has no physical threshold. Its source is a team safety decision: automatic FORCE_DEPLOY_RECOVERY transmission is a bench-test feature and must be behind an explicit build flag.
 
 The telemetry scaling thresholds and units come from `documents/nura_lora_packet_protocol_v1.md` and `protocol/include/nura_protocol_v1_lite.h`.
+FAST `batt_mv` is decoded directly from the shared protocol header; the receiver
+does not apply the ADC divider conversion because avionics already transmits
+pack voltage in millivolts.
 
 ## Failure Modes Considered
 

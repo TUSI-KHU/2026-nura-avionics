@@ -89,7 +89,7 @@ bool TelemetryTask::AckQueue::pop(nura::ControlPayload &out)
     return true;
 }
 
-TelemetryTask::TelemetryTask(Sx127xLoRaHAL &radio,
+TelemetryTask::TelemetryTask(Sx1262LoRaHAL &radio,
                              const ImuState &imuState,
                              const GpsState &gpsState,
                              TelemetryState &telemetryState,
@@ -162,7 +162,7 @@ uint32_t TelemetryTask::periodMs() const
 bool TelemetryTask::receiveControl(uint32_t nowMs)
 {
     uint8_t buffer[nura::kMaxFrameLen];
-    Sx127xLoRaPacket packet;
+    Sx1262LoRaPacket packet;
     if (!radio_.receive(buffer, sizeof(buffer), packet))
     {
         return false;
@@ -433,7 +433,11 @@ nura::FastTelemetry TelemetryTask::buildFastTelemetry(uint32_t nowMs) const
     fast.gyroXDps10 = clampFloatToI16(imu.gyroXDps * 10.0f);
     fast.gyroYDps10 = clampFloatToI16(imu.gyroYDps * 10.0f);
     fast.gyroZDps10 = clampFloatToI16(imu.gyroZDps * 10.0f);
-    fast.battMv = telemetryState_.power.batteryMv;
+    const PowerTelemetryData &power = telemetryState_.power;
+    if (power.valid && sampleFresh(power.lastUpdatedMs, nowMs, config_.telemetrySensorFreshMs()))
+    {
+        fast.battMv = power.batteryMv;
+    }
     return fast;
 }
 
@@ -548,24 +552,16 @@ uint8_t TelemetryTask::currentFlightStateCode() const
     }
 }
 
-Sx127xLoRaConfig TelemetryTask::buildRadioConfig() const
+Sx1262LoRaConfig TelemetryTask::buildRadioConfig() const
 {
-    Sx127xLoRaConfig radioConfig;
+    Sx1262LoRaConfig radioConfig;
     radioConfig.frequencyHz = config_.loraFrequencyHz();
-    radioConfig.ssPin = BoardPinMap::Ra01DevelopmentLoRa::ssPin;
-    radioConfig.resetPin = BoardPinMap::Ra01DevelopmentLoRa::resetPin;
-    radioConfig.libraryResetPin = BoardPinMap::Ra01DevelopmentLoRa::libraryResetPin;
-    radioConfig.dio0Pin = BoardPinMap::Ra01DevelopmentLoRa::dio0Pin;
-    radioConfig.spiFrequency = config_.loraSpiFrequencyHz();
     radioConfig.txPowerDbm = config_.loraTxPowerDbm();
     radioConfig.spreadingFactor = config_.loraSpreadingFactor();
     radioConfig.signalBandwidthHz = config_.loraSignalBandwidthHz();
     radioConfig.codingRateDenominator = config_.loraCodingRateDenominator();
     radioConfig.preambleLength = config_.loraPreambleLength();
     radioConfig.syncWord = config_.loraSyncWord();
-    radioConfig.initAttempts = config_.loraInitAttempts();
-    radioConfig.spiMode = config_.loraSpiMode();
-    radioConfig.probeSpiMode = config_.loraProbeSpiMode();
     radioConfig.crcEnabled = true;
     return radioConfig;
 }

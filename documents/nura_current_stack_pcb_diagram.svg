@@ -23,22 +23,24 @@
 
   <rect x="25" y="25" width="1550" height="950" fill="#ffffff" stroke="#cbd5e1" stroke-width="3"/>
   <text x="60" y="75" class="title">NURA Current Stack Carrier PCB Wiring</text>
-  <text x="60" y="108" class="subtitle">Verified pinmap: Teensy 4.1, Wire1 SDA=D17 SCL=D16, shared SPI D11/D12/D13, Serial3 GPS D14/D15</text>
+  <text x="60" y="108" class="subtitle">Current PCB pinmap: I2C0 MPL D18/D19, I2C1 LIS D17/D16, SPI0 D11/D12/D13, GPS D14/D15</text>
 
   <rect x="650" y="170" width="260" height="620" class="teensy"/>
   <text x="700" y="210" class="label">Teensy 4.1</text>
   <text x="680" y="245" class="pin">3.3V rail, not VIN</text>
   <text x="680" y="270" class="pin">GND common</text>
-  <text x="680" y="305" class="pin">D17 SDA1</text>
-  <text x="680" y="330" class="pin">D16 SCL1</text>
+  <text x="680" y="305" class="pin">D18 SDA0 / MPL</text>
+  <text x="680" y="330" class="pin">D19 SCL0 / MPL</text>
+  <text x="680" y="350" class="pin">D17 SDA1, D16 SCL1 / LIS</text>
   <text x="680" y="365" class="pin">D11 MOSI</text>
   <text x="680" y="390" class="pin">D12 MISO</text>
   <text x="680" y="415" class="pin">D13 SCK</text>
-  <text x="680" y="450" class="pin">D6 LSM CS</text>
-  <text x="680" y="475" class="pin">D7 H3L CS</text>
-  <text x="680" y="500" class="pin">D10 LoRa NSS</text>
-  <text x="680" y="525" class="pin">D9 LoRa RST</text>
-  <text x="680" y="550" class="pin">D2 LoRa DIO0</text>
+  <text x="680" y="450" class="pin">D10 LSM CS</text>
+  <text x="680" y="475" class="pin">D0 H3L CS</text>
+  <text x="680" y="500" class="pin">D9 LoRa NSS</text>
+  <text x="680" y="525" class="pin">D30 LoRa RXE (not reset)</text>
+  <text x="680" y="550" class="pin">D31 LoRa DIO1, D32 BUSY</text>
+  <text x="680" y="570" class="pin">D2 buzzer, D34/D33 LEDs</text>
   <text x="680" y="585" class="pin">D15 RX3 from GPS TX</text>
   <text x="680" y="610" class="pin">D14 TX3 to GPS RX</text>
 
@@ -55,7 +57,7 @@
   <text x="125" y="495" class="label">MPL3115A2 I2C</text>
   <text x="125" y="530" class="pin">VCC -> 3.3V</text>
   <text x="125" y="555" class="pin">GND -> GND</text>
-  <text x="125" y="580" class="pin">SDA -> D17, SCL -> D16</text>
+  <text x="125" y="580" class="pin">SDA -> D18, SCL -> D19</text>
   <text x="125" y="605" class="pin">Address: 0x60</text>
 
   <rect x="95" y="675" width="360" height="215" class="box"/>
@@ -70,7 +72,7 @@
   <text x="1165" y="230" class="pin">SCL/SCK -> D13</text>
   <text x="1165" y="255" class="pin">SDA/MOSI -> D11</text>
   <text x="1165" y="280" class="pin">DO/MISO -> D12</text>
-  <text x="1165" y="305" class="pin">CS -> D6</text>
+  <text x="1165" y="305" class="pin">CS -> D10</text>
   <text x="1165" y="330" class="pin">VCC -> 3.3V, GND -> GND</text>
 
   <rect x="1135" y="410" width="360" height="220" class="box"/>
@@ -78,14 +80,14 @@
   <text x="1165" y="485" class="pin">SCL/SCK -> D13</text>
   <text x="1165" y="510" class="pin">SDA/MOSI -> D11</text>
   <text x="1165" y="535" class="pin">SA0/SDO/MISO -> D12</text>
-  <text x="1165" y="560" class="pin">CS -> D7</text>
+  <text x="1165" y="560" class="pin">CS -> D0</text>
   <text x="1165" y="585" class="pin">VCC -> 3.3V, GND -> GND</text>
 
   <rect x="1135" y="680" width="360" height="220" class="box"/>
-  <text x="1165" y="720" class="label">SX1278 / Ra-01 LoRa</text>
+  <text x="1165" y="720" class="label">SX1262 LoRa</text>
   <text x="1165" y="755" class="pin">SCK/MOSI/MISO -> D13/D11/D12</text>
-  <text x="1165" y="780" class="pin">NSS -> D10, RST -> D9</text>
-  <text x="1165" y="805" class="pin">DIO0 -> D2</text>
+  <text x="1165" y="780" class="pin">NSS -> D9, RXE -> D30 (unverified)</text>
+  <text x="1165" y="805" class="pin">DIO1 -> D31, BUSY -> D32</text>
   <text x="1165" y="830" class="pin">VCC -> 3.3V, GND -> GND</text>
   <text x="1165" y="855" class="note">Keep 3.3V path short and decoupled.</text>
 

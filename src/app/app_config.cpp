@@ -124,29 +124,17 @@ uint8_t DefaultAppConfig::loggerOutputFailThreshold() const
 
 long DefaultAppConfig::loraFrequencyHz() const
 {
-#if defined(NURA_DEV_SX1278)
-    return NuraConstants::LoRa::kDevFrequencyHz;
-#else
     return NuraConstants::LoRa::kFlightFrequencyHz;
-#endif
 }
 
 uint32_t DefaultAppConfig::loraSpiFrequencyHz() const
 {
-#if defined(NURA_DEV_SX1278)
-    return NuraConstants::LoRa::kDevSpiFrequencyHz;
-#else
     return NuraConstants::LoRa::kFlightSpiFrequencyHz;
-#endif
 }
 
 int DefaultAppConfig::loraTxPowerDbm() const
 {
-#if defined(NURA_DEV_SX1278)
-    return NuraConstants::LoRa::kDevTxPowerDbm;
-#else
     return NuraConstants::LoRa::kFlightTxPowerDbm;
-#endif
 }
 
 int DefaultAppConfig::loraSpreadingFactor() const
@@ -176,27 +164,15 @@ int DefaultAppConfig::loraSyncWord() const
 
 uint8_t DefaultAppConfig::loraInitAttempts() const
 {
-#if defined(NURA_DEV_SX1278)
-    return NuraConstants::LoRa::kDevInitAttempts;
-#else
     return NuraConstants::LoRa::kFlightInitAttempts;
-#endif
 }
 
 uint8_t DefaultAppConfig::loraSpiMode() const
 {
-#if defined(NURA_DEV_SX1278)
-    return NuraConstants::LoRa::kDevSpiMode;
-#else
     return NuraConstants::LoRa::kFlightSpiMode;
-#endif
 }
 
 bool DefaultAppConfig::loraProbeSpiMode() const
 {
-#if defined(NURA_DEV_SX1278)
-    return NuraConstants::LoRa::kDevProbeSpiMode;
-#else
     return NuraConstants::LoRa::kFlightProbeSpiMode;
-#endif
 }

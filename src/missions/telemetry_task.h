@@ -5,7 +5,7 @@
 #include "app/app_config.h"
 #include "core/logger/logger.h"
 #include "core/tasks.h"
-#include "hal/sx127x_lora_hal.h"
+#include "hal/sx1262_lora_hal.h"
 #include "nura_constants.h"
 #include "nura_protocol_v1_lite.h"
 #include "state/abort_state.h"
@@ -17,7 +17,7 @@
 class TelemetryTask : public Task
 {
 public:
-    TelemetryTask(Sx127xLoRaHAL &radio,
+    TelemetryTask(Sx1262LoRaHAL &radio,
                   const ImuState &imuState,
                   const GpsState &gpsState,
                   TelemetryState &telemetryState,
@@ -67,9 +67,9 @@ private:
     nura::GpsTelemetry buildGpsTelemetry(uint32_t nowMs) const;
     uint16_t buildStatusWord(uint32_t nowMs) const;
     uint8_t currentFlightStateCode() const;
-    Sx127xLoRaConfig buildRadioConfig() const;
+    Sx1262LoRaConfig buildRadioConfig() const;
 
-    Sx127xLoRaHAL &radio_;
+    Sx1262LoRaHAL &radio_;
     const ImuState &imuState_;
     const GpsState &gpsState_;
     TelemetryState &telemetryState_;

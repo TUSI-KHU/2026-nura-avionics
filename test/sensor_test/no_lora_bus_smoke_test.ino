@@ -14,7 +14,8 @@
 
 #define SERIAL_BAUD 115200
 #define GPS_TEST_WINDOW_MS 12000UL
-#define CURRENT_I2C_BUS Wire1
+#define LIS_I2C_BUS BoardPinMap::LIS3MDL::wire()
+#define MPL_I2C_BUS BoardPinMap::MPL3115A2::wire()
 
 Adafruit_LIS3MDL lis3mdl;
 Adafruit_MPL3115A2 mpl3115a2;
@@ -55,10 +56,15 @@ static void deselectSpiSensors()
 
 static void beginBuses()
 {
-    CURRENT_I2C_BUS.setSDA(BoardPinMap::I2cBus::sdaPin);
-    CURRENT_I2C_BUS.setSCL(BoardPinMap::I2cBus::sclPin);
-    CURRENT_I2C_BUS.begin();
-    CURRENT_I2C_BUS.setClock(BoardPinMap::I2cBus::clockHz);
+    MPL_I2C_BUS.setSDA(BoardPinMap::MPL3115A2::sdaPin);
+    MPL_I2C_BUS.setSCL(BoardPinMap::MPL3115A2::sclPin);
+    MPL_I2C_BUS.begin();
+    MPL_I2C_BUS.setClock(BoardPinMap::I2c0Bus::clockHz);
+
+    LIS_I2C_BUS.setSDA(BoardPinMap::LIS3MDL::sdaPin);
+    LIS_I2C_BUS.setSCL(BoardPinMap::LIS3MDL::sclPin);
+    LIS_I2C_BUS.begin();
+    LIS_I2C_BUS.setClock(BoardPinMap::I2c1Bus::clockHz);
 
     deselectSpiSensors();
     SPI.setMOSI(BoardPinMap::SpiBus::mosiPin);
@@ -71,14 +77,14 @@ static void beginBuses()
     BoardPinMap::UbloxM6::serial().begin(BoardPinMap::UbloxM6::baud);
 }
 
-static void scanI2c()
+static void scanI2c(TwoWire &bus, const char *name)
 {
     Serial.print("I2C_SCAN_BEGIN bus=");
-    Serial.println(BoardPinMap::I2cBus::name());
+    Serial.println(name);
     for (uint8_t address = 1U; address < 127U; ++address)
     {
-        CURRENT_I2C_BUS.beginTransmission(address);
-        if (CURRENT_I2C_BUS.endTransmission() == 0)
+        bus.beginTransmission(address);
+        if (bus.endTransmission() == 0)
         {
             Serial.print("I2C_FOUND ");
             printHexByte(address);
@@ -86,12 +92,12 @@ static void scanI2c()
         }
     }
     Serial.print("I2C_SCAN_END bus=");
-    Serial.println(BoardPinMap::I2cBus::name());
+    Serial.println(name);
 }
 
 static bool testLis3mdl()
 {
-    if (!lis3mdl.begin_I2C(BoardPinMap::LIS3MDL::i2cAddress, &CURRENT_I2C_BUS))
+    if (!lis3mdl.begin_I2C(BoardPinMap::LIS3MDL::i2cAddress, &LIS_I2C_BUS))
     {
         return false;
     }
@@ -118,7 +124,7 @@ static bool testLis3mdl()
 
 static bool testMpl3115a2()
 {
-    if (!mpl3115a2.begin(&CURRENT_I2C_BUS))
+    if (!mpl3115a2.begin(&MPL_I2C_BUS))
     {
         return false;
     }
@@ -253,12 +259,13 @@ static void runAllTests()
 {
     Serial.println();
     Serial.println("NURA no-LoRa bus smoke test");
-    Serial.println("I2C: LIS3MDL/MPL3115A2, SPI: LSM6DSO32/H3LIS331DL, UART: GPS");
+    Serial.println("I2C0: MPL3115A2, I2C1: LIS3MDL, SPI: LSM6DSO32/H3LIS331DL, UART: GPS");
     Serial.print("RUN ");
     Serial.println(runCounter++);
 
     beginBuses();
-    scanI2c();
+    scanI2c(MPL_I2C_BUS, BoardPinMap::I2c0Bus::name());
+    scanI2c(LIS_I2C_BUS, BoardPinMap::I2c1Bus::name());
 
     const bool lisOk = testLis3mdl();
     printBoolResult("LIS3MDL I2C detected", lisOk);

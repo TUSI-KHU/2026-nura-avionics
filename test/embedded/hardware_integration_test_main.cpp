@@ -7,6 +7,7 @@
 #include "board_pinmap.h"
 #include "core/logger/log_output.h"
 #include "core/logger/logger.h"
+#include "hal/battery_voltage_hal.h"
 #include "hal/h3lis331dl_hal.h"
 #include "hal/lis3mdl_hal.h"
 #include "hal/lsm6dso32_hal.h"
@@ -20,6 +21,7 @@
 #include "sensors/high_g_imu_task.h"
 #include "sensors/imu_task.h"
 #include "sensors/magnetometer_task.h"
+#include "sensors/power_sense_task.h"
 #include "state/gps_state.h"
 #include "state/high_g_imu_state.h"
 #include "state/imu_state.h"
@@ -142,11 +144,17 @@ namespace
         SPI.setSCK(BoardPinMap::SpiBus::sckPin);
         SPI.begin();
 
-        TwoWire &i2c = BoardPinMap::I2cBus::wire();
-        i2c.setSDA(BoardPinMap::I2cBus::sdaPin);
-        i2c.setSCL(BoardPinMap::I2cBus::sclPin);
-        i2c.begin();
-        i2c.setClock(BoardPinMap::I2cBus::clockHz);
+        TwoWire &i2c0 = BoardPinMap::I2c0Bus::wire();
+        i2c0.setSDA(BoardPinMap::I2c0Bus::sdaPin);
+        i2c0.setSCL(BoardPinMap::I2c0Bus::sclPin);
+        i2c0.begin();
+        i2c0.setClock(BoardPinMap::I2c0Bus::clockHz);
+
+        TwoWire &i2c1 = BoardPinMap::I2c1Bus::wire();
+        i2c1.setSDA(BoardPinMap::I2c1Bus::sdaPin);
+        i2c1.setSCL(BoardPinMap::I2c1Bus::sclPin);
+        i2c1.begin();
+        i2c1.setClock(BoardPinMap::I2c1Bus::clockHz);
     }
 
     Sx127xLoRaConfig makeRadioConfig(const DefaultAppConfig &config)
@@ -297,6 +305,22 @@ namespace
         Serial.println(gpsState.data.hasFix ? "yes" : "no");
     }
 
+    void printPowerSnapshot(const BatteryVoltageReading &reading)
+    {
+        Serial.print("POWER raw_adc=");
+        Serial.print(reading.rawAdc);
+        Serial.print(" sense_mv=");
+        Serial.print(reading.senseMv);
+        Serial.print(" battery_mv=");
+        Serial.print(reading.batteryMv);
+        Serial.print(" valid=");
+        Serial.print(reading.valid ? "yes" : "no");
+        Serial.print(" expected_raw=");
+        Serial.print(NuraConstants::Sensors::kPowerSenseExpectedMinRawAdc);
+        Serial.print("..");
+        Serial.println(NuraConstants::Sensors::kPowerSenseExpectedMaxRawAdc);
+    }
+
     void runHardwareIntegrationTest()
     {
         TestStats stats;
@@ -315,6 +339,7 @@ namespace
         LIS3MDLHAL magHal;
         MPL3115A2HAL baroHal;
         UbloxM6GNSSHAL gnssHal;
+        BatteryVoltageHAL batteryVoltageHal;
         Sx127xLoRaHAL radioHal;
 
         IMUTask imuTask(lowImuHal, imuState, logger, config);
@@ -328,12 +353,15 @@ namespace
         MagnetometerTask magTask(magHal, magState, telemetryState, logger, config);
         BarometerTask baroTask(baroHal, telemetryState, logger, config);
         GNSSTask gnssTask(gnssHal, gpsState, config);
+        PowerSenseTask powerSenseTask(batteryVoltageHal, telemetryState, logger);
 
         initializeBuses();
 
         Serial.println("NURA hardware integration test");
-        Serial.print("I2C=");
-        Serial.print(BoardPinMap::I2cBus::name());
+        Serial.print("I2C0=");
+        Serial.print(BoardPinMap::I2c0Bus::name());
+        Serial.print(" I2C1=");
+        Serial.print(BoardPinMap::I2c1Bus::name());
         Serial.println(" SPI=11/12/13 GPS=Serial3 15/14");
         printLsm6dso32WhoAmI();
 
@@ -342,6 +370,7 @@ namespace
         printResult(stats, "mag_task_init", magTask.init());
         printResult(stats, "barometer_task_init", baroTask.init());
         printResult(stats, "gnss_task_init", gnssTask.init());
+        printResult(stats, "power_sense_task_init", powerSenseTask.init());
         flushLogs(logger, logOutput);
 
         uint32_t lastImuMs = 0UL;
@@ -349,6 +378,7 @@ namespace
         uint32_t lastMagMs = 0UL;
         uint32_t lastBaroMs = 0UL;
         uint32_t lastGnssMs = 0UL;
+        uint32_t lastPowerMs = 0UL;
         uint32_t lastSnapMs = 0UL;
         const uint32_t startMs = millis();
 
@@ -379,6 +409,11 @@ namespace
             {
                 gnssTask.tick(nowMs);
                 lastGnssMs = nowMs;
+            }
+            if ((nowMs - lastPowerMs) >= powerSenseTask.periodMs())
+            {
+                powerSenseTask.tick(nowMs);
+                lastPowerMs = nowMs;
             }
             if ((nowMs - lastSnapMs) >= 1000UL)
             {
@@ -412,13 +447,19 @@ namespace
                             pressurePlausible(telemetryState.barometer.pressurePa);
         const bool gpsElectricalOk = gpsState.data.charsProcessed > 0UL &&
                                      gpsState.data.passedChecksum > 0UL;
+        BatteryVoltageReading batteryReading;
+        const bool batteryReadOk = batteryVoltageHal.read(batteryReading, millis()) &&
+                                   batteryReading.valid &&
+                                   telemetryState.power.valid;
 
         printSensorSnapshot(imuState, highGState, magState, telemetryState, gpsState);
+        printPowerSnapshot(batteryReading);
         printResult(stats, "low_imu_task_read", lowImuOk);
         printResult(stats, "high_g_task_read", highGOk);
         printResult(stats, "mag_task_read", magOk);
         printResult(stats, "barometer_task_read", baroOk);
         printResult(stats, "gps_nmea_checksum", gpsElectricalOk);
+        printResult(stats, "battery_voltage_read", batteryReadOk);
 
         const Sx127xLoRaConfig radioConfig = makeRadioConfig(config);
         const bool radioProbeOk = probeLoraVersion(radioConfig);

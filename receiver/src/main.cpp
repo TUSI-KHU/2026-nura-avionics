@@ -11,12 +11,13 @@
 namespace
 {
 constexpr unsigned long kSerialBaud = 115200UL;
-constexpr long kLoraFrequencyHz = 433000000L;
+constexpr long kLoraFrequencyHz = 920900000L;
 constexpr uint32_t kLoraSpiFrequencyHz = 125000UL;
 constexpr int kLoraTxPowerDbm = 10;
 constexpr int kLoraSpreadingFactor = 7;
 constexpr long kLoraSignalBandwidthHz = 125000L;
 constexpr int kLoraCodingRateDenominator = 5;
+constexpr long kLoraPreambleLength = 8L;
 constexpr int kLoraSyncWord = 0x12;
 constexpr uint8_t kLoraRegVersion = 0x42U;
 constexpr uint8_t kLoraExpectedVersion = 0x12U;
@@ -180,6 +181,7 @@ bool beginRadio()
             LoRa.setSpreadingFactor(kLoraSpreadingFactor);
             LoRa.setSignalBandwidth(kLoraSignalBandwidthHz);
             LoRa.setCodingRate4(kLoraCodingRateDenominator);
+            LoRa.setPreambleLength(kLoraPreambleLength);
             LoRa.setSyncWord(kLoraSyncWord);
             LoRa.enableCrc();
             LoRa.receive();
@@ -705,4 +707,3 @@ void loop()
     serviceCommandSender();
     printCompletionIfReady();
 }
-

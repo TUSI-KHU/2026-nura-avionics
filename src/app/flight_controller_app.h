@@ -17,6 +17,7 @@
 #include "hal/mock_flight_data_hal.h"
 #include "missions/mock_telemetry_source_task.h"
 #else
+#include "hal/battery_voltage_hal.h"
 #include "hal/h3lis331dl_hal.h"
 #include "hal/lis3mdl_hal.h"
 #include "hal/lsm6dso32_hal.h"
@@ -27,13 +28,16 @@
 #include "sensors/high_g_imu_task.h"
 #include "sensors/imu_task.h"
 #include "sensors/magnetometer_task.h"
+#include "sensors/power_sense_task.h"
 #endif
 #include "hal/panic_handler.h"
+#include "hal/buzzer_hal.h"
+#include "hal/mosfet_pyro_hal.h"
 #include "hal/serial_log_output.h"
-#include "hal/sx127x_lora_hal.h"
+#include "hal/sx1262_lora_hal.h"
 #include "logging/flight_log_mirror_storage.h"
 #include "logging/flight_log_storage.h"
-#if !defined(NURA_MOCK_TELEMETRY)
+#if !defined(NURA_MOCK_TELEMETRY) && !defined(NURA_DISABLE_PROGRAM_FLASH_LOG)
 #include "logging/program_flash_flight_log_storage.h"
 #endif
 #include "logging/sd_flight_log_storage.h"
@@ -70,9 +74,12 @@ private:
     LIS3MDLHAL magnetometerHal_;
     MPL3115A2HAL barometerHal_;
     UbloxM6GNSSHAL gnssHal_;
+    BatteryVoltageHAL batteryVoltageHal_;
 #endif
-    Sx127xLoRaHAL loraHal_;
-#if defined(NURA_MOCK_TELEMETRY)
+    Sx1262LoRaHAL loraHal_;
+    MosfetPyroHAL pyroHal_;
+    BuzzerHAL buzzerHal_{BoardPinMap::Buzzer::pin};
+#if defined(NURA_MOCK_TELEMETRY) || defined(NURA_DISABLE_PROGRAM_FLASH_LOG)
     NullFlightLogStorage programFlashLogStorage_;
 #else
     LittleFS_Program programFlashFs_;
@@ -99,6 +106,7 @@ private:
     MagnetometerTask magnetometerTask_{magnetometerHal_, magnetometerState_, telemetryState_, logger_, config_};
     BarometerTask barometerTask_{barometerHal_, telemetryState_, logger_, config_};
     GNSSTask gnssTask_{gnssHal_, gpsState_, config_};
+    PowerSenseTask powerSenseTask_{batteryVoltageHal_, telemetryState_, logger_};
     RecoverableTask *const recoverableDevices_[3] = {
         &imuTask_,
         &highGImuTask_,
@@ -106,7 +114,7 @@ private:
     };
 #endif
     WatchdogTask watchdogTask_{recoverableDevices_, sizeof(recoverableDevices_) / sizeof(recoverableDevices_[0]), abortState_, logger_, config_};
-    FlightStateMachineTask fsmTask_{flightState_, abortState_, highGImuState_, imuState_, telemetryState_, logger_, config_, panicHandler_};
+    FlightStateMachineTask fsmTask_{flightState_, abortState_, highGImuState_, imuState_, telemetryState_, logger_, config_, panicHandler_, &pyroHal_, &buzzerHal_};
     FlightLogTask flightLogTask_{flightState_, imuState_, highGImuState_, magnetometerState_, gpsState_, telemetryState_, flightLogStorage_, logger_};
     TelemetryTask telemetryTask_{loraHal_, imuState_, gpsState_, telemetryState_, flightState_, abortState_, logger_, config_};
     LoggerTask loggerTask_{logger_, logOutput_, config_};

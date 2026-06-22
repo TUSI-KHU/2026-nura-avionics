@@ -22,10 +22,14 @@
 #define LIS3MDL_WHOAMI_VALUE 0x3D
 #define MPL3115A2_WHOAMI_REG 0x0C
 #define MPL3115A2_WHOAMI_VALUE 0xC4
-#define CURRENT_I2C_BUS Wire1
-#define CURRENT_I2C_BUS_NAME BoardPinMap::I2cBus::name()
-#define CURRENT_I2C_SDA_PIN BoardPinMap::I2cBus::sdaPin
-#define CURRENT_I2C_SCL_PIN BoardPinMap::I2cBus::sclPin
+#define LIS_I2C_BUS BoardPinMap::LIS3MDL::wire()
+#define LIS_I2C_BUS_NAME BoardPinMap::I2c1Bus::name()
+#define LIS_I2C_SDA_PIN BoardPinMap::LIS3MDL::sdaPin
+#define LIS_I2C_SCL_PIN BoardPinMap::LIS3MDL::sclPin
+#define MPL_I2C_BUS BoardPinMap::MPL3115A2::wire()
+#define MPL_I2C_BUS_NAME BoardPinMap::I2c0Bus::name()
+#define MPL_I2C_SDA_PIN BoardPinMap::MPL3115A2::sdaPin
+#define MPL_I2C_SCL_PIN BoardPinMap::MPL3115A2::sclPin
 
 Adafruit_LIS3MDL lis3mdl;
 Adafruit_LSM6DSO32 lsm6dso32;
@@ -66,27 +70,34 @@ static void deselectSpiDevices()
     digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, HIGH);
 }
 
-static void printI2cLineLevels()
+static void printI2cLineLevels(const char *name, uint8_t sdaPin, uint8_t sclPin)
 {
-    pinMode(CURRENT_I2C_SDA_PIN, INPUT_PULLUP);
-    pinMode(CURRENT_I2C_SCL_PIN, INPUT_PULLUP);
+    pinMode(sdaPin, INPUT_PULLUP);
+    pinMode(sclPin, INPUT_PULLUP);
     delayMicroseconds(100);
-    Serial.print("I2C_LINES sda=");
-    Serial.print(CURRENT_I2C_SDA_PIN);
+    Serial.print("I2C_LINES bus=");
+    Serial.print(name);
+    Serial.print(" sda=");
+    Serial.print(sdaPin);
     Serial.print(":");
-    Serial.print(digitalRead(CURRENT_I2C_SDA_PIN));
+    Serial.print(digitalRead(sdaPin));
     Serial.print(" scl=");
-    Serial.print(CURRENT_I2C_SCL_PIN);
+    Serial.print(sclPin);
     Serial.print(":");
-    Serial.println(digitalRead(CURRENT_I2C_SCL_PIN));
+    Serial.println(digitalRead(sclPin));
 }
 
 static void beginBuses()
 {
-    CURRENT_I2C_BUS.setSDA(CURRENT_I2C_SDA_PIN);
-    CURRENT_I2C_BUS.setSCL(CURRENT_I2C_SCL_PIN);
-    CURRENT_I2C_BUS.begin();
-    CURRENT_I2C_BUS.setClock(BoardPinMap::I2cBus::clockHz);
+    MPL_I2C_BUS.setSDA(MPL_I2C_SDA_PIN);
+    MPL_I2C_BUS.setSCL(MPL_I2C_SCL_PIN);
+    MPL_I2C_BUS.begin();
+    MPL_I2C_BUS.setClock(BoardPinMap::I2c0Bus::clockHz);
+
+    LIS_I2C_BUS.setSDA(LIS_I2C_SDA_PIN);
+    LIS_I2C_BUS.setSCL(LIS_I2C_SCL_PIN);
+    LIS_I2C_BUS.begin();
+    LIS_I2C_BUS.setClock(BoardPinMap::I2c1Bus::clockHz);
 
     deselectSpiDevices();
     SPI.setMOSI(BoardPinMap::SpiBus::mosiPin);
@@ -99,14 +110,14 @@ static void beginBuses()
     BoardPinMap::UbloxM6::serial().begin(BoardPinMap::UbloxM6::baud);
 }
 
-static void scanI2c()
+static void scanI2c(TwoWire &bus, const char *name)
 {
     Serial.print("I2C_SCAN_BEGIN bus=");
-    Serial.println(CURRENT_I2C_BUS_NAME);
+    Serial.println(name);
     for (uint8_t address = 1U; address < 127U; ++address)
     {
-        CURRENT_I2C_BUS.beginTransmission(address);
-        if (CURRENT_I2C_BUS.endTransmission() == 0)
+        bus.beginTransmission(address);
+        if (bus.endTransmission() == 0)
         {
             Serial.print("I2C_FOUND ");
             printHexByte(address);
@@ -114,22 +125,22 @@ static void scanI2c()
         }
     }
     Serial.print("I2C_SCAN_END bus=");
-    Serial.println(CURRENT_I2C_BUS_NAME);
+    Serial.println(name);
 }
 
-static bool readI2cRegister(uint8_t address, uint8_t reg, uint8_t &value)
+static bool readI2cRegister(TwoWire &bus, uint8_t address, uint8_t reg, uint8_t &value)
 {
-    CURRENT_I2C_BUS.beginTransmission(address);
-    CURRENT_I2C_BUS.write(reg);
-    if (CURRENT_I2C_BUS.endTransmission(false) != 0)
+    bus.beginTransmission(address);
+    bus.write(reg);
+    if (bus.endTransmission(false) != 0)
     {
         return false;
     }
-    if (CURRENT_I2C_BUS.requestFrom(address, static_cast<uint8_t>(1U)) != 1)
+    if (bus.requestFrom(address, static_cast<uint8_t>(1U)) != 1)
     {
         return false;
     }
-    value = CURRENT_I2C_BUS.read();
+    value = bus.read();
     return true;
 }
 
@@ -142,7 +153,7 @@ static bool testLis3mdl()
         uint8_t whoami = 0U;
         Serial.print("LIS3MDL_WHOAMI addr=");
         printHexByte(candidates[i]);
-        if (!readI2cRegister(candidates[i], LIS3MDL_WHOAMI_REG, whoami))
+        if (!readI2cRegister(LIS_I2C_BUS, candidates[i], LIS3MDL_WHOAMI_REG, whoami))
         {
             Serial.println(" no_response");
             continue;
@@ -158,7 +169,7 @@ static bool testLis3mdl()
         }
     }
 
-    if (detectedAddress == 0U || !lis3mdl.begin_I2C(detectedAddress, &CURRENT_I2C_BUS))
+    if (detectedAddress == 0U || !lis3mdl.begin_I2C(detectedAddress, &LIS_I2C_BUS))
     {
         return false;
     }
@@ -188,7 +199,7 @@ static bool testMpl3115a2()
     uint8_t whoami = 0U;
     Serial.print("MPL3115A2_WHOAMI addr=");
     printHexByte(BoardPinMap::MPL3115A2::i2cAddress);
-    if (!readI2cRegister(BoardPinMap::MPL3115A2::i2cAddress, MPL3115A2_WHOAMI_REG, whoami))
+    if (!readI2cRegister(MPL_I2C_BUS, BoardPinMap::MPL3115A2::i2cAddress, MPL3115A2_WHOAMI_REG, whoami))
     {
         Serial.println(" no_response");
         return false;
@@ -201,7 +212,7 @@ static bool testMpl3115a2()
         return false;
     }
 
-    if (!mpl3115a2.begin(&CURRENT_I2C_BUS))
+    if (!mpl3115a2.begin(&MPL_I2C_BUS))
     {
         Serial.println("MPL3115A2_INIT failed");
         return false;
@@ -392,9 +403,11 @@ static void runTests()
     Serial.print("RUN ");
     Serial.println(runCounter++);
 
-    printI2cLineLevels();
+    printI2cLineLevels(MPL_I2C_BUS_NAME, MPL_I2C_SDA_PIN, MPL_I2C_SCL_PIN);
+    printI2cLineLevels(LIS_I2C_BUS_NAME, LIS_I2C_SDA_PIN, LIS_I2C_SCL_PIN);
     beginBuses();
-    scanI2c();
+    scanI2c(MPL_I2C_BUS, MPL_I2C_BUS_NAME);
+    scanI2c(LIS_I2C_BUS, LIS_I2C_BUS_NAME);
 
     const bool lisOk = testLis3mdl();
     printBoolResult("LIS3MDL I2C detected", lisOk);

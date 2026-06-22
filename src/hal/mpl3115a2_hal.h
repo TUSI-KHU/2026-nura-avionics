@@ -17,7 +17,7 @@ struct Mpl3115a2Reading
 class MPL3115A2HAL
 {
 public:
-    bool begin(TwoWire &wire = Wire1,
+    bool begin(TwoWire &wire = Wire,
                uint16_t conversionTimeoutMs = 700U,
                float seaLevelPressureHpa = 1013.25f);
     bool read(Mpl3115a2Reading &out, uint32_t nowMs);

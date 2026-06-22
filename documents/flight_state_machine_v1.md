@@ -49,6 +49,10 @@ Excluded from this version:
   literals.
 - `APOGEE` is a real state in this design. It represents the drogue pyro
   sequence state, not merely an instantaneous event.
+- Current avionics firmware auto-transitions from `SAFE` to `ARMED` after
+  initialization unless abort is active. The real energetic safety inhibit is
+  the external physical pyro/arming hardware path, not a software arming switch
+  wired into the avionics MCU in this revision.
 
 ## Enum Order
 
@@ -148,9 +152,9 @@ Notes:
 
 | State | Entry action | Periodic action | Timeout | Fallback | Entry condition from previous state |
 | --- | --- | --- | --- | --- | --- |
-| `INIT` | Wait for board/bus settle, initialize sensors, initialize calibration, build barometer ground baseline, initialize program-flash/SD logging, force pyro outputs OFF. | Check initialization completion. | TODO init timeout. | `FAULT` or `SAFE`, final policy TBD. | Boot starts here. |
-| `SAFE` | Force pyro outputs OFF. Reset flight-local counters and detector state. | Watch arming switch / arming command. Sensor tasks continue globally. | None for first implementation. | None. | `INIT` completed. |
-| `ARMED` | Reset launch detector consecutive count. Reset launch timestamp. Reset coast/apogee detector scratch state. | Compute selected acceleration norm and update launch confirmation count. | Optional arming timeout TODO. | `SAFE` if disarmed, final disarm policy TBD. | Human arming switch / arming command is active. |
+| `INIT` | Wait for board/bus settle, initialize sensors, initialize calibration, build barometer ground baseline, initialize SD logging and program-flash logging when enabled, force pyro outputs OFF. | Check initialization completion. | TODO init timeout. | `FAULT` or `SAFE`, final policy TBD. | Boot starts here. |
+| `SAFE` | Force pyro outputs OFF. Reset flight-local counters and detector state. | Auto-transition to `ARMED` unless abort is active. Sensor tasks continue globally. | None for first implementation. | None. | `INIT` completed. |
+| `ARMED` | Reset launch detector consecutive count. Reset launch timestamp. Reset coast/apogee detector scratch state. | Compute selected acceleration norm and update launch confirmation count. | Optional arming timeout TODO. | `SAFE` if abort/disarm policy is later wired into avionics. | `SAFE` completed and abort is not active. |
 | `LAUNCH` | Save `launch_time_ms`. Reset burnout confirmation count. TODO: log launch event later. | Continue selected acceleration norm monitoring and update burnout confirmation count. | Optional motor-burn timeout TODO. | `COAST` when motor-burn timeout policy is defined. | In `ARMED`, selected acceleration norm is `>= LAUNCH_ACCEL_THRESHOLD_G` for `LAUNCH_CONFIRM_SAMPLES` consecutive samples. |
 | `COAST` | Save `coast_start_ms`. Reset apogee detector scratch state, including max altitude and descent counter. | Push fresh barometer AGL samples into the nine-sample predictor, update predicted-apogee and backup-descent confirmation counts. | `APOGEE_TIMEOUT_MS`. | `APOGEE`. | In `LAUNCH`, selected acceleration norm is `< BURNOUT_ACCEL_THRESHOLD_G` for `BURNOUT_CONFIRM_SAMPLES` consecutive samples. |
 | `APOGEE` | Start drogue primary pyro pulse. Save pyro sequence start time. TODO: log drogue sequence start later. | End primary pulse after `PYRO_FIRE_DURATION_MS`; after `DROGUE_BACKUP_DELAY_MS`, fire backup pyro for `PYRO_FIRE_DURATION_MS`; keep all pyro timing non-blocking. | Pyro sequence timeout derived from backup delay plus pulse duration. | `DROGUE`. | Apogee detector asserts apogee, or `COAST` timeout fallback fires. |
@@ -171,8 +175,9 @@ Build gate:
 NURA_BENCH_FSM_AUTOFLOW == 1
 ```
 
-Current PlatformIO usage: this flag is enabled only for `debug_dev_radio`.
-It is not enabled for `build` or `build_dev_radio`.
+Current PlatformIO usage: this flag is not exposed by the three standard
+environments (`main`, `debug`, and `debug_no_lora`). It remains a manual,
+bench-only compile flag and must never be added to a flight build.
 
 Inputs and units:
 
@@ -228,9 +233,9 @@ Verification plan:
 - Host replay builds both normal FSM and `NURA_BENCH_FSM_AUTOFLOW` variants.
 - The bench variant must reach `GROUND` without sensor events and without
   calling the panic handler.
-- Hardware integration test: flash `debug_dev_radio`, connect receiver, and
-  verify telemetry reports `SAFE -> ARMED -> LAUNCH -> COAST -> APOGEE ->
-  DROGUE -> DEPLOY -> GROUND`.
+- Hardware integration test, when the bench-only flag is deliberately enabled:
+  connect the receiver and verify telemetry reports `SAFE -> ARMED -> LAUNCH
+  -> COAST -> APOGEE -> DROGUE -> DEPLOY -> GROUND`.
 
 ## Detector Details
 
@@ -594,18 +599,131 @@ over after apogee and the barometer is unavailable.
 
 All pyro control must be non-blocking. Do not use `delay()` for firing pulses.
 
+## State-Transition Buzzer Feedback
+
+Purpose: make the active FSM transition audible during pad and bench operation.
+The buzzer is diagnostic feedback only. It does not arm, inhibit, trigger, or
+extend any pyro action, and a buzzer failure must not change the flight state.
+
+Input and output:
+
+- Input: the previous state, next state, and transition timestamp supplied by
+  `FlightStateMachineTask::transitionTo()`.
+- Output: D2 through `BuzzerHAL`, using non-blocking `tone()`/`noTone()` calls.
+- Allowed operation: state transition feedback only.
+- Forbidden operation: raw sensor input, LoRa packet parsing, pyro requests,
+  arming authorization, and state-transition decisions.
+
+Pattern assignment:
+
+| Transition | Pattern | Duration |
+| --- | --- | --- |
+| `INIT -> SAFE` | Seven medium-pitch `2200 Hz` tones | `90 ms` ON / `80 ms` gap, seven times |
+| `SAFE -> ARMED` | Continuous, full-amplitude `3000 Hz` alert tone | 5 s |
+| All other state transitions | Five fast `2400 Hz` tones | `80 ms` ON / `80 ms` gap, five times |
+
+Threshold source:
+
+- The seven-beep init indication, 5 s flat arming alert, and five-beep
+  transition convention are explicit team decisions.
+- D2 is already driven with the maximum 3.3 V `tone()` amplitude. `3000 Hz` is
+  the initial irritating alert frequency; the `90/80 ms` init cadence and
+  `80/80 ms` transition cadence are initial audible defaults. They are not
+  flight-control thresholds and may be retuned after a bench audibility test.
+
+Failure modes and fallback:
+
+- `BuzzerHAL::begin()` failure logs a warning and leaves the FSM muted; it does
+  not cause `FAULT` or block deployment logic.
+- The `INIT -> SAFE` seven-tone sequence queues the `SAFE -> ARMED` flat alert
+  so the init indication finishes first. A later transition replaces the
+  current diagnostic pattern immediately.
+- Every pattern is serviced from the normal FSM tick without `delay()`, so it
+  cannot intentionally stall sensor acquisition, timeout processing, or pyro
+  pulse timing.
+
+Verification plan:
+
+- Host replay: `checkBuzzerStateTransitionPatterns()` verifies the seven-tone
+  init sequence, queued flat alert, and five-tone transition pattern.
+- Bench: with no e-matches connected, flash `debug_no_lora`, confirm D2 audio,
+  and optionally scope the frequency/gaps while the board is shaken through
+  `ARMED -> LAUNCH -> COAST`. Pyro remains dry-run unless the separate
+  `NURA_ENABLE_PYRO_OUTPUTS` bench gate is deliberately enabled.
+
+Physical channel mapping:
+
+```text
+Pyro 1 / Drogue -> BoardPinMap::DroguePyro
+Pyro 2 / Main   -> BoardPinMap::MainPyro
+```
+
+The MOSFET HAL assumes active-high TC4452/MOSFET-driver inputs. It drives both
+GPIO inputs listed for a channel together and treats the `sense` pin as input
+only. Continuity interpretation is still deferred until the sense circuit is
+characterized.
+
+Allowed states and inputs:
+
+- Drogue/Pyro 1 ON is allowed only on `APOGEE` entry and the retry point inside
+  `APOGEE`.
+- Main/Pyro 2 ON is allowed only on `DEPLOY` entry.
+- `SAFE`, `GROUND`, and `FAULT` force all pyro outputs OFF.
+- The only timing inputs used by this logic are `apogeeMs`, `deployMs`,
+  `PYRO_FIRE_DURATION_MS`, and `DROGUE_BACKUP_DELAY_MS`, all in milliseconds.
+- The pyro HAL does not read sensors, parse telemetry packets, or decide state
+  transitions. It only executes requests from the FSM.
+
+Failure modes considered:
+
+- Boot/init failure: if physical pyro outputs are enabled and the HAL detects
+  any overlap between D21 power sense and a pyro output, FSM init fails and the
+  app enters the existing panic path. The final pinmap D28/D29/D36/D37 has no
+  such overlap.
+- Software reset or disarm: entering `SAFE`, `GROUND`, or `FAULT` calls
+  `allOff()`.
+- Continuity/sense failure: not acted on yet because the sense circuit has not
+  been characterized. This remains a TODO before flight qualification.
+
+Verification plan:
+
+- Host replay: `checkPyroOutputSequence()` verifies Drogue ON/OFF/retry and
+  Main ON/OFF call order without hardware.
+- Bench GPIO test: with no e-matches attached, define `NURA_ENABLE_PYRO_OUTPUTS`
+  and scope/LED-test D28/D29/D36/D37.
+- Hardware integration: verify continuity/sense readings before allowing arming
+  gates to depend on them.
+
+Build-time safety gate:
+
+```text
+default build:
+    FSM calls the HAL, but MosfetPyroHAL is dry-run and does not drive GPIOs
+
+NURA_ENABLE_PYRO_OUTPUTS:
+    MosfetPyroHAL configures and drives the GPIO pins
+
+NURA_ENABLE_PYRO_OUTPUTS without NURA_ALLOW_PYRO_POWER_SENSE_PIN_CONFLICT:
+    init fails if a future pinmap maps battery voltage sense and a pyro output
+    to the same pin
+```
+
+`NURA_ALLOW_PYRO_POWER_SENSE_PIN_CONFLICT` remains a bench-only escape hatch
+for an intentionally modified pinmap. It is not needed for the final D21,
+D28/D29/D36/D37 assignment and must not be used in a flight build.
+
 Drogue sequence in `APOGEE`:
 
 ```text
 t = apogee_entry_ms
 
-primary ON at t
-primary OFF at t + PYRO_FIRE_DURATION_MS
+Drogue/Pyro 1 ON at t
+Drogue/Pyro 1 OFF at t + PYRO_FIRE_DURATION_MS
 
-backup ON at t + DROGUE_BACKUP_DELAY_MS
-backup OFF at t + DROGUE_BACKUP_DELAY_MS + PYRO_FIRE_DURATION_MS
+Drogue/Pyro 1 retry ON at t + DROGUE_BACKUP_DELAY_MS
+Drogue/Pyro 1 retry OFF at t + DROGUE_BACKUP_DELAY_MS + PYRO_FIRE_DURATION_MS
 
-after backup OFF:
+after retry OFF:
     transition to DROGUE
 ```
 
@@ -719,13 +837,14 @@ check implementation drift quickly.
 | Apogee aggregation / quality checks | `src/missions/fsm_task.cpp` | `pushApogeePrediction()`, `plusTwoSigmaApogee()` | Rejects prediction jumps, unstable prediction history, high fit residual, stale barometer gaps, and uses `mean + 2*sigma` over five accepted raw predictions. |
 | Forced recovery request | `src/missions/telemetry_task.cpp`, `src/state/flight_state.h` | `handleCommand()`, `forceDeployRequestAllowed()`, `FlightState::forceRecoveryDeployRequested` | Telemetry validates command/auth/state and records a request; it does not directly mutate the FSM state. |
 | Forced recovery execution | `src/missions/fsm_task.cpp` | `consumeForceRecoveryDeployRequest()`, `forceRecoveryDeployAllowed()` | FSM consumes the request only in `LAUNCH` or `COAST`, transitions to `APOGEE`, and records execution for ACK. |
-| Drogue pyro sequence state | `src/missions/fsm_task.cpp` | `onEnter(State::APOGEE)`, `tickApogee()` | Non-blocking sequence timing is implemented; actual pyro HAL output is TODO. |
-| Main deploy decision and sequence | `src/missions/fsm_task.cpp` | `tickDrogue()`, `onEnter(State::DEPLOY)`, `tickDeploy()` | `DROGUE -> DEPLOY` at `<= 200 m AGL` or timeout; actual pyro HAL output is TODO. |
+| Pyro HAL | `src/hal/pyro_output.h`, `src/hal/mosfet_pyro_hal.h`, `src/hal/mosfet_pyro_hal.cpp` | `IPyroOutput`, `MosfetPyroHAL` | MOSFET output abstraction; default dry-run, physical GPIO only with `NURA_ENABLE_PYRO_OUTPUTS`; blocks any future power-sense/pyro pin overlap. |
+| Drogue pyro sequence state | `src/missions/fsm_task.cpp` | `onEnter(State::APOGEE)`, `tickApogee()` | Non-blocking Drogue/Pyro 1 pulse, then same-channel retry pulse after `DROGUE_BACKUP_DELAY_MS`; transitions to `DROGUE` after retry off. |
+| Main deploy decision and sequence | `src/missions/fsm_task.cpp` | `tickDrogue()`, `onEnter(State::DEPLOY)`, `tickDeploy()` | `DROGUE -> DEPLOY` at `<= 200 m AGL` or timeout; non-blocking Main/Pyro 2 pulse, then marks main sequence complete. |
 | Landing / ground transition | `src/missions/fsm_task.cpp` | `tickDeploy()`, `consumeLandingSample()`, `landingStable()` | After main pulse completion, uses 20 fresh filtered barometer AGL samples and transitions to `GROUND` when window range is `<= 0.5 m`; timeout fallback is deferred. |
 | Telemetry state code mapping | `src/missions/telemetry_task.cpp`, `protocol/include/nura_protocol_v1_lite.h` | `currentFlightStateCode()`, `FlightStateCode` | Downlink status encodes the new state IDs. |
 | Protocol documentation state table | `documents/nura_lora_packet_protocol_v1.md` | `State encoding` section | Human-readable packet spec mirrors the code enum. |
 | Mock flight data source | `src/hal/mock_flight_data_hal.cpp`, `src/missions/mock_telemetry_source_task.cpp` | `MockFlightDataHAL::read()`, `MockTelemetrySourceTask::tick()` | Generates deterministic nominal, low-apogee, noisy, gust, dropout, and pad-false-accel scenarios; publishes high-g IMU and filtered barometer data for mock builds. |
-| Host FSM replay tests | `test/fsm_replay/flight_state_machine_replay.cpp`, `test/fsm_replay/run_fsm_replay_tests.py` | `runReplay()`, `checkFullFlight()` | Compiles the real `fsm_task.cpp` with g++ and verifies launch, coast, apogee, drogue, deploy, ground, abort, forced recovery request, and launch-confirmation behavior without a board. |
+| Host FSM replay tests | `test/fsm_replay/flight_state_machine_replay.cpp`, `test/fsm_replay/run_fsm_replay_tests.py` | `runReplay()`, `checkFullFlight()`, `checkPyroOutputSequence()` | Compiles the real `fsm_task.cpp` with g++ and verifies launch, coast, apogee, drogue, deploy, ground, abort, forced recovery request, launch-confirmation behavior, and pyro output call order without a board. |
 | Apogee perturbation experiment | `test/apogee_prediction/evaluate_apogee_prediction.py` | script entrypoint | Replays OpenRocket-derived altitude scenarios with environmental/sensor perturbations and compares apogee aggregation candidates. |
 
 ## Verification Commands
@@ -735,20 +854,7 @@ Board-free checks:
 ```bash
 python3 test/fsm_replay/run_fsm_replay_tests.py
 python3 test/apogee_prediction/evaluate_apogee_prediction.py
-pio run -e build
-pio run -e mock_test
+pio run -e main
+pio run -e debug
+pio run -e debug_no_lora
 ```
-
-`mock_test` is a bench-only build. It defines `NURA_MOCK_TELEMETRY`,
-`NURA_MOCK_AUTO_ARM`, and `NURA_MOCK_SCENARIO_ID=0`, so uploading that
-environment runs the nominal deterministic mock flight without real sensors.
-Other mock scenarios can be selected by changing `NURA_MOCK_SCENARIO_ID`:
-
-| ID | Scenario |
-| ---: | --- |
-| 0 | Nominal flight |
-| 1 | Low apogee |
-| 2 | Barometer noise |
-| 3 | Barometer gust / port pulse |
-| 4 | Barometer dropout |
-| 5 | Pad false acceleration before real launch |

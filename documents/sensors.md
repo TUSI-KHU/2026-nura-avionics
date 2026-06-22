@@ -17,7 +17,7 @@ Target controller: **Teensy 4.1**
 | ADXL377 | High-g analog accelerometer, 200 g class | ADC channel availability, ADC reference sanity, voltage range sanity, axis sign sanity | Characterize per-axis zero-g voltage and sensitivity before flight. Optional boot stationary check can refine offsets after assembly. | High impact. Wrong zero-g voltage or ADC scale corrupts high-g acceleration values. |
 | LIS3MDL | Magnetometer | WHO_AM_I, magnetic range sanity, saturation check | Hard-iron and soft-iron calibration must be done manually after assembly or stored from a prior calibration. Not a full boot-only calibration. | Medium impact unless heading is flight-critical. Bad calibration can make heading unusable near motors, batteries, or steel hardware. |
 | u-blox M6 / NEO-6M | GNSS / position and time | UART response, baud rate, valid NMEA/UBX frames, fix status | No sensor calibration. Configure update rate, message set, and fallback behavior before flight. | Usually non-critical to autonomous recovery logic, but loss of telemetry position hurts tracking and recovery. |
-| RFM96W / RFM95W | Flight LoRa telemetry | SPI register response, frequency band, output power, IRQ pins, packet loopback/range test | No sensor calibration. RF settings and antenna match must be verified before launch. | Not a sensor fault, but telemetry loss can block ground visibility and recovery workflow. |
+| SX1262 | Flight LoRa telemetry | SPI command response, BUSY behavior, DIO1 IRQ, frequency band, output power, packet loopback/range test | No sensor calibration. RF settings and antenna match must be verified before launch. | Not a sensor fault, but telemetry loss can block ground visibility and recovery workflow. |
 
 ## Calibration Timing
 
@@ -37,7 +37,7 @@ Target controller: **Teensy 4.1**
 | Magnetometer | LIS3MDL | Breakout | STEMMA QT LIS3MDL magnetometer. |
 | Pressure / barometer | MS5611 | Breakout | Target pressure sensor for altitude estimation. |
 | GNSS | u-blox M6 / NEO-6M | Breakout | Development module listed as GY-GPS6MV2 / NEO-6M GPS module. |
-| LoRa radio | RFM96W or RFM95W | Module | Target LoRa telemetry radio module. |
+| LoRa radio | SX1262 | PCB | Target flight LoRa telemetry radio. |
 
 ## Flight Sensor Stack
 
@@ -50,8 +50,9 @@ Target controller: **Teensy 4.1**
 | Pressure / barometer | MS5611 | Breakout | Primary altitude estimation sensor. |
 | Pressure / barometer candidate | MPL3115A2 | Breakout | Alternate pressure/altitude sensor. |
 | GNSS | u-blox M6 / NEO-6M | Breakout | Position/time source for development and recovery. |
-| LoRa radio | RFM96W / RFM95W | Module | Target flight telemetry radio. |
-| LoRa radio, development | RA-01 / SX1278 | Breakout | 433 MHz LoRa module for GCS/development testing. |
+| LoRa radio | SX1262 | PCB | Flight transmitter at 920.9 MHz; shares the LoRa PHY profile with ground SX1276. |
+| LoRa radio, ground | SX1276 | Module | Ground receiver at 920.9 MHz. |
+| Battery voltage sense | 3S pack divider | PCB analog input | Telemetry-only pack voltage monitor on D21. Divider ratio is 5.545: 12.6 V maps to 2.2723 V and 11.1 V maps to 2.0018 V at the ADC input. |
 
 ## RF and Cabling
 
@@ -82,9 +83,10 @@ Target controller: **Teensy 4.1**
 | MS5611 pressure sensor | I2C or SPI | HAL present with PROM CRC and ground baseline support. |
 | MPL3115A2 pressure candidate | I2C | HAL present for candidate testing. Select or drop before flight integration. |
 | u-blox M6 / NEO-6M GNSS | UART | HAL/parser scaffold present. Flight task and message configuration still needed. |
-| RFM96W / RFM95W LoRa | SPI + GPIO interrupts | HAL scaffold present. Flight telemetry task and RF configuration still needed. |
-| RA-01 SX1278 development LoRa | SPI + GPIO interrupts | Development radio support only unless selected for GCS testing. |
-| TC4452 MOSFET driver | GPIO output | Pyro/driver control HAL needed. |
+| SX1262 LoRa | SPI + DIO1/BUSY | HAL is integrated with RadioLib. `RXE` D30 and TCXO/reset hardware assumptions need bench confirmation. |
+| SX1276 ground LoRa | SPI + DIO0 | Receiver uses the matching 920.9 MHz LoRa PHY profile. |
+| TC4452 MOSFET driver | GPIO output | MOSFET pyro HAL present; physical output is build-gated by `NURA_ENABLE_PYRO_OUTPUTS` and needs bench validation on final pins: Drogue D28/D29, Main D37/D36. |
+| Battery voltage divider | Analog input | HAL and sensor task present. Publishes `TelemetryState.power.batteryMv` and FAST `batt_mv`; invalid/stale samples downlink as `0`. D21 uses a 10-bit, 3.3 V ADC and a divider ratio of 5.545. |
 
 ## Integration Notes
 

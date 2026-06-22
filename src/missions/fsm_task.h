@@ -9,7 +9,9 @@
 #include "state/high_g_imu_state.h"
 #include "state/imu_state.h"
 #include "state/telemetry_state.h"
+#include "hal/buzzer_output.h"
 #include "hal/panic_handler.h"
+#include "hal/pyro_output.h"
 
 class FlightStateMachineTask : public Task
 {
@@ -22,7 +24,9 @@ public:
                            TelemetryState &telemetryState,
                            Logger &logger,
                            const IAppConfig &config,
-                           IPanicHandler &panicHandler);
+                           IPanicHandler &panicHandler,
+                           IPyroOutput *pyroOutput = nullptr,
+                           IBuzzerOutput *buzzerOutput = nullptr);
 
     const char *name() const;
     bool init() override;
@@ -35,6 +39,14 @@ private:
         NONE = 0U,
         HIGH_G,
         LOW_G,
+    };
+
+    enum class BuzzerPattern : uint8_t
+    {
+        NONE = 0U,
+        INIT_SAFE_SEVEN,
+        ARMED_FLAT_ALERT,
+        TRANSITION_FIVE,
     };
 
     struct AccelSample
@@ -76,6 +88,15 @@ private:
     void tickDeploy(uint32_t nowMs);
     bool tickBenchAutoFlow(uint32_t nowMs);
     void transitionTo(State next, uint32_t nowMs);
+    bool initializePyroOutput(uint32_t nowMs);
+    void initializeBuzzerOutput(uint32_t nowMs);
+    void signalBuzzerTransition(State previous, State next, uint32_t nowMs);
+    void startBuzzerPattern(BuzzerPattern pattern, uint32_t nowMs);
+    void tickBuzzer(uint32_t nowMs);
+    void setBuzzerTone(uint16_t frequencyHz);
+    void pyroAllOff(uint32_t nowMs);
+    void setDroguePyro(bool enabled, uint32_t nowMs);
+    void setMainPyro(bool enabled, uint32_t nowMs);
     bool consumeForceRecoveryDeployRequest(uint32_t nowMs);
     bool forceRecoveryDeployAllowed() const;
     void recordDecision(FlightDecisionKind kind,
@@ -121,6 +142,8 @@ private:
     Logger &logger_;
     const IAppConfig &config_;
     IPanicHandler &panicHandler_;
+    IPyroOutput *pyroOutput_;
+    IBuzzerOutput *buzzerOutput_;
 
     uint8_t launchConfirmCount_ = 0U;
     uint8_t burnoutConfirmCount_ = 0U;
@@ -153,4 +176,8 @@ private:
     bool backupDrogueOn_ = false;
     bool backupDrogueOff_ = false;
     bool mainPyroOff_ = false;
+    BuzzerPattern buzzerPattern_ = BuzzerPattern::NONE;
+    BuzzerPattern queuedBuzzerPattern_ = BuzzerPattern::NONE;
+    uint32_t buzzerPatternStartedMs_ = 0U;
+    uint16_t buzzerToneHz_ = 0U;
 };

@@ -33,6 +33,24 @@ bool radioReady = false;
 uint8_t selectedSpiMode = SPI_MODE0;
 uint8_t selectedSpiModeNumber = 0;
 
+static void printPinmap()
+{
+    Serial.print("pinmap: nss=");
+    Serial.print(LORA_SS_PIN);
+    Serial.print(" rst=");
+    Serial.print(LORA_RESET_PIN);
+    Serial.print(" dio0=");
+    Serial.print(LORA_DIO0_PIN);
+    Serial.print(" mosi=");
+    Serial.print(LORA_MOSI_PIN);
+    Serial.print(" miso=");
+    Serial.print(LORA_MISO_PIN);
+    Serial.print(" sck=");
+    Serial.print(LORA_SCK_PIN);
+    Serial.print(" freq_hz=");
+    Serial.println(LORA_FREQUENCY_HZ);
+}
+
 uint8_t readLoraRegisterRaw(uint8_t address, uint8_t spiMode)
 {
     SPISettings settings(LORA_SPI_FREQUENCY_HZ, MSBFIRST, spiMode);
@@ -187,7 +205,7 @@ void setup()
 
     Serial.println();
     Serial.println("SX1278 LoRa sender on Arduino Uno R3");
-    Serial.println("pinmap: nss=10 rst=9 dio0=2 mosi=11 miso=12 sck=13 freq_hz=433000000");
+    printPinmap();
 
     radioReady = beginRadio();
     if (!radioReady)

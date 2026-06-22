@@ -109,7 +109,7 @@ void setup()
     I2C_BUS.setSDA(I2C_SDA_PIN);
     I2C_BUS.setSCL(I2C_SCL_PIN);
     I2C_BUS.begin();
-    I2C_BUS.setClock(BoardPinMap::I2cBus::clockHz);
+    I2C_BUS.setClock(BoardPinMap::I2c1Bus::clockHz);
 
     if (!baro.begin())
     {

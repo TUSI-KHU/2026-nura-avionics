@@ -61,8 +61,13 @@ the first free name from `FL000.NLG` through `FL999.NLG`.
 SD failure must not affect the flight state machine. When flash and SD are both
 enabled, `FlightLogMirrorStorage` keeps writing as long as at least one target
 accepts the record. A failed target is disabled for the rest of the session.
-The current app build enables program flash as the primary path and SD as the
-mirror path.
+
+The current three PlatformIO environments define
+`NURA_DISABLE_PROGRAM_FLASH_LOG`: program flash is represented by a
+`NullFlightLogStorage`, while SD remains the required active logger. Thus every
+current `main`, `debug`, and `debug_no_lora` build records the complete log
+stream to SD without mounting or writing program flash. Remove that flag only
+after program-flash hardware validation is complete.
 
 ## Buffering
 

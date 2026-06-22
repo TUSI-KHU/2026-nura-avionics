@@ -8,11 +8,27 @@ Shared SPI wiring for H3LIS331DL, the low-g IMU, and LoRa:
 - MOSI: 11
 - MISO: 12
 - SCK: 13
-- Low-g IMU CS: 6
-- H3LIS331DL CS: 7
-- LoRa NSS/SS: 10
-- LoRa RST: 9
-- LoRa DIO0: 2
+- Low-g IMU CS: 10
+- H3LIS331DL CS: 0
+- LoRa NSS/SS: 9
+- LoRa RST/RXE: 30
+- LoRa DIO0: 31
+- LoRa BUSY/reserved: 32
+
+I2C wiring on the current PCB:
+
+- MPL3115A2: Wire / SDA0 18 / SCL0 19
+- LIS3MDL: Wire1 / SDA1 17 / SCL1 16
+
+Other current PCB pins:
+
+- GPS TX -> 15 / RX3, GPS RX -> 14 / TX3
+- Buzzer: 2
+- LED1: 34
+- LED2: 33
+- Pyro 1 / Drogue: gpio1 20, gpio2 21, sense 25
+- Pyro 2 / Main: gpio1 37, gpio2 36, sense 40
+- Battery voltage sense: 21, conflicts with Pyro 1 gpio2 until the schematic is clarified.
 
 Usage:
 

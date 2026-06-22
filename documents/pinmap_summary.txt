@@ -1,86 +1,89 @@
-    NURA current stack PCB pinmap summary
-Generated from the verified Teensy 4.1 smoke-test pinmap.
+NURA current PCB pinmap summary
 
 Scope
-- Carrier PCB for module breakouts.
-- All sensor/module VCC pins use Teensy 3.3V, not VIN.
-- All GND pins share the same common ground.
-- I2C bus is Wire1: SDA1=D17, SCL1=D16, 100 kHz.
-- SPI bus is shared: MOSI=D11, MISO=D12, SCK=D13.
+- Teensy 4.1 avionics PCB pin assignment from the current board bring-up notes.
+- All sensor/module VCC pins use the Teensy 3.3 V rail unless the hardware schematic says otherwise.
+- All GND pins share the common avionics ground.
+- Pin ownership lives in include/board_pinmap.h. This file is the human wiring checklist.
 
-Global power
-- +3V3: Teensy 3.3V rail to all sensors/modules.
-- GND: common ground to all sensors/modules.
-- Do not feed 5V/VIN into LIS3MDL, MPL3115A2, LSM6DSO32, H3LIS331DL, or SX1278 VCC.
+Pin ownership check
+- Pyro 1 is the drogue channel and uses D28/D29; Pyro 2 is the main channel and uses D37/D36.
+- Battery voltage sense uses D21.
+- These assignments do not overlap. Firmware records this with
+  BoardPinMap::PowerSense::conflictsWithPyroOutput, which must remain false for flight hardware.
 
-I2C bus, confirmed working
-- Teensy D17 / SDA1 -> I2C_SDA
-- Teensy D16 / SCL1 -> I2C_SCL
-- R1: 4.7 kOhm from I2C_SDA to +3V3
-- R2: 4.7 kOhm from I2C_SCL to +3V3
-- Only one pull-up pair is required on the bus.
+Power / indicators
+- Buzzer -> D2.
+- Buzzer state feedback: INIT->SAFE seven medium-pitch tones; SAFE->ARMED 5 s
+  continuous alert; all remaining transitions five quick tones.
+- LED1 -> D34.
+- LED2 -> D33.
+- Battery voltage sense -> D21.
+- Divider calibration: pack voltage / 5.545. At 12.6 V the ADC input is
+  2.2723 V; at 11.1 V it is 2.0018 V.
+- Firmware samples the divider with a 10-bit ADC. With a 3.3 V ADC reference,
+  the expected codes are approximately 704 at 12.6 V and 620 at 11.1 V.
+  Pack voltage is encoded to telemetry as FAST batt_mv in millivolts.
 
-LIS3MDL magnetometer, I2C address 0x1C
-- VIN/VCC -> +3V3
-- GND -> GND
-- SCL -> Teensy D16 / SCL1
-- SDA -> Teensy D17 / SDA1
-- CS -> +3V3. This forces I2C mode.
-- DO/SDO -> GND. This selects I2C address 0x1C.
+I2C0, MPL3115A2 barometer
+- Bus: Wire.
+- SDA0 -> D18.
+- SCL0 -> D19.
+- Address: 0x60.
+- Recommended pull-ups: one SDA/SCL pull-up pair to 3.3 V on this bus if the PCB/module does not already provide it.
+
+I2C1, LIS3MDL magnetometer
+- Bus: Wire1.
+- SDA1 -> D17.
+- SCL1 -> D16.
+- Address: 0x1C when DO/SDO is tied to GND.
+- LIS CS -> 3.3 V to force I2C mode.
+- LIS DO/SDO -> GND to select address 0x1C.
 - Top/additional GND pad -> GND.
-- Critical PCB rule: CS must not float; DO/SDO must not float.
+- Recommended pull-ups: one SDA/SCL pull-up pair to 3.3 V on this bus if the PCB/module does not already provide it.
 
-MPL3115A2 barometer, I2C address 0x60
-- VIN/VCC -> +3V3
-- GND -> GND
-- SCL -> Teensy D16 / SCL1
-- SDA -> Teensy D17 / SDA1
+Shared SPI0, LSM6DSO32 and H3LIS331DL
+- SPI bus: SPI.
+- MISO0 -> D12.
+- MOSI0 -> D11.
+- SCK0 -> D13.
+- H3LIS331DL CS -> D0.
+- LSM6DSO32 CS -> D10.
+- Both sensors use 3.3 V logic and common GND.
 
-LSM6DSO32 low-g IMU, SPI
-- VIN/VCC -> +3V3, not VIN/5V
-- GND -> GND
-- SCL/SCK -> Teensy D13 / SPI_SCK
-- SDA/SDI/MOSI -> Teensy D11 / SPI_MOSI
-- DO/SDO/MISO -> Teensy D12 / SPI_MISO
-- CS -> Teensy D6
-- INT1 -> Teensy D5, optional/reserved
-- INT2 -> Teensy D4, optional/reserved
+GPS, GY-GPS6MV2 / u-blox M6
+- UART: Serial3.
+- GPS TX -> Teensy RX3 / D15.
+- GPS RX -> Teensy TX3 / D14.
+- Baud: 9600 by current firmware default.
 
-H3LIS331DL high-g accelerometer, SPI
-- VIN/VCC -> +3V3
-- GND -> GND
-- SCL/SCK -> Teensy D13 / SPI_SCK
-- SDA/SDI/MOSI -> Teensy D11 / SPI_MOSI
-- SA0/SDO/MISO -> Teensy D12 / SPI_MISO
-- CS -> Teensy D7
-- INT1 -> Teensy D3, optional/reserved
-- INT2 -> Teensy D8, optional/reserved
+LoRa, flight SX1262
+- SPI data bus: SPI0 D11/D12/D13.
+- NSS -> D9.
+- RXE -> D30. This is not an SX1262 reset pin; its required polarity and TX/RX behavior must be confirmed from the PCB schematic before flight-radio enable.
+- DIO1 -> D31.
+- BUSY -> D32. SX1262 initialization requires this signal.
+- No Teensy-controlled SX1262 `NRESET` net is currently recorded. The SX1262 HAL must use a no-reset configuration unless the schematic identifies another connection.
 
-SX1278 / Ra-01 LoRa, SPI
-- VCC -> +3V3
-- GND -> GND
-- SCK -> Teensy D13 / SPI_SCK
-- MOSI -> Teensy D11 / SPI_MOSI
-- MISO -> Teensy D12 / SPI_MISO
-- NSS/CS -> Teensy D10
-- RST -> Teensy D9
-- DIO0 -> Teensy D2
-- DIO1/DIO2 are not used by the current smoke test.
+Pyro channels, firing order
+- Pyro 1 / Drogue gpio1 -> D28.
+- Pyro 1 / Drogue gpio2 -> D29.
+- Pyro 1 / Drogue sense -> D25.
+- Pyro 2 / Main gpio1 -> D37.
+- Pyro 2 / Main gpio2 -> D36.
+- Pyro 2 / Main sense -> D40.
+- MOSFET HAL exists, but real GPIO output is dry-run unless `NURA_ENABLE_PYRO_OUTPUTS` is defined.
+- The D21 voltage-sense input is distinct from both pyro channels. Before enabling
+  real output, still LED/scope-test D28/D29/D36/D37 with no e-matches attached.
 
-GY-GPS6MV2 / u-blox M6 GPS, UART Serial3
-- VCC -> +3V3
-- GND -> GND
-- GPS TX -> Teensy D15 / RX3
-- GPS RX -> Teensy D14 / TX3
+SPI1 reserved / secondary SPI pads
+- MISO1 -> D1.
+- MOSI1 -> D26.
+- SCK1 -> D27.
+- No current sensor task uses SPI1 yet.
 
-Smoke-test result represented by this pinmap
-- I2C: LIS3MDL at 0x1C PASS, MPL3115A2 at 0x60 PASS
-- SPI: LSM6DSO32 PASS, H3LIS331DL PASS, SX1278 PASS
-- UART: GPS NMEA PASS
-
-PCB notes before fabrication
-- The KiCad board is a module-carrier wiring template using generic 2.54 mm headers.
-- Verify each breakout module's physical pin order before ordering a PCB.
-- Keep the SX1278/Ra-01 3.3V rail short and decoupled; LoRa TX current pulses are large.
-- Put at least 100 nF decoupling near each module VCC/GND pair.
-- Keep I2C traces short and route SDA/SCL together away from LoRa RF output.
+Expected quick bring-up observations
+- I2C scanner should find MPL3115A2 at 0x60 on Wire 18/19.
+- I2C scanner should find LIS3MDL at 0x1C on Wire1 17/16.
+- SPI0 WHOAMI/probe should use LSM6DSO32 CS D10 and H3LIS331DL CS D0.
+- LoRa probe should use NSS D9, reset/enable D30, DIO0 D31.

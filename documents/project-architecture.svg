@@ -132,7 +132,7 @@
   <text class="mono" x="1050" y="599">UbloxM6HAL</text>
   <text class="body" x="1050" y="618">Serial GNSS</text>
   <rect class="card" x="1186" y="574" width="138" height="58" rx="6"/>
-  <text class="mono" x="1206" y="599">Sx127xHAL</text>
+  <text class="mono" x="1206" y="599">SX1262HAL</text>
   <text class="body" x="1206" y="618">LoRa radio</text>
   <rect class="card" x="718" y="654" width="138" height="46" rx="6"/>
   <text class="mono" x="738" y="682">H3LIS331DL</text>

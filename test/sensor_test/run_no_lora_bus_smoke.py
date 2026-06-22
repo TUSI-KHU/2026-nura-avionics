@@ -240,10 +240,11 @@ def print_wiring_hint() -> None:
     print(
         """
 No-LoRa smoke test wiring:
-  I2C  SDA=17 SCL=16  -> LIS3MDL, MPL3115A2
+  I2C0 SDA=18 SCL=19  -> MPL3115A2
+  I2C1 SDA=17 SCL=16  -> LIS3MDL
   SPI  MOSI=11 MISO=12 SCK=13
-       LSM6DSO32 CS=6
-       H3LIS331DL CS=7
+       LSM6DSO32 CS=10
+       H3LIS331DL CS=0
   UART GPS TX->15 RX3, GPS RX->14 TX3 baud=9600
   LoRa must stay disconnected for this script.
 """.strip(),

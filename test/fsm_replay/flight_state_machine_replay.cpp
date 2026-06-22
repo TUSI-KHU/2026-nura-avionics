@@ -58,6 +58,83 @@ struct FakePanicHandler : public IPanicHandler
     void panic() override { panicked = true; }
 };
 
+struct RecordingPyroOutput : public IPyroOutput
+{
+    bool beginCalled = false;
+    bool drogueEnabled = false;
+    bool mainEnabled = false;
+    uint8_t allOffCount = 0U;
+    uint8_t drogueOnCount = 0U;
+    uint8_t drogueOffCount = 0U;
+    uint8_t mainOnCount = 0U;
+    uint8_t mainOffCount = 0U;
+
+    bool begin() override
+    {
+        beginCalled = true;
+        return true;
+    }
+
+    void allOff() override
+    {
+        ++allOffCount;
+        drogueEnabled = false;
+        mainEnabled = false;
+    }
+
+    void setDrogue(bool enabled) override
+    {
+        drogueEnabled = enabled;
+        if (enabled)
+        {
+            ++drogueOnCount;
+        }
+        else
+        {
+            ++drogueOffCount;
+        }
+    }
+
+    void setMain(bool enabled) override
+    {
+        mainEnabled = enabled;
+        if (enabled)
+        {
+            ++mainOnCount;
+        }
+        else
+        {
+            ++mainOffCount;
+        }
+    }
+};
+
+struct RecordingBuzzerOutput : public IBuzzerOutput
+{
+    bool beginCalled = false;
+    uint16_t currentFrequencyHz = 0U;
+    uint16_t toneCount = 0U;
+    uint16_t silenceCount = 0U;
+
+    bool begin() override
+    {
+        beginCalled = true;
+        return true;
+    }
+
+    void playTone(uint16_t frequencyHz) override
+    {
+        currentFrequencyHz = frequencyHz;
+        ++toneCount;
+    }
+
+    void silence() override
+    {
+        currentFrequencyHz = 0U;
+        ++silenceCount;
+    }
+};
+
 struct BaroFilter
 {
     float window[NuraConstants::Sensors::kBarometerMedianWindowSamples] = {0.0f, 0.0f, 0.0f};
@@ -834,6 +911,186 @@ bool checkHighGPreferredOverLowG()
     return pass("high_g_preferred");
 }
 
+bool checkPyroOutputSequence()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    RecordingPyroOutput pyro;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic, &pyro);
+    fsm.init();
+    fsm.tick(0U);
+
+    flight.state = State::COAST;
+    flight.stateEnteredMs = 1000U;
+    flight.launchMs = 0U;
+    flight.coastMs = 1000U;
+    flight.forceRecoveryDeployRequested = true;
+    flight.forceRecoveryDeployRequestSeq = 7U;
+
+    const uint32_t apogeeMs = 9000U;
+    fsm.tick(apogeeMs);
+    if (flight.state != State::APOGEE || !pyro.drogueEnabled || pyro.drogueOnCount != 1U)
+    {
+        return fail("pyro_output_sequence", "drogue did not fire on APOGEE entry");
+    }
+
+    fsm.tick(apogeeMs + NuraConstants::Flight::kPyroFireDurationMs);
+    if (pyro.drogueEnabled || pyro.drogueOffCount != 1U)
+    {
+        return fail("pyro_output_sequence", "drogue primary pulse did not turn off");
+    }
+
+    fsm.tick(apogeeMs + NuraConstants::Flight::kDrogueBackupDelayMs);
+    if (!pyro.drogueEnabled || pyro.drogueOnCount != 2U)
+    {
+        return fail("pyro_output_sequence", "drogue retry pulse did not turn on");
+    }
+
+    const uint32_t drogueMs = apogeeMs +
+                              NuraConstants::Flight::kDrogueBackupDelayMs +
+                              NuraConstants::Flight::kPyroFireDurationMs;
+    fsm.tick(drogueMs);
+    if (flight.state != State::DROGUE || pyro.drogueEnabled || pyro.drogueOffCount != 2U)
+    {
+        return fail("pyro_output_sequence", "drogue retry pulse did not complete");
+    }
+
+    const uint32_t deployMs = drogueMs + NuraConstants::Flight::kMainTimeoutMs;
+    fsm.tick(deployMs);
+    if (flight.state != State::DEPLOY || !pyro.mainEnabled || pyro.mainOnCount != 1U)
+    {
+        return fail("pyro_output_sequence", "main did not fire on DEPLOY entry");
+    }
+
+    fsm.tick(deployMs + NuraConstants::Flight::kPyroFireDurationMs);
+    if (pyro.mainEnabled || pyro.mainOffCount != 1U || !flight.mainSequenceComplete)
+    {
+        return fail("pyro_output_sequence", "main pulse did not turn off");
+    }
+
+    return pass("pyro_output_sequence");
+}
+
+bool checkBuzzerStateTransitionPatterns()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    RecordingBuzzerOutput buzzer;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic, nullptr, &buzzer);
+    fsm.init();
+
+    fsm.tick(0U);
+    if (!buzzer.beginCalled ||
+        buzzer.currentFrequencyHz != NuraConstants::Buzzer::kInitSafeToneFrequencyHz)
+    {
+        return fail("buzzer_patterns", "INIT to SAFE did not start the first medium tone");
+    }
+
+    fsm.tick(kTickMs);
+    fsm.tick(NuraConstants::Buzzer::kInitSafeBeepMs);
+    if (buzzer.currentFrequencyHz != 0U)
+    {
+        return fail("buzzer_patterns", "INIT to SAFE seven-tone pattern did not include its first gap");
+    }
+
+    const uint32_t initSlotMs = NuraConstants::Buzzer::kInitSafeBeepMs +
+                                NuraConstants::Buzzer::kInitSafeGapMs;
+    fsm.tick(initSlotMs * 6U);
+    if (buzzer.currentFrequencyHz != NuraConstants::Buzzer::kInitSafeToneFrequencyHz)
+    {
+        return fail("buzzer_patterns", "INIT to SAFE seven-tone pattern did not play its seventh tone");
+    }
+
+    const uint32_t alertStartMs = initSlotMs * NuraConstants::Buzzer::kInitSafeBeepCount;
+    fsm.tick(alertStartMs);
+    if (buzzer.currentFrequencyHz != NuraConstants::Buzzer::kArmedAlertToneFrequencyHz)
+    {
+        return fail("buzzer_patterns", "SAFE to ARMED flat alert did not start after seven tones");
+    }
+
+    for (uint8_t i = 0U; i < NuraConstants::Flight::kLaunchConfirmSamples; ++i)
+    {
+        const uint32_t nowMs = alertStartMs + 100U + (static_cast<uint32_t>(i) * kTickMs);
+        publishHighGNorm(highG, telemetry, NuraConstants::Flight::kLaunchAccelThresholdG + 0.5f, nowMs);
+        fsm.tick(nowMs);
+    }
+    if (flight.state != State::LAUNCH || buzzer.currentFrequencyHz != NuraConstants::Buzzer::kToneFrequencyHz)
+    {
+        return fail("buzzer_patterns", "ARMED to LAUNCH did not replace the alert with five tones");
+    }
+
+    const uint32_t launchMs = alertStartMs + 100U +
+                              ((NuraConstants::Flight::kLaunchConfirmSamples - 1U) * kTickMs);
+    fsm.tick(launchMs + NuraConstants::Buzzer::kTransitionBeepMs);
+    if (buzzer.currentFrequencyHz != 0U)
+    {
+        return fail("buzzer_patterns", "five-tone transition pattern did not include a gap");
+    }
+    fsm.tick(launchMs + (NuraConstants::Buzzer::kTransitionBeepMs +
+                         NuraConstants::Buzzer::kTransitionGapMs));
+    if (buzzer.currentFrequencyHz != NuraConstants::Buzzer::kToneFrequencyHz)
+    {
+        return fail("buzzer_patterns", "five-tone transition pattern did not repeat");
+    }
+
+    const uint32_t transitionDurationMs =
+        (NuraConstants::Buzzer::kTransitionBeepMs + NuraConstants::Buzzer::kTransitionGapMs) *
+        NuraConstants::Buzzer::kTransitionBeepCount;
+    fsm.tick(launchMs + transitionDurationMs);
+    for (uint8_t i = 0U; i < NuraConstants::Flight::kBurnoutConfirmSamples; ++i)
+    {
+        const uint32_t nowMs = launchMs + transitionDurationMs + 100U +
+                               (static_cast<uint32_t>(i) * kTickMs);
+        publishHighGNorm(highG, telemetry, NuraConstants::Flight::kBurnoutAccelThresholdG - 0.3f, nowMs);
+        fsm.tick(nowMs);
+    }
+    if (flight.state != State::COAST || buzzer.currentFrequencyHz != NuraConstants::Buzzer::kToneFrequencyHz)
+    {
+        return fail("buzzer_patterns", "LAUNCH to COAST did not start the common five tones");
+    }
+
+    const uint32_t coastMs = launchMs + transitionDurationMs + 100U +
+                             ((NuraConstants::Flight::kBurnoutConfirmSamples - 1U) * kTickMs);
+    const uint32_t transitionSlotMs = NuraConstants::Buzzer::kTransitionBeepMs +
+                                      NuraConstants::Buzzer::kTransitionGapMs;
+    for (uint8_t i = 0U; i < NuraConstants::Buzzer::kTransitionBeepCount; ++i)
+    {
+        fsm.tick(coastMs + (static_cast<uint32_t>(i) * transitionSlotMs) +
+                 NuraConstants::Buzzer::kTransitionBeepMs);
+        if (buzzer.currentFrequencyHz != 0U)
+        {
+            return fail("buzzer_patterns", "common five-tone transition missed a gap");
+        }
+        if ((i + 1U) < NuraConstants::Buzzer::kTransitionBeepCount)
+        {
+            fsm.tick(coastMs + (static_cast<uint32_t>(i + 1U) * transitionSlotMs));
+            if (buzzer.currentFrequencyHz != NuraConstants::Buzzer::kToneFrequencyHz)
+            {
+                return fail("buzzer_patterns", "common five-tone transition missed a tone");
+            }
+        }
+    }
+    fsm.tick(coastMs + transitionDurationMs);
+    if (buzzer.currentFrequencyHz != 0U || buzzer.toneCount < 10U)
+    {
+        return fail("buzzer_patterns", "common five-tone transition did not complete");
+    }
+
+    return pass("buzzer_patterns");
+}
+
 #if defined(NURA_BENCH_FSM_AUTOFLOW)
 bool checkBenchAutoFlow()
 {
@@ -900,6 +1157,8 @@ int main()
     ok = checkLowGFallbackLaunch() && ok;
     ok = checkLowGFallbackBurnout() && ok;
     ok = checkHighGPreferredOverLowG() && ok;
+    ok = checkPyroOutputSequence() && ok;
+    ok = checkBuzzerStateTransitionPatterns() && ok;
     ok = checkAbortToSafe() && ok;
     ok = checkForceDeployFromCoast() && ok;
     ok = checkForceDeployRejectedOnPad() && ok;

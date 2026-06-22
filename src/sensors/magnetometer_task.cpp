@@ -79,7 +79,7 @@ bool MagnetometerTask::initialize(uint32_t nowMs)
     for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
     {
         ok = magnetometer_.begin(BoardPinMap::LIS3MDL::i2cAddress,
-                                 BoardPinMap::I2cBus::wire());
+                                 BoardPinMap::LIS3MDL::wire());
         if (ok)
         {
             break;
