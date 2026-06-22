@@ -89,13 +89,16 @@ used outside the bench.
 
 The experimental `debug_radio_bench` environment runs the real sensor and FSM
 tasks while holding RXE D30 low behind `NURA_BENCH_SX1262_RXE_LOW`. Its purpose
-is downlink telemetry integration on the bench; it is forbidden for flight and
-does not enable physical pyro outputs. The LOW assumption comes from the
-successful 2026-06-22 2 dBm SX1262-to-SX1276 bench test. Acceptance requires
-SX1262 initialization, authenticated FAST/GPS reception, increasing sequence
-numbers, and zero decode failures. RXE polarity and bidirectional switching
-must still be confirmed from the PCB schematic before the flight build may
-drive this pin.
+is downlink telemetry integration on the bench; it also limits output to the
+ground-tested 2 dBm through `NURA_BENCH_RADIO_TX_POWER_DBM`. It is forbidden
+for flight and does not enable physical pyro outputs. It also defines
+`NURA_BENCH_RADIO_DOWNLINK_ONLY`, so the HAL does not enter receive mode while
+RXE is held low. The RXE LOW, 2 dBm, and downlink-only settings come from the
+successful 2026-06-22 SX1262-to-SX1276 bench test.
+Acceptance requires SX1262 initialization, authenticated FAST/GPS reception,
+increasing sequence numbers, and zero decode failures. RXE polarity and
+bidirectional switching must still be confirmed from the PCB schematic before
+the flight build may drive this pin.
 
 At SF7/BW125/CR4/5/preamble 8/CRC on/explicit header, approximate airtime is:
 

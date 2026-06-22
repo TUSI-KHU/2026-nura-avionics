@@ -6,8 +6,11 @@ Use the `sx1276_ground` environment for the 920.9 MHz SX1276 ground radio.
 The default `teensy41` environment remains the 433 MHz development setup.
 The SX1276 ground environment fixes the SPI bus to MODE0; automatic mode
 probing remains limited to the development environment.
-The standalone ground wiring is `CS=10`, `RESET=9`, and `DIO0=2`; it is
-intentionally independent of the flight-computer pin map.
+The standalone ground wiring is `CS=10`, `RESET=9`, `DIO0=2`, `RXEN=4`, and
+`TXEN=3`; it is intentionally independent of the flight-computer pin map.
+The receive-only SX1276 environment drives `RXEN=HIGH` and `TXEN=LOW`. This
+polarity is a bench assumption that must be checked against the module
+datasheet before enabling ground uplink transmission.
 
 The implementation follows `documents/nura_lora_packet_protocol_v1.md` and the shared protocol header in `protocol/include/nura_protocol_v1_lite.h`.
 

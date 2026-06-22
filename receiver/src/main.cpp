@@ -22,6 +22,8 @@ constexpr uint8_t kLoraSsPin = 10U;
 constexpr uint8_t kLoraResetPin = 9U;
 constexpr int8_t kLoraLibraryResetPin = -1;
 constexpr uint8_t kLoraDio0Pin = 2U;
+constexpr uint8_t kLoraRxEnablePin = 4U;
+constexpr uint8_t kLoraTxEnablePin = 3U;
 constexpr int kLoraTxPowerDbm = 10;
 constexpr int kLoraSpreadingFactor = 7;
 constexpr long kLoraSignalBandwidthHz = 125000L;
@@ -85,6 +87,16 @@ PendingCommand pending;
 void beginSpi()
 {
     SPI.begin();
+}
+
+void configureRfSwitchForReceive()
+{
+#if defined(NURA_GROUND_SX1276)
+    pinMode(kLoraRxEnablePin, OUTPUT);
+    pinMode(kLoraTxEnablePin, OUTPUT);
+    digitalWrite(kLoraTxEnablePin, LOW);
+    digitalWrite(kLoraRxEnablePin, HIGH);
+#endif
 }
 
 void printHexByte(uint8_t value)
@@ -751,6 +763,7 @@ void setup()
     Serial.print("mode=");
     Serial.println(kAutoCommandTestEnabled ? "pair_test_auto_commands" : "telemetry_receive_only");
 
+    configureRfSwitchForReceive();
     radioReady = beginRadio();
     if (!radioReady)
     {

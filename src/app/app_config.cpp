@@ -134,7 +134,11 @@ uint32_t DefaultAppConfig::loraSpiFrequencyHz() const
 
 int DefaultAppConfig::loraTxPowerDbm() const
 {
+#if defined(NURA_BENCH_RADIO_TX_POWER_DBM)
+    return NURA_BENCH_RADIO_TX_POWER_DBM;
+#else
     return NuraConstants::LoRa::kFlightTxPowerDbm;
+#endif
 }
 
 int DefaultAppConfig::loraSpreadingFactor() const

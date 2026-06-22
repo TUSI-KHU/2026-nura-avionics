@@ -10,6 +10,12 @@ The ground SX1276 uses the flight link profile: 920.9 MHz, BW 125 kHz, SF7,
 CR 4/5, preamble 8, sync word `0x12`, explicit header, and LoRa PHY CRC
 enabled. These settings must match the avionics SX1262 exactly.
 
+The current ground-module bench wiring uses `RXEN=D4` and `TXEN=D3`. The
+receive-only `sx1276_ground` build drives RXEN high and TXEN low before radio
+initialization. That polarity is an unverified bench assumption supplied with
+the current wiring and must be checked against the module datasheet before any
+uplink/transmit path drives the RF switch.
+
 A separate `pair_test` PlatformIO environment enables automatic CONTROL/CMD transmission for the two-board bench protocol test only.
 
 ## Inputs and Units

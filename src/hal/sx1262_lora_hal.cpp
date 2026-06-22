@@ -37,12 +37,18 @@ bool Sx1262LoRaHAL::begin(const Sx1262LoRaConfig &config)
     }
 
     if (!succeeded(radio_.explicitHeader()) ||
-        !succeeded(radio_.setCRC(config.crcEnabled ? 2U : 0U)) ||
-        !startReceive())
+        !succeeded(radio_.setCRC(config.crcEnabled ? 2U : 0U)))
     {
         radio_.sleep();
         return false;
     }
+#if !defined(NURA_BENCH_RADIO_DOWNLINK_ONLY)
+    if (!startReceive())
+    {
+        radio_.sleep();
+        return false;
+    }
+#endif
 
     initialized_ = true;
     return true;
@@ -64,14 +70,33 @@ bool Sx1262LoRaHAL::send(const uint8_t *data, size_t length)
         return false;
     }
 
-    const bool transmitted = succeeded(radio_.transmit(data, length));
-    const bool receiving = startReceive();
+    const int16_t transmitState = radio_.transmit(data, length);
+    int16_t receiveState = RADIOLIB_ERR_NONE;
+#if !defined(NURA_BENCH_RADIO_DOWNLINK_ONLY)
+    receiveState = radio_.startReceive();
+#endif
+#if defined(NURA_BENCH_SX1262_RXE_LOW)
+    if (!succeeded(transmitState) || !succeeded(receiveState))
+    {
+        Serial.print("SX1262_TX_STATE=");
+        Serial.print(transmitState);
+        Serial.print(" RX_STATE=");
+        Serial.println(receiveState);
+    }
+#endif
+    const bool transmitted = succeeded(transmitState);
+    const bool receiving = succeeded(receiveState);
     return transmitted && receiving;
 }
 
 bool Sx1262LoRaHAL::receive(uint8_t *buffer, size_t capacity, Sx1262LoRaPacket &packet)
 {
     packet = Sx1262LoRaPacket{};
+#if defined(NURA_BENCH_RADIO_DOWNLINK_ONLY)
+    (void)buffer;
+    (void)capacity;
+    return false;
+#else
     if (!initialized_ || buffer == nullptr || capacity == 0U)
     {
         return false;
@@ -97,6 +122,7 @@ bool Sx1262LoRaHAL::receive(uint8_t *buffer, size_t capacity, Sx1262LoRaPacket &
 
     packet.length = receivedLength;
     return true;
+#endif
 }
 
 int Sx1262LoRaHAL::rssi()
