@@ -11,6 +11,7 @@ bool MPL3115A2HAL::begin(TwoWire &wire,
 {
     initialized_ = false;
     groundBaselineValid_ = false;
+    conversionPending_ = false;
     conversionTimeoutMs_ = conversionTimeoutMs;
     seaLevelPressureHpa_ = seaLevelPressureHpa;
 
@@ -20,6 +21,7 @@ bool MPL3115A2HAL::begin(TwoWire &wire,
     }
 
     sensor_.setMode(MPL3115A2_BAROMETER);
+    sensor_.write8(MPL3115A2_CTRL_REG1, NuraConstants::MPL3115A2::kFastBarometerCtrlReg1);
     sensor_.setSeaPressure(seaLevelPressureHpa_);
 
     initialized_ = true;
@@ -55,6 +57,41 @@ bool MPL3115A2HAL::read(Mpl3115a2Reading &out, uint32_t nowMs)
     out.sampleMs = nowMs;
 
     return true;
+}
+
+Mpl3115a2PollResult MPL3115A2HAL::poll(Mpl3115a2Reading &out, uint32_t nowMs)
+{
+    out = Mpl3115a2Reading{};
+    if (!initialized_)
+    {
+        return Mpl3115a2PollResult::ERROR;
+    }
+
+    if (!conversionPending_)
+    {
+        startConversion(nowMs);
+        return Mpl3115a2PollResult::PENDING;
+    }
+
+    if (sensor_.conversionComplete())
+    {
+        conversionPending_ = false;
+        if (!readConversionResult(out, nowMs))
+        {
+            startConversion(nowMs);
+            return Mpl3115a2PollResult::ERROR;
+        }
+        startConversion(nowMs);
+        return Mpl3115a2PollResult::READY;
+    }
+
+    if ((nowMs - conversionStartMs_) > conversionTimeoutMs_)
+    {
+        conversionPending_ = false;
+        return Mpl3115a2PollResult::ERROR;
+    }
+
+    return Mpl3115a2PollResult::PENDING;
 }
 
 void MPL3115A2HAL::setSeaLevelPressureHpa(float seaLevelPressureHpa)
@@ -122,6 +159,32 @@ void MPL3115A2HAL::clearGroundBaseline()
 bool MPL3115A2HAL::groundBaselineValid() const
 {
     return groundBaselineValid_;
+}
+
+void MPL3115A2HAL::startConversion(uint32_t nowMs)
+{
+    sensor_.setMode(MPL3115A2_BAROMETER);
+    sensor_.startOneShot();
+    conversionStartMs_ = nowMs;
+    conversionPending_ = true;
+}
+
+bool MPL3115A2HAL::readConversionResult(Mpl3115a2Reading &out, uint32_t nowMs)
+{
+    const float pressureHpa = sensor_.getLastConversionResults(MPL3115A2_PRESSURE);
+    const float pressurePa = pressureHpa * NuraConstants::MPL3115A2::kHpaToPa;
+    const float temperatureC = sensor_.getLastConversionResults(MPL3115A2_TEMPERATURE);
+    if (!validPressure(pressurePa) || !isfinite(temperatureC))
+    {
+        return false;
+    }
+
+    out.pressurePa = pressurePa;
+    out.pressureHpa = pressureHpa;
+    out.temperatureC = temperatureC;
+    out.relativeAltitudeM = groundBaselineValid_ ? pressureToAltitudeM(pressurePa, groundPressurePa_) : 0.0f;
+    out.sampleMs = nowMs;
+    return true;
 }
 
 bool MPL3115A2HAL::waitForConversion()

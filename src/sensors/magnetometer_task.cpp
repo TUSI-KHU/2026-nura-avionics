@@ -69,7 +69,13 @@ uint32_t MagnetometerTask::periodMs() const
 
 bool MagnetometerTask::recover(uint32_t nowMs)
 {
-    return initialize(nowMs);
+    (void)nowMs;
+    const bool ok = magnetometer_.begin(BoardPinMap::LIS3MDL::i2cAddress,
+                                        BoardPinMap::LIS3MDL::wire());
+    magnetometerState_.connected = ok;
+    magnetometerState_.hasNewData = false;
+    telemetryState_.health.magOk = false;
+    return ok;
 }
 
 bool MagnetometerTask::initialize(uint32_t nowMs)

@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="BackendCodeEditorMiscSettings">
-    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="4" type="long" />
+    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="6" type="long" />
     <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexedValue" value="true" type="bool" />
   </component>
   <component name="CMakeProjectFlavorService">
@@ -21,45 +21,24 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="로거 완성 + 기말고사전까지 쉬다올게요">
+    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="실기판기반 핀맵수정 &amp; 로거로직추가 &amp; 파이로 로직추가 &amp; 버저 구현 추가 &amp; 배터리 전압 체킹 및 변환 로직추가 &amp; pcb lora sx1276으로 변">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/documents/flight_logging_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/flight_logging_v1.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/documents/ground_receiver_telemetry_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/ground_receiver_telemetry_v1.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/documents/nura_current_stack_pcb_diagram.svg" beforeDir="false" afterPath="$PROJECT_DIR$/documents/nura_current_stack_pcb_diagram.svg" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/documents/nura_lora_packet_protocol_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/nura_lora_packet_protocol_v1.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/documents/pinmap_summary.txt" beforeDir="false" afterPath="$PROJECT_DIR$/documents/pinmap_summary.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/documents/project-architecture.svg" beforeDir="false" afterPath="$PROJECT_DIR$/documents/project-architecture.svg" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/documents/sensors.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/sensors.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/include/board_pinmap.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/board_pinmap.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/include/nura_constants.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/nura_constants.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/platformio.ini" beforeDir="false" afterPath="$PROJECT_DIR$/platformio.ini" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/receiver/src/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/receiver/src/main.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/app_config.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/app_config.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/flight_controller_app.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/flight_controller_app.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/flight_controller_app.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/flight_controller_app.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/core/scheduler.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/scheduler.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/scheduler.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/scheduler.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/mpl3115a2_hal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/mpl3115a2_hal.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/hal/mpl3115a2_hal.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/mpl3115a2_hal.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/sx1262_lora_hal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/sx1262_lora_hal.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hal/sx1262_lora_hal.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/sx1262_lora_hal.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/missions/telemetry_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/telemetry_task.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/missions/telemetry_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/telemetry_task.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/sensors/barometer_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/barometer_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/high_g_imu_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/high_g_imu_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/imu_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/imu_task.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/sensors/magnetometer_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/magnetometer_task.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/embedded/hardware_integration_test_main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/embedded/hardware_integration_test_main.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/fsm_replay/flight_state_machine_replay.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/fsm_replay/flight_state_machine_replay.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/power_test_no_radio_gps_main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/power_test_no_radio_gps_main.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/test/sensor_test/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/current_stack_smoke_test.ino" beforeDir="false" afterPath="$PROJECT_DIR$/test/sensor_test/current_stack_smoke_test.ino" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/i2c_scanner.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/sensor_test/i2c_scanner.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/lis3mdl_mag_test.ino" beforeDir="false" afterPath="$PROJECT_DIR$/test/sensor_test/lis3mdl_mag_test.ino" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/mpl3115a2_baro_test.ino" beforeDir="false" afterPath="$PROJECT_DIR$/test/sensor_test/mpl3115a2_baro_test.ino" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/ms5611_baro_test.ino" beforeDir="false" afterPath="$PROJECT_DIR$/test/sensor_test/ms5611_baro_test.ino" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/no_lora_bus_smoke_test.ino" beforeDir="false" afterPath="$PROJECT_DIR$/test/sensor_test/no_lora_bus_smoke_test.ino" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/run_no_lora_bus_smoke.py" beforeDir="false" afterPath="$PROJECT_DIR$/test/sensor_test/run_no_lora_bus_smoke.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/sx127x_lora_teensy_receiver.ino" beforeDir="false" afterPath="$PROJECT_DIR$/test/sensor_test/sx127x_lora_teensy_receiver.ino" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/sx127x_lora_teensy_sender.ino" beforeDir="false" afterPath="$PROJECT_DIR$/test/sensor_test/sx127x_lora_teensy_sender.ino" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/sx127x_lora_uno_sender.ino" beforeDir="false" afterPath="$PROJECT_DIR$/test/sensor_test/sx127x_lora_uno_sender.ino" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -285,7 +264,7 @@
       <workItem from="1779943422742" duration="8604000" />
       <workItem from="1780555814485" duration="39000" />
       <workItem from="1781855666077" duration="785000" />
-      <workItem from="1782114974287" duration="1257000" />
+      <workItem from="1782114974287" duration="2581000" />
     </task>
     <task id="LOCAL-00001" summary="port on teensy4.1">
       <option name="closed" value="true" />
@@ -463,7 +442,15 @@
       <option name="project" value="LOCAL" />
       <updated>1780120836614</updated>
     </task>
-    <option name="localTasksCounter" value="23" />
+    <task id="LOCAL-00023" summary="실기판기반 핀맵수정 &amp; 로거로직추가 &amp; 파이로 로직추가 &amp; 버저 구현 추가 &amp; 배터리 전압 체킹 및 변환 로직추가 &amp; pcb lora sx1276으로 변">
+      <option name="closed" value="true" />
+      <created>1782117900324</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1782117900324</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -489,6 +476,7 @@
     <MESSAGE value="add logger logic" />
     <MESSAGE value="flash 로직추가 (미완)" />
     <MESSAGE value="로거 완성 + 기말고사전까지 쉬다올게요" />
-    <option name="LAST_COMMIT_MESSAGE" value="로거 완성 + 기말고사전까지 쉬다올게요" />
+    <MESSAGE value="실기판기반 핀맵수정 &amp; 로거로직추가 &amp; 파이로 로직추가 &amp; 버저 구현 추가 &amp; 배터리 전압 체킹 및 변환 로직추가 &amp; pcb lora sx1276으로 변" />
+    <option name="LAST_COMMIT_MESSAGE" value="실기판기반 핀맵수정 &amp; 로거로직추가 &amp; 파이로 로직추가 &amp; 버저 구현 추가 &amp; 배터리 전압 체킹 및 변환 로직추가 &amp; pcb lora sx1276으로 변" />
   </component>
 </project>

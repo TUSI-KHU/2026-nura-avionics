@@ -107,8 +107,8 @@ uint32_t IMUTask::periodMs() const
 
 bool IMUTask::recover(uint32_t nowMs)
 {
-    // 센서 begin을 다시 시도
-    return initializeDevice(nowMs);
+    (void)nowMs;
+    return imu_.begin(config_.imuCsPin());
 }
 
 bool IMUTask::initializeDevice(uint32_t logTs)

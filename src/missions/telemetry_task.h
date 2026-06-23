@@ -47,6 +47,7 @@ private:
         uint8_t count = 0U;
 
         bool push(const nura::ControlPayload &item);
+        bool peek(nura::ControlPayload &out) const;
         bool pop(nura::ControlPayload &out);
     };
 

@@ -104,6 +104,8 @@ Initial implementation constants:
 | `MIN_APOGEE_DETECT_ALT_M` | `30.0` | m AGL | Prevent low-altitude false deployment |
 | `APOGEE_DROP_THRESHOLD_M` | `4.0` | m | Backup descent detector |
 | `APOGEE_DESCENT_CONFIRM_SAMPLES` | `4` | samples | Consecutive backup descent samples |
+| `MPL3115A2_CONVERSION_TIMEOUT_MS` | `50` | ms | Matches the 50 ms barometer task period; bench trace showed the library default OS128 one-shot path blocking for about 383 ms |
+| `MPL3115A2_FAST_BAROMETER_CTRL_REG1` | `0x00` | register value | BAR mode with OS1; team bench decision to keep MPL3115A2 conversion time inside the scheduler budget |
 | `BARO_MEDIAN_WINDOW_SAMPLES` | `3` | samples | Spike rejection in barometer task; implementation-local constant |
 | `BARO_ALTITUDE_LPF_ALPHA` | `0.35` | ratio | First-order low-pass on median altitude; implementation-local constant, tune after replay |
 | `BARO_STALE_FAULT_MS` | `300` | ms | Barometer health policy; stale last-valid sample threshold |
@@ -802,7 +804,6 @@ while keeping the flight-state transition and recovery sequence under the FSM.
 - Program-flash/SD logging policy and storage buffer sizing.
 - Broader non-barometer degraded-mode transitions beyond high-g/low-g launch
   and burnout fallback.
-- Barometer oversampling configuration for 50 ms sampling.
 - Barometer filter tuning.
 - Tune landing detector thresholds with actual main-parachute descent logs.
 - Decide whether a guarded `DEPLOY -> GROUND` timeout fallback is needed.
@@ -823,10 +824,13 @@ check implementation drift quickly.
 | Low-g quaternion attitude estimate | `src/sensors/imu_task.cpp`, `src/state/imu_state.h` | `updateAttitudeEstimate()`, `ImuData::rollDeg/pitchDeg/yawDeg/tiltAngleDeg` | Integrates gyro, corrects with accel direction only near 1 g, and publishes roll/pitch/yaw plus the scalar FSM tilt. |
 | Barometer telemetry fields | `src/state/telemetry_state.h` | `BarometerTelemetryData` | `rawAltitudeM` is unfiltered; `altitudeM` is filtered and used by FSM. |
 | Barometer pressure-to-altitude conversion | `src/sensors/barometer_task.cpp` | `relativeAltitudeM()` | Uses pad reference pressure captured on first valid sample. |
+| MPL3115A2 conversion timing | `src/hal/mpl3115a2_hal.cpp`, `include/nura_constants.h` | `MPL3115A2HAL::begin()`, `MPL3115A2HAL::poll()`, `kFastBarometerCtrlReg1`, `kConversionTimeoutMs` | Overrides the Adafruit library default OS128 one-shot setup with BAR/OS1 and non-blocking one-shot polling. `PENDING` yields the scheduler without counting as a read failure; conversion timeout is counted as a read failure. |
 | Barometer filtering | `src/sensors/barometer_task.cpp`, `src/sensors/barometer_task.h` | `BarometerTask::filterAltitude()` and filter member state | 3-sample median followed by EWMA alpha `0.35`. |
 | Barometer sample publication | `src/sensors/barometer_task.cpp` | `BarometerTask::tick()` | Updates pressure, reference, raw altitude, filtered altitude, and sample timestamp. |
 | Barometer sample rejection / fault latch | `src/sensors/barometer_task.cpp`, `src/state/telemetry_state.h` | `recordReadFailure()`, `recordBadValue()`, `markFault()`, `BarometerTelemetryData` | Rejects isolated bad samples; latches read-fail, stale, bad-value, and stuck fault flags after the configured thresholds. |
 | Global task periods | `src/app/app_config.cpp`, `src/app/app_config.h` | `DefaultAppConfig::*TaskPeriodMs()` | Barometer period is 50 ms; magnetometer period is 100 ms; FSM period is 10 ms. |
+| Watchdog recovery scheduling | `src/missions/watchdog_task.cpp`, `src/sensors/imu_task.cpp`, `src/sensors/high_g_imu_task.cpp`, `src/sensors/magnetometer_task.cpp`, `src/sensors/barometer_task.cpp` | `WatchdogTask::tick()`, sensor `recover()` / `initialize()` paths | Runtime recovery attempts are bounded to one immediate sensor `begin()` attempt per watchdog recovery interval. The recovery path avoids multi-attempt `delay()` loops that can stall FSM, telemetry, and sensor scheduling. |
+| Nonblocking LoRa TX | `src/hal/sx1262_lora_hal.cpp`, `src/missions/telemetry_task.cpp` | `Sx1262LoRaHAL::send()`, `Sx1262LoRaHAL::service()`, `TelemetryTask::tick()` | TX starts with `startTransmit()` and completes from periodic service on DIO1 so LoRa airtime does not block FSM/sensor scheduling. ACKs are retained until TX starts; FAST/GPS samples may be skipped until the next period if TX cannot start. |
 | INIT / abort handling / dispatch | `src/missions/fsm_task.cpp` | `FlightStateMachineTask::tick()` | `INIT -> SAFE`; active abort returns to `SAFE`; state-specific handlers are called here. |
 | ARMED launch detection | `src/missions/fsm_task.cpp` | `tickArmed()`, `consumeFlightAccelSample()` | Selected acceleration norm `>= 2.0 g` for four fresh samples enters `LAUNCH`; high-g is primary, low-g is fallback. |
 | LAUNCH burnout detection | `src/missions/fsm_task.cpp` | `tickLaunch()`, `consumeFlightAccelSample()` | Selected acceleration norm `< 1.0 g` for four fresh samples enters `COAST`; high-g is primary, low-g is fallback. |

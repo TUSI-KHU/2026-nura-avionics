@@ -36,13 +36,18 @@ public:
     bool begin(const Sx1262LoRaConfig &config);
     void end();
 
+    void service(uint32_t nowMs);
+    bool txBusy() const;
     bool send(const uint8_t *data, size_t length);
     bool receive(uint8_t *buffer, size_t capacity, Sx1262LoRaPacket &packet);
     int rssi();
 
 private:
     bool applyConfig(const Sx1262LoRaConfig &config);
+    static void setReceivePath(bool enabled);
     bool startReceive();
+    bool finishTransmitAndRestartReceive();
+    void abortTransmit();
 
     Module module_{BoardPinMap::Sx1262LoRa::ssPin,
                    BoardPinMap::Sx1262LoRa::dio1Pin,
@@ -56,4 +61,7 @@ private:
     bool initialized_ = false;
     Sx1262LoRaConfig config_{};
     bool configValid_ = false;
+    bool txBusy_ = false;
+    uint32_t txStartMs_ = 0UL;
+    uint32_t txTimeoutMs_ = 0UL;
 };

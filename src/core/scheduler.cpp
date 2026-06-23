@@ -1,5 +1,57 @@
 #include "scheduler.h"
 
+#if defined(NURA_BENCH_SCHEDULER_TRACE)
+#include <Arduino.h>
+#include <string.h>
+
+namespace
+{
+#if !defined(NURA_BENCH_SCHEDULER_SLOW_MS)
+constexpr uint32_t kSlowTaskMs = 20UL;
+#else
+constexpr uint32_t kSlowTaskMs = NURA_BENCH_SCHEDULER_SLOW_MS;
+#endif
+
+bool tracedTask(const char *name)
+{
+    return name != nullptr &&
+           (strcmp(name, "telemetry") == 0 || strcmp(name, "fsm") == 0);
+}
+
+void traceTaskBoundary(const char *event, const char *name, uint32_t nowMs)
+{
+    if (!Serial || name == nullptr)
+    {
+        return;
+    }
+
+    Serial.print("TASK_");
+    Serial.print(event);
+    Serial.print(" ");
+    Serial.print(name);
+    Serial.print(" ms=");
+    Serial.println(nowMs);
+}
+
+void traceSlowTask(const char *name, uint32_t startMs, uint32_t durationMs, bool ok)
+{
+    if (!Serial || name == nullptr)
+    {
+        return;
+    }
+
+    Serial.print("TASK_SLOW ");
+    Serial.print(name);
+    Serial.print(" start=");
+    Serial.print(startMs);
+    Serial.print(" dt=");
+    Serial.print(durationMs);
+    Serial.print(" ok=");
+    Serial.println(ok ? "1" : "0");
+}
+} // namespace
+#endif
+
 Scheduler::Scheduler()
     : count_(0)
 {
@@ -65,7 +117,28 @@ void Scheduler::tick(uint32_t nowMs)
         }
 
         const uint32_t period = e.task->periodMs();
-        if (!e.task->tick(nowMs))
+#if defined(NURA_BENCH_SCHEDULER_TRACE)
+        const char *taskName = e.task->name();
+        const bool traceBoundary = tracedTask(taskName);
+        if (traceBoundary)
+        {
+            traceTaskBoundary("BEGIN", taskName, nowMs);
+        }
+        const uint32_t taskStartMs = millis();
+#endif
+        const bool tickOk = e.task->tick(nowMs);
+#if defined(NURA_BENCH_SCHEDULER_TRACE)
+        const uint32_t taskDurationMs = millis() - taskStartMs;
+        if (traceBoundary)
+        {
+            traceTaskBoundary("END", taskName, millis());
+        }
+        if (taskDurationMs >= kSlowTaskMs)
+        {
+            traceSlowTask(taskName, taskStartMs, taskDurationMs, tickOk);
+        }
+#endif
+        if (!tickOk)
         {
             // tick 실패 태스크는 반복 에러를 막기 위해 비활성화한다.
             e.active = false;

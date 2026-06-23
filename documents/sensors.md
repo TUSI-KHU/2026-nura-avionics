@@ -81,7 +81,7 @@ Target controller: **Teensy 4.1**
 | H3LIS331DL high-g accelerometer candidate | I2C or SPI | HAL present for candidate testing. Select or drop before flight integration. |
 | LIS3MDL magnetometer | I2C | HAL present. Manual calibration storage path still needed. |
 | MS5611 pressure sensor | I2C or SPI | HAL present with PROM CRC and ground baseline support. |
-| MPL3115A2 pressure candidate | I2C | HAL present for candidate testing. Select or drop before flight integration. |
+| MPL3115A2 pressure candidate | I2C | HAL forces BAR/OS1 and uses non-blocking one-shot polling with a 50 ms conversion timeout for scheduler-safe 50 ms sampling; select or drop before flight integration. |
 | u-blox M6 / NEO-6M GNSS | UART | HAL/parser scaffold present. Flight task and message configuration still needed. |
 | SX1262 LoRa | SPI + DIO1/BUSY | HAL is integrated with RadioLib. `RXE` D30 and TCXO/reset hardware assumptions need bench confirmation. |
 | SX1276 ground LoRa | SPI + DIO0 | Receiver uses the matching 920.9 MHz LoRa PHY profile. |
@@ -94,6 +94,7 @@ Target controller: **Teensy 4.1**
 - Add sensor acquisition tasks under `src/sensors/` and register them from `FlightControllerApp`.
 - Store latest sensor values in small state structs under `src/state/`.
 - Route recoverable sensor failures through `RecoverableTask` and `WatchdogTask` where appropriate.
+- Keep watchdog recovery attempts bounded to one immediate sensor `begin()` attempt per recovery interval. Runtime recovery must not run multi-attempt `delay()` loops inside the cooperative scheduler.
 - Keep board constants, bus addresses, task periods, and retry limits in `DefaultAppConfig`.
 - Keep MS5611 PROM coefficients runtime-read from the sensor; never replace them with hard-coded constants.
 - Treat calibration failure on the active barometer or active IMU as an arming blocker.

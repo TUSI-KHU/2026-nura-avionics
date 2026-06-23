@@ -75,7 +75,16 @@ uint32_t HighGImuTask::periodMs() const
 
 bool HighGImuTask::recover(uint32_t nowMs)
 {
-    return initializeDevice(nowMs);
+    const bool ok = imu_.begin(csPin_, SPI, range_);
+    imuState_.whoAmI = imu_.readWhoAmI();
+    imuState_.connected = ok;
+    imuState_.hasNewData = false;
+    telemetryState_.health.highAccelOk = false;
+    if (!ok)
+    {
+        LOGW(logger_, nowMs, "high_g_imu", "h3lis331dl begin failed");
+    }
+    return ok;
 }
 
 bool HighGImuTask::initializeDevice(uint32_t logTs)

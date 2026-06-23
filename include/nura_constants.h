@@ -144,7 +144,8 @@ namespace LoRa
 constexpr long kFlightFrequencyHz = 920900000L;
 constexpr uint32_t kFlightSpiFrequencyHz = 2000000UL;
 constexpr int kFlightTxPowerDbm = 17;
-constexpr uint8_t kFlightInitAttempts = 1U;
+constexpr uint8_t kFlightInitAttempts = 5U;
+constexpr uint32_t kFlightInitRetryDelayMs = 100UL;
 constexpr uint8_t kFlightSpiMode = 0x00U; // Teensy SPI_MODE0.
 constexpr bool kFlightProbeSpiMode = false;
 constexpr float kFlightTcxoVoltage = 0.0f; // 0 V assumes an XTAL, not a DIO3-controlled TCXO.
@@ -228,6 +229,8 @@ constexpr uint8_t kExpectedWhoAmI = 0x32U;
 
 namespace MPL3115A2
 {
+constexpr uint16_t kConversionTimeoutMs = 50U;
+constexpr uint8_t kFastBarometerCtrlReg1 = 0x00U; // BAR mode, OS1.
 constexpr float kHpaToPa = 100.0f;
 constexpr float kMinDatasheetPressurePa = 20000.0f;
 constexpr float kMaxDatasheetPressurePa = 110000.0f;

@@ -72,7 +72,12 @@ bool BarometerTask::tick(uint32_t nowMs)
     }
 
     Mpl3115a2Reading sample;
-    if (!barometer_.read(sample, nowMs))
+    const Mpl3115a2PollResult pollResult = barometer_.poll(sample, nowMs);
+    if (pollResult == Mpl3115a2PollResult::PENDING)
+    {
+        return true;
+    }
+    if (pollResult == Mpl3115a2PollResult::ERROR)
     {
         recordReadFailure(nowMs);
         return true;
@@ -112,19 +117,7 @@ uint32_t BarometerTask::periodMs() const
 bool BarometerTask::initialize(uint32_t nowMs)
 {
     lastInitAttemptMs_ = nowMs;
-    bool ok = false;
-    for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
-    {
-        ok = barometer_.begin(BoardPinMap::MPL3115A2::wire());
-        if (ok)
-        {
-            break;
-        }
-        if ((attempt + 1U) < NuraConstants::Sensors::kSensorInitRetryAttempts)
-        {
-            delay(NuraConstants::Sensors::kSensorInitRetryDelayMs);
-        }
-    }
+    const bool ok = barometer_.begin(BoardPinMap::MPL3115A2::wire());
 
     if (ok)
     {

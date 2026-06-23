@@ -77,6 +77,16 @@ bool TelemetryTask::AckQueue::push(const nura::ControlPayload &item)
     return true;
 }
 
+bool TelemetryTask::AckQueue::peek(nura::ControlPayload &out) const
+{
+    if (count == 0U)
+    {
+        return false;
+    }
+    out = items[head];
+    return true;
+}
+
 bool TelemetryTask::AckQueue::pop(nura::ControlPayload &out)
 {
     if (count == 0U)
@@ -120,11 +130,30 @@ bool TelemetryTask::init()
         LOGW(logger_, 0U, "telemetry", "public bench radio identity; unsafe for flight");
     }
 
-    radioReady_ = radio_.begin(buildRadioConfig());
+    const Sx1262LoRaConfig radioConfig = buildRadioConfig();
+    radioReady_ = false;
+    const uint8_t attempts = config_.loraInitAttempts();
+    for (uint8_t attempt = 0U; attempt < attempts; ++attempt)
+    {
+        radioReady_ = radio_.begin(radioConfig);
+        if (radioReady_)
+        {
+            break;
+        }
+        if ((attempt + 1U) < attempts)
+        {
+            delay(NuraConstants::LoRa::kFlightInitRetryDelayMs);
+        }
+    }
     if (!radioReady_)
     {
         LOGE(logger_, 0U, "telemetry", "lora init failed");
+#if defined(NURA_BENCH_ALLOW_RADIO_INIT_FAILURE)
+        LOGW(logger_, 0U, "telemetry", "bench continues without lora");
+        return true;
+#else
         return false;
+#endif
     }
 
     telemetryState_.health.deployFired = false;
@@ -139,6 +168,7 @@ bool TelemetryTask::tick(uint32_t nowMs)
         return true;
     }
 
+    radio_.service(nowMs);
     receiveControl(nowMs);
     enqueueDeferredCommandAcks();
     if (sendAckIfQueued())
@@ -218,7 +248,7 @@ void TelemetryTask::enqueueDeferredCommandAcks()
 bool TelemetryTask::sendAckIfQueued()
 {
     nura::ControlPayload ack;
-    if (!ackQueue_.pop(ack))
+    if (!ackQueue_.peek(ack))
     {
         return false;
     }
@@ -228,7 +258,12 @@ bool TelemetryTask::sendAckIfQueued()
     {
         return false;
     }
-    return sendRawFrame(nura::MESSAGE_CONTROL, payload, nura::kControlPayloadLen);
+    if (!sendRawFrame(nura::MESSAGE_CONTROL, payload, nura::kControlPayloadLen))
+    {
+        return false;
+    }
+    (void)ackQueue_.pop(ack);
+    return true;
 }
 
 bool TelemetryTask::sendFastTelemetry(uint32_t nowMs)
@@ -240,12 +275,9 @@ bool TelemetryTask::sendFastTelemetry(uint32_t nowMs)
         return false;
     }
 
-    const bool ok = sendRawFrame(nura::MESSAGE_FAST_TLM, payload, nura::kFastPayloadLen);
-    if (ok)
-    {
-        lastFastTxMs_ = nowMs;
-        sentFast_ = true;
-    }
+    (void)sendRawFrame(nura::MESSAGE_FAST_TLM, payload, nura::kFastPayloadLen);
+    lastFastTxMs_ = nowMs;
+    sentFast_ = true;
     return true;
 }
 
@@ -258,17 +290,19 @@ bool TelemetryTask::sendGpsTelemetry(uint32_t nowMs)
         return false;
     }
 
-    const bool ok = sendRawFrame(nura::MESSAGE_GPS_TLM, payload, nura::kGpsPayloadLen);
-    if (ok)
-    {
-        lastGpsTxMs_ = nowMs;
-        sentGps_ = true;
-    }
+    (void)sendRawFrame(nura::MESSAGE_GPS_TLM, payload, nura::kGpsPayloadLen);
+    lastGpsTxMs_ = nowMs;
+    sentGps_ = true;
     return true;
 }
 
 bool TelemetryTask::sendRawFrame(uint8_t type, const uint8_t *payload, uint8_t payloadLen)
 {
+    if (radio_.txBusy())
+    {
+        return false;
+    }
+
     uint8_t frame[nura::kMaxFrameLen];
     const size_t frameLen = nura::encodeFrame(type,
                                                NuraConstants::Telemetry::kVehicleId,

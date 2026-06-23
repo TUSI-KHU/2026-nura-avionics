@@ -82,23 +82,53 @@ NSS D9, DIO1 D31, and BUSY D32. The 2 MHz host SPI clock was verified by the
 2026-06-22 avionics radio bench test. The currently
 recorded PCB data has no Teensy-controlled `NRESET`, so the driver uses
 no-reset mode. Its `TCXO` setting is `0 V`, which assumes a crystal rather than
-a DIO3-controlled TCXO. `RXE` D30 is intentionally left untouched until its
-schematic role and polarity are confirmed. SX1262 initialization and two-way
-packet exchange are mandatory hardware acceptance tests before this profile is
-used outside the bench.
+a DIO3-controlled TCXO. Current PCB bench behavior requires `RXE` D30 to be
+driven LOW before SX1262 init/probe and transmit. The HAL therefore holds RXE
+LOW for the current downlink test path. RXE polarity and its effect on uplink RF
+receive are still unaccepted until the schematic and a two-way range test
+confirm the RF switch behavior. SX1262 initialization and two-way packet
+exchange are mandatory hardware acceptance tests before this profile is used
+outside the bench.
+Because the current PCB occasionally returns an all-`0xFF` version probe during
+boot, telemetry initialization attempts SX1262 bring-up up to five times with a
+100 ms delay between attempts before declaring LoRa unavailable.
 
 The experimental `debug_radio_bench` environment runs the real sensor and FSM
-tasks while holding RXE D30 low behind `NURA_BENCH_SX1262_RXE_LOW`. Its purpose
-is downlink telemetry integration on the bench; it also limits output to the
+tasks with the same HAL-owned RXE control, while retaining the historical
+`NURA_BENCH_SX1262_RXE_LOW` boot default for comparison. Its purpose is
+downlink telemetry integration on the bench; it also limits output to the
 ground-tested 2 dBm through `NURA_BENCH_RADIO_TX_POWER_DBM`. It is forbidden
 for flight and does not enable physical pyro outputs. It also defines
 `NURA_BENCH_RADIO_DOWNLINK_ONLY`, so the HAL does not enter receive mode while
-RXE is held low. The RXE LOW, 2 dBm, and downlink-only settings come from the
-successful 2026-06-22 SX1262-to-SX1276 bench test.
+leaving the TX path selected. The RXE LOW, 2 dBm, and downlink-only settings
+come from the successful 2026-06-22 SX1262-to-SX1276 bench test.
 Acceptance requires SX1262 initialization, authenticated FAST/GPS reception,
 increasing sequence numbers, and zero decode failures. RXE polarity and
 bidirectional switching must still be confirmed from the PCB schematic before
 the flight build may drive this pin.
+
+The experimental `debug_radio_flow` environment is a diagnosis-only variant for
+the same SX1262 PCB. It keeps the real sensor tasks and LoRa RX/TX path enabled,
+forces the bench FSM auto-flow with `NURA_BENCH_FSM_AUTOFLOW`, skips the flight
+log task, and prints direct Serial traces around the scheduler, FSM, and
+SX1262 calls. It may continue the FSM even when radio init fails so init
+failures do not hide unrelated state-machine behavior. It is forbidden for
+flight and exists only to localize whether a stall occurs in radio init,
+receive polling, transmit, or ordinary FSM execution.
+
+The flight SX1262 HAL uses interrupt-style nonblocking TX. `send()` starts a
+packet with RadioLib `startTransmit()` and returns after the FIFO/command setup;
+`TelemetryTask::tick()` calls the HAL service routine to finish TX on DIO1,
+clear the radio state, and restart receive mode. This keeps LoRa airtime out of
+the cooperative scheduler. ACK frames remain highest priority. FAST and GPS
+telemetry are not queued indefinitely: if TX cannot start, that telemetry sample
+is skipped until the next configured period. If TX completion service is delayed
+by another long-running task, the HAL times out and attempts to return to RX.
+If SX1262 SPI commands report a transient chip/command failure during TX start
+or TX completion, the HAL performs one bounded radio reinitialization attempt
+using the stored PHY configuration and leaves the current telemetry sample
+dropped rather than blocking the scheduler.
+Bench logs must therefore check both scheduler timing and SX1262 state codes.
 
 At SF7/BW125/CR4/5/preamble 8/CRC on/explicit header, approximate airtime is:
 
