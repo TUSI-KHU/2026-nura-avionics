@@ -99,7 +99,11 @@ uint32_t DefaultAppConfig::telemetryTaskPeriodMs() const
 
 uint32_t DefaultAppConfig::telemetryFastPeriodMs() const
 {
+#if defined(NURA_BENCH_TELEMETRY_FAST_PERIOD_MS)
+    return NURA_BENCH_TELEMETRY_FAST_PERIOD_MS;
+#else
     return NuraConstants::Telemetry::kFastPeriodMs;
+#endif
 }
 
 uint32_t DefaultAppConfig::telemetryGpsPeriodMs() const

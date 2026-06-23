@@ -54,4 +54,6 @@ private:
                                SPI_MODE0)};
     SX1262 radio_{&module_};
     bool initialized_ = false;
+    Sx1262LoRaConfig config_{};
+    bool configValid_ = false;
 };

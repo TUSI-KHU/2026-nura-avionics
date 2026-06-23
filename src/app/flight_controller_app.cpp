@@ -63,7 +63,9 @@ bool FlightControllerApp::setup(uint32_t nowMs)
 #endif
     scheduler_.add(watchdogTask_);
     scheduler_.add(fsmTask_);
+#if !defined(NURA_BENCH_DISABLE_FLIGHT_LOG_TASK)
     scheduler_.add(flightLogTask_);
+#endif
 #if !defined(NURA_DISABLE_LORA)
     scheduler_.add(telemetryTask_);
 #endif

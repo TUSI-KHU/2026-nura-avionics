@@ -18,6 +18,8 @@ bool Sx1262LoRaHAL::begin(const Sx1262LoRaConfig &config)
     {
         return false;
     }
+    config_ = config;
+    configValid_ = true;
 
     // The PCB does not record an MCU-controlled SX1262 NRESET net. RadioLib's
     // no-reset mode is intentional here; D30/RXE is not driven until its RF
@@ -36,12 +38,14 @@ bool Sx1262LoRaHAL::begin(const Sx1262LoRaConfig &config)
         return false;
     }
 
+#if !defined(NURA_BENCH_RADIO_USE_MINIMAL_INIT)
     if (!succeeded(radio_.explicitHeader()) ||
         !succeeded(radio_.setCRC(config.crcEnabled ? 2U : 0U)))
     {
         radio_.sleep();
         return false;
     }
+#endif
 #if !defined(NURA_BENCH_RADIO_DOWNLINK_ONLY)
     if (!startReceive())
     {
@@ -67,10 +71,26 @@ bool Sx1262LoRaHAL::send(const uint8_t *data, size_t length)
 {
     if (!initialized_ || data == nullptr || length == 0U)
     {
+#if defined(NURA_BENCH_RADIO_REINIT_ON_TX_FAIL)
+        if (!initialized_ && data != nullptr && length > 0U && configValid_ && begin(config_))
+        {
+            return send(data, length);
+        }
+#endif
         return false;
     }
 
-    const int16_t transmitState = radio_.transmit(data, length);
+    int16_t transmitState = radio_.transmit(data, length);
+#if defined(NURA_BENCH_RADIO_REINIT_ON_TX_FAIL)
+    if (transmitState == RADIOLIB_ERR_CHIP_NOT_FOUND && configValid_)
+    {
+        initialized_ = false;
+        if (begin(config_))
+        {
+            transmitState = radio_.transmit(data, length);
+        }
+    }
+#endif
     int16_t receiveState = RADIOLIB_ERR_NONE;
 #if !defined(NURA_BENCH_RADIO_DOWNLINK_ONLY)
     receiveState = radio_.startReceive();
