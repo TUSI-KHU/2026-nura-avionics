@@ -53,6 +53,9 @@ Excluded from this version:
   initialization unless abort is active. The real energetic safety inhibit is
   the external physical pyro/arming hardware path, not a software arming switch
   wired into the avionics MCU in this revision.
+- A boot/init failure intentionally remains a hard stop, but it must be audible
+  and USB-friendly so the board does not look electrically dead during bench
+  debugging.
 
 ## Enum Order
 
@@ -80,6 +83,11 @@ Initial implementation constants:
 | --- | ---: | --- | --- |
 | `BOARD_POWER_SETTLE_DELAY_MS` | `2000` | ms | Team bench decision; allow the new board sensors, SD, and program flash logger to power up before bus/device init |
 | `BUS_SETTLE_DELAY_MS` | `250` | ms | Team bench decision; allow SPI/I2C bus pins and pullups to settle before sensor `begin()` calls |
+| `PANIC_FAILURE_TONE_FREQUENCY_HZ` | `3200` | Hz | Team bench decision; audible init-failure alarm |
+| `PANIC_DEFAULT_FAILURE_BEEPS` | `2` | beeps | Team decision; unknown or non-storage/non-LoRa init failure |
+| `PANIC_LORA_FAILURE_BEEPS` | `3` | beeps | Team decision; LoRa/telemetry init failure |
+| `PANIC_STORAGE_FAILURE_BEEPS` | `4` | beeps | Team decision; SD/program-flash/storage init failure if storage becomes init-critical |
+| `PANIC_FAILURE_REPEAT_PAUSE_MS` | `1000` | ms | Team decision; quiet gap between audible error-code groups |
 | `SENSOR_INIT_RETRY_ATTEMPTS` | `5` | attempts | Team bench decision; retry device `begin()` before treating init as failed |
 | `SENSOR_INIT_RETRY_DELAY_MS` | `150` | ms | Team bench decision; delay between sensor init retries |
 | `ACCEL_FALLBACK_MAX_SAMPLE_AGE_MS` | `50` | ms | Freshness bound for high-g/low-g acceleration samples used by launch and burnout detection |
@@ -238,6 +246,60 @@ Verification plan:
 - Hardware integration test, when the bench-only flag is deliberately enabled:
   connect the receiver and verify telemetry reports `SAFE -> ARMED -> LAUNCH
   -> COAST -> APOGEE -> DROGUE -> DEPLOY -> GROUND`.
+
+## Init Failure Panic Feedback
+
+Purpose:
+
+- Keep init failure as a hard stop while making the board visibly and audibly
+  alive during bench debugging.
+- Leave USB processing time in the panic loop so firmware upload/recovery is
+  less likely to look like a dead board.
+
+Inputs and units:
+
+- `Scheduler::lastInitFailureTaskName()`: name of the task whose `init()`
+  returned `false`.
+- Buzzer output: D2.
+- Status LED output: D34.
+- Pattern timing constants are in milliseconds.
+
+Allowed state:
+
+- Only before normal FSM operation starts, after a task init failure during
+  `FlightControllerApp::setup()`.
+
+Forbidden state:
+
+- Normal flight states must not call this panic path for ordinary runtime
+  degraded sensors. Runtime faults are handled by watchdog/fallback policy.
+
+Behavior:
+
+- `telemetry` init failure, currently LoRa bring-up failure: three short beeps,
+  one second pause, repeat forever.
+- Storage-related init failure: four short beeps, one second pause, repeat
+  forever. Current `flight_log` storage failures are non-critical and do not
+  enter panic, but this code is reserved for a future storage-critical mode.
+- Any other init failure: two short beeps, one second pause, repeat forever.
+- The status LED follows each beep.
+- The loop uses `delay()` between tones and drains pending USB serial input so
+  the Teensy USB stack has time to service host-side upload/recovery attempts.
+
+Failure modes considered:
+
+- Silent init stop mistaken for a dead board: mitigated by audible/LED pattern.
+- Unknown init failure source: mapped to the two-beep generic pattern.
+- LoRa failure during current SX1262 bring-up debugging: mapped to a distinct
+  three-beep pattern.
+
+Verification plan:
+
+- Build `main` and `debug_radio_flow` after the interface change.
+- Force or observe a LoRa init failure on bench hardware and confirm the
+  three-beep repeating pattern.
+- Force a generic init failure in a bench build and confirm the two-beep
+  repeating pattern.
 
 ## Detector Details
 

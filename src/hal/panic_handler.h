@@ -6,7 +6,7 @@ class IPanicHandler
 {
 public:
     virtual ~IPanicHandler() = default;
-    virtual void panic() = 0;
+    virtual void panic(const char *reason = nullptr) = 0;
 };
 
 class BlinkingPanicHandler : public IPanicHandler
@@ -14,7 +14,7 @@ class BlinkingPanicHandler : public IPanicHandler
 public:
     explicit BlinkingPanicHandler(const IAppConfig &config);
 
-    void panic() override;
+    void panic(const char *reason = nullptr) override;
 
 private:
     const IAppConfig &config_;

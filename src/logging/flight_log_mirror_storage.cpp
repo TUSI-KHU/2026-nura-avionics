@@ -8,6 +8,11 @@ FlightLogMirrorStorage::FlightLogMirrorStorage(IFlightLogStorage &primary, IFlig
 
 bool FlightLogMirrorStorage::begin()
 {
+    if (healthy())
+    {
+        return true;
+    }
+
     stopped_ = false;
     primaryActive_ = primary_.begin() && primary_.healthy();
     mirrorActive_ = mirror_.begin() && mirror_.healthy();
@@ -64,7 +69,7 @@ void FlightLogMirrorStorage::stop()
 
 bool FlightLogMirrorStorage::healthy() const
 {
-    return !stopped_ && (primaryActive_ || mirrorActive_);
+    return !stopped_ && mirrorActive_;
 }
 
 bool FlightLogMirrorStorage::primaryHealthy() const

@@ -70,12 +70,11 @@ bool FlightLogTask::init()
     telemetryState_.health.storageOk = storageStarted_ && storage_.healthy();
     if (!telemetryState_.health.storageOk)
     {
-        LOGW(logger_, 0U, "flight_log", "storage offline");
+        LOGE(logger_, 0U, "flight_log", "storage offline");
+        return false;
     }
-    else
-    {
-        LOGI(logger_, 0U, "flight_log", "storage online");
-    }
+
+    LOGI(logger_, 0U, "flight_log", "storage online");
 
     enqueueEvent(nura_log::EventId::BOOT, 0U, flightState_.state, flightState_.state, 0U, 0U);
     return true;

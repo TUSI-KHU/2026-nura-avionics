@@ -191,14 +191,35 @@ only.
 
 ## Failure Policy
 
-- Storage failure must never block flight logic.
-- If every persistent backend fails, set `TelemetryState.health.storageOk = false`.
-- If one backend in the mirror pair fails but the other still writes, continue
-  logging.
+- The microSD mirror is mandatory in the current avionics build. If the SD card
+  is absent, cannot be mounted, cannot create `/NURA_LOG`, or cannot open a new
+  `.NLG` file, `FlightLogTask::init()` fails and the application enters the
+  init-failure panic path.
+- SD mount and `/NURA_LOG` directory creation are retried briefly during init to
+  tolerate card/power settle timing on the PCB.
+- The application attempts to mount/open the mandatory log storage before sensor
+  task initialization, then `FlightLogTask::init()` reuses the already-open
+  backend. This avoids observed SDIO mount failures after SPI sensor bring-up on
+  the current PCB/bench stack.
+- Program flash may be used as the primary logging backend, but it does not make
+  an absent SD card acceptable in this revision.
+- If the program-flash backend fails but SD still writes, continue logging and
+  report degraded storage health as needed.
+- If every active persistent backend fails after init, set
+  `TelemetryState.health.storageOk = false`.
 - If RAM FIFO is full, drop oldest encoded records first.
 - Stop writing once `GROUND` is reached and pending records are flushed.
 - Keep the legacy serial event logger separate; it is for bench visibility, not
   the primary flight record.
+
+## Timestamp Policy
+
+- SD file timestamps use a Teensy SdFat date/time callback set from the firmware
+  build date and time (`__DATE__`, `__TIME__`).
+- This is a build/upload-time approximation. The board currently has no trusted
+  real-time clock or GNSS time handoff during early init, so true launch time is
+  still captured inside log records by monotonic milliseconds rather than FAT
+  directory metadata.
 
 ## Implementation Map
 

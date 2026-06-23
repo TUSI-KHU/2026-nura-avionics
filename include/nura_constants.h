@@ -94,6 +94,8 @@ namespace Logger
 {
 constexpr uint8_t kDrainBudget = 4U;
 constexpr uint8_t kOutputFailThreshold = 3U;
+constexpr uint8_t kSdInitRetryAttempts = 5U;
+constexpr uint32_t kSdInitRetryDelayMs = 200UL;
 constexpr uint16_t kFlightLogRamBufferBytes = 16U * 1024U;
 constexpr uint32_t kFlightLogProgramFlashBytes = 6UL * 1024UL * 1024UL;
 constexpr uint32_t kFlightLogFileSegmentBytes = 256UL * 1024UL;
@@ -138,6 +140,17 @@ constexpr uint16_t kTransitionBeepMs = 80U;
 constexpr uint16_t kTransitionGapMs = 80U;
 constexpr uint8_t kTransitionBeepCount = 5U;
 } // namespace Buzzer
+
+namespace Panic
+{
+constexpr uint16_t kFailureToneFrequencyHz = 3200U;
+constexpr uint16_t kFailureBeepMs = 90U;
+constexpr uint16_t kFailureGapMs = 90U;
+constexpr uint16_t kFailureRepeatPauseMs = 1000U;
+constexpr uint8_t kDefaultFailureBeeps = 2U;
+constexpr uint8_t kLoRaFailureBeeps = 3U;
+constexpr uint8_t kStorageFailureBeeps = 4U;
+} // namespace Panic
 
 namespace LoRa
 {

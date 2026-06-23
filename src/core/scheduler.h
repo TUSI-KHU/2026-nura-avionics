@@ -12,6 +12,7 @@ public:
     bool add(Task &task);
     bool init(uint32_t nowMs);
     void tick(uint32_t nowMs);
+    const char *lastInitFailureTaskName() const;
 
 private:
     static const uint8_t kMaxTasks = 12;
@@ -26,4 +27,5 @@ private:
 
     Entry entries_[kMaxTasks];
     uint8_t count_;
+    const char *lastInitFailureTaskName_ = nullptr;
 };

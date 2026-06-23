@@ -50,6 +50,12 @@ bool FlightControllerApp::setup(uint32_t nowMs)
     delay(NuraConstants::App::kBusSettleDelayMs);
     nowMs = millis();
 
+    // SDIO mount가 SPI 센서 초기화 이후 간헐 실패하는 보드 상태를 피하기 위해
+    // 필수 로깅 저장소를 먼저 잡아둔다. 최종 init-fatal 판정은 FlightLogTask가 한다.
+#if !defined(NURA_BENCH_DISABLE_FLIGHT_LOG_TASK)
+    (void)flightLogStorage_.begin();
+#endif
+
     // 태스크 등록 순서는 실제 실행 순서에도 영향을 준다.
 #if defined(NURA_MOCK_TELEMETRY)
     scheduler_.add(mockTelemetrySourceTask_);
@@ -74,9 +80,14 @@ bool FlightControllerApp::setup(uint32_t nowMs)
     if (!scheduler_.init(nowMs))
     {
         // logger task가 돌기 전일 수 있으므로 치명적 실패는 즉시 정지하고 로그 버퍼를 flush한다.
+        const char *failedTask = scheduler_.lastInitFailureTaskName();
         LOGE(logger_, nowMs, "fsm", "Initialization Failed");
+        if (failedTask != nullptr)
+        {
+            LOGE(logger_, nowMs, "fsm", failedTask);
+        }
         flushBootLogs();
-        panicHandler_.panic();
+        panicHandler_.panic(failedTask);
     }
 
 #if defined(NURA_MOCK_TELEMETRY) && defined(NURA_MOCK_AUTO_ARM)

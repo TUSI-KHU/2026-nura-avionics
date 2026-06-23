@@ -80,6 +80,8 @@ bool Scheduler::add(Task &task)
 
 bool Scheduler::init(uint32_t nowMs)
 {
+    lastInitFailureTaskName_ = nullptr;
+
     // 모든 태스크의 init을 호출하고 첫 실행 기준 시각을 맞춘다.
     for (uint8_t i = 0; i < count_; ++i)
     {
@@ -91,6 +93,7 @@ bool Scheduler::init(uint32_t nowMs)
 
         if (!e.task->init())
         {
+            lastInitFailureTaskName_ = e.task->name();
             return false;
         }
 
@@ -98,6 +101,11 @@ bool Scheduler::init(uint32_t nowMs)
     }
 
     return true;
+}
+
+const char *Scheduler::lastInitFailureTaskName() const
+{
+    return lastInitFailureTaskName_;
 }
 
 void Scheduler::tick(uint32_t nowMs)
