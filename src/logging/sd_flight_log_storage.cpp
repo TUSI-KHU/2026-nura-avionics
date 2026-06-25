@@ -69,9 +69,27 @@ void traceSdFailure(const char *reason)
         {
             Serial.print("SD_INIT_FAIL ");
             Serial.println(reason);
+            Serial.print("SD_ERROR code=0x");
+            Serial.print(SD.sdfs.sdErrorCode(), HEX);
+            Serial.print(" data=0x");
+            Serial.println(SD.sdfs.sdErrorData(), HEX);
         }
         delay(500);
     }
+}
+
+bool mountStorage(uint8_t csPin)
+{
+#if defined(BUILTIN_SDCARD)
+    if (csPin == BUILTIN_SDCARD)
+    {
+        // Teensy SD.begin(BUILTIN_SDCARD) pulls DAT3 down after a failed early
+        // probe. During boot, that can poison later retries. Mount the same
+        // backing SdFat object directly and leave card-detect pins untouched.
+        return SD.sdfs.begin(SdioConfig(FIFO_SDIO));
+    }
+#endif
+    return SD.begin(csPin);
 }
 } // namespace
 
@@ -99,7 +117,7 @@ bool SdFlightLogStorage::begin()
     bool mounted = false;
     for (uint8_t attempt = 0U; attempt < NuraConstants::Logger::kSdInitRetryAttempts; ++attempt)
     {
-        mounted = SD.begin(csPin_);
+        mounted = mountStorage(csPin_);
         if (mounted)
         {
             break;

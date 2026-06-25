@@ -9,8 +9,8 @@ constexpr uint8_t kUnassignedPin = 255U;
 
 struct StatusIndicator final
 {
-    static constexpr uint8_t pin = 34U;
-    static constexpr uint8_t led1Pin = 34U;
+    static constexpr uint8_t pin = 33U;
+    static constexpr uint8_t led1Pin = kUnassignedPin;
     static constexpr uint8_t led2Pin = 33U;
 };
 
@@ -90,13 +90,6 @@ struct H3LIS331DL final
     static constexpr uint8_t int2Pin = kUnassignedPin;
 };
 
-struct ADXL377 final
-{
-    static constexpr uint8_t xPin = A0;
-    static constexpr uint8_t yPin = A1;
-    static constexpr uint8_t zPin = A2;
-};
-
 struct LIS3MDL final
 {
     static TwoWire &wire()
@@ -107,13 +100,6 @@ struct LIS3MDL final
     static constexpr uint8_t sdaPin = I2c1Bus::sdaPin;
     static constexpr uint8_t sclPin = I2c1Bus::sclPin;
     static constexpr uint8_t i2cAddress = 0x1CU;
-};
-
-struct MS5611 final
-{
-    static constexpr uint8_t sdaPin = I2cBus::sdaPin;
-    static constexpr uint8_t sclPin = I2cBus::sclPin;
-    static constexpr uint8_t i2cAddress = 0x77U;
 };
 
 struct MPL3115A2 final
@@ -161,7 +147,7 @@ struct Ra01DevelopmentLoRa final
 struct Sx1262LoRa final
 {
     static constexpr uint8_t ssPin = 9U;
-    static constexpr uint8_t rxEnablePin = 30U;
+    static constexpr uint8_t rxEnablePin = kUnassignedPin;
     static constexpr int8_t resetPin = -1;
     static constexpr uint8_t dio1Pin = 31U;
     static constexpr uint8_t busyPin = 32U;
@@ -176,8 +162,8 @@ struct Pyro1 final
 
 struct Pyro2 final
 {
-    static constexpr uint8_t gpio1Pin = 37U;
-    static constexpr uint8_t gpio2Pin = 36U;
+    static constexpr uint8_t gpio1Pin = kUnassignedPin;
+    static constexpr uint8_t gpio2Pin = kUnassignedPin;
     static constexpr uint8_t sensePin = 40U;
 };
 

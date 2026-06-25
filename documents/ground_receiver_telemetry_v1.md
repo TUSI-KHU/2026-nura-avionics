@@ -18,6 +18,32 @@ uplink/transmit path drives the RF switch.
 
 A separate `pair_test` PlatformIO environment enables automatic CONTROL/CMD transmission for the two-board bench protocol test only.
 
+## Avionics SX1262 Stabilization Notes
+
+The current avionics SX1262 integration phase is downlink-only. Uplink/RX is
+intentionally disabled in `Sx1262LoRaConfig::downlinkOnly` until TX init and
+scheduler timing are stable.
+
+The avionics SX1262 SPI clock is held at 250 kHz for bring-up margin. RadioLib
+owns the SX1262 version-string probe; the firmware no longer performs a manual
+pre-probe before `radio.begin()` because extra SPI traffic before reset/wake can
+make an already marginal MISO path harder to diagnose.
+
+The current PCB label for D30 is ambiguous in bench results. Treating D30 as
+RXE and driving it low made init fail with `raw_status=0x00`. Treating D30 as
+reset allowed intermittent version-string reads, but TX completion still showed
+intermittent `RADIOLIB_ERR_CHIP_NOT_FOUND`. The active firmware keeps D30 as the
+SX1262 reset candidate for diagnosis, but this must be verified against the PCB
+schematic/module datasheet before flight.
+
+Current hardware observation: both the integrated firmware and the standalone
+`avionics_radio_bench` sketch can report `raw_status=0x00`, meaning the MCU is
+not receiving a valid SX1262 MISO/status byte. D30 high/low and MISO/MOSI swap
+tests did not recover the raw status. Before claiming 10/10 init success, check
+the LoRa module power, solder joints, MISO net continuity, MISO pull-down value,
+SX1262 ground return, and whether the installed module exposes a separate reset
+or RF-switch enable pin.
+
 ## Inputs and Units
 
 FAST_TLM inputs from avionics:

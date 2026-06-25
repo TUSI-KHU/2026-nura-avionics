@@ -66,11 +66,20 @@ void MosfetPyroHAL::setMain(bool enabled)
 
 void MosfetPyroHAL::configureChannel(const MosfetPyroChannelPins &pins) const
 {
-    pinMode(pins.gpio1Pin, OUTPUT);
-    pinMode(pins.gpio2Pin, OUTPUT);
-    digitalWrite(pins.gpio1Pin, config_.activeHigh ? LOW : HIGH);
-    digitalWrite(pins.gpio2Pin, config_.activeHigh ? LOW : HIGH);
-    pinMode(pins.sensePin, INPUT);
+    if (pins.gpio1Pin != BoardPinMap::kUnassignedPin)
+    {
+        pinMode(pins.gpio1Pin, OUTPUT);
+        digitalWrite(pins.gpio1Pin, config_.activeHigh ? LOW : HIGH);
+    }
+    if (pins.gpio2Pin != BoardPinMap::kUnassignedPin)
+    {
+        pinMode(pins.gpio2Pin, OUTPUT);
+        digitalWrite(pins.gpio2Pin, config_.activeHigh ? LOW : HIGH);
+    }
+    if (pins.sensePin != BoardPinMap::kUnassignedPin)
+    {
+        pinMode(pins.sensePin, INPUT);
+    }
 }
 
 void MosfetPyroHAL::writeChannel(const MosfetPyroChannelPins &pins, bool enabled) const
@@ -78,8 +87,14 @@ void MosfetPyroHAL::writeChannel(const MosfetPyroChannelPins &pins, bool enabled
     const uint8_t activeLevel = config_.activeHigh ? HIGH : LOW;
     const uint8_t inactiveLevel = config_.activeHigh ? LOW : HIGH;
     const uint8_t level = enabled ? activeLevel : inactiveLevel;
-    digitalWrite(pins.gpio1Pin, level);
-    digitalWrite(pins.gpio2Pin, level);
+    if (pins.gpio1Pin != BoardPinMap::kUnassignedPin)
+    {
+        digitalWrite(pins.gpio1Pin, level);
+    }
+    if (pins.gpio2Pin != BoardPinMap::kUnassignedPin)
+    {
+        digitalWrite(pins.gpio2Pin, level);
+    }
 }
 
 bool MosfetPyroHAL::knownUnsafePinConflict() const

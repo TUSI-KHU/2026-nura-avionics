@@ -10,8 +10,26 @@ bool succeeded(int16_t state)
     return state == RADIOLIB_ERR_NONE;
 }
 
+bool waitBusyLow(uint32_t timeoutMs = NuraConstants::LoRa::kFlightBusyWaitTimeoutMs)
+{
+    const uint32_t startMs = millis();
+    while (digitalRead(BoardPinMap::Sx1262LoRa::busyPin) == HIGH)
+    {
+        if ((millis() - startMs) >= timeoutMs)
+        {
+            return false;
+        }
+        yield();
+    }
+    return true;
+}
+
 void readVersionString(uint8_t (&version)[16])
 {
+    if (!waitBusyLow())
+    {
+        return;
+    }
     SPI1.beginTransaction(SPISettings(NuraConstants::LoRa::kFlightSpiFrequencyHz, MSBFIRST, SPI_MODE0));
     digitalWrite(BoardPinMap::Sx1262LoRa::ssPin, LOW);
     (void)SPI1.transfer(0x1D);
@@ -83,8 +101,16 @@ void tracePinLevels()
     Serial.print(digitalRead(BoardPinMap::Sx1262LoRa::dio1Pin));
     Serial.print(" busy=");
     Serial.print(digitalRead(BoardPinMap::Sx1262LoRa::busyPin));
-    Serial.print(" rxe=");
-    Serial.print(digitalRead(BoardPinMap::Sx1262LoRa::rxEnablePin));
+    if (BoardPinMap::Sx1262LoRa::rxEnablePin != BoardPinMap::kUnassignedPin)
+    {
+        Serial.print(" rxe=");
+        Serial.print(digitalRead(BoardPinMap::Sx1262LoRa::rxEnablePin));
+    }
+    if (BoardPinMap::Sx1262LoRa::resetPin >= 0)
+    {
+        Serial.print(" rst=");
+        Serial.print(digitalRead(BoardPinMap::Sx1262LoRa::resetPin));
+    }
     Serial.print(" ms=");
     Serial.println(millis());
 }
@@ -133,17 +159,15 @@ bool Sx1262LoRaHAL::begin(const Sx1262LoRaConfig &config)
     config_ = config;
     configValid_ = true;
     setReceivePath(false);
+    pinMode(BoardPinMap::Sx1262LoRa::busyPin, INPUT);
+    pinMode(BoardPinMap::Sx1262LoRa::dio1Pin, INPUT);
 
     // The PCB does not record an MCU-controlled SX1262 NRESET net. RadioLib's
     // no-reset mode is intentional here. The short version read wakes/probes
     // the radio on this PCB before RadioLib performs its own chip check.
     tracePinLevels();
-#if defined(NURA_BENCH_RADIO_TRACE)
-    traceVersionProbe();
-#else
-    uint8_t ignoredVersion[16] = {};
-    readVersionString(ignoredVersion);
-#endif
+    delay(NuraConstants::LoRa::kFlightInitPreBeginSettleMs);
+    (void)waitBusyLow();
     traceRadio("BEGIN_CALL");
     const int16_t state = radio_.begin(static_cast<float>(config.frequencyHz) / 1000000.0f,
                                        static_cast<float>(config.signalBandwidthHz) / 1000.0f,
@@ -159,8 +183,16 @@ bool Sx1262LoRaHAL::begin(const Sx1262LoRaConfig &config)
     {
         return false;
     }
+#if defined(NURA_BENCH_RADIO_TRACE)
+    traceVersionProbe();
+#endif
 
-#if !defined(NURA_BENCH_RADIO_DOWNLINK_ONLY)
+    if (config.downlinkOnly)
+    {
+        initialized_ = true;
+        return true;
+    }
+
     traceRadio("START_RX_INIT_CALL");
     if (!startReceive())
     {
@@ -168,7 +200,6 @@ bool Sx1262LoRaHAL::begin(const Sx1262LoRaConfig &config)
         return false;
     }
     traceRadio("START_RX_INIT_RET");
-#endif
 
     initialized_ = true;
     return true;
@@ -222,6 +253,13 @@ bool Sx1262LoRaHAL::send(const uint8_t *data, size_t length)
         return false;
     }
 
+    const uint32_t nowMs = millis();
+    if (lastTxDoneMs_ != 0UL &&
+        (nowMs - lastTxDoneMs_) < NuraConstants::LoRa::kFlightTxInterPacketGapMs)
+    {
+        return false;
+    }
+
     traceRadio("TX_CALL");
     setReceivePath(false);
     int16_t transmitState = radio_.startTransmit(data, length);
@@ -231,13 +269,8 @@ bool Sx1262LoRaHAL::send(const uint8_t *data, size_t length)
     {
         initialized_ = false;
         traceRadio("REINIT_AFTER_TX_FAIL_CALL");
-        if (begin(config_))
-        {
-            traceRadio("RETX_CALL");
-            setReceivePath(false);
-            transmitState = radio_.startTransmit(data, length);
-            traceRadioState("RETX_RET", transmitState);
-        }
+        initialized_ = begin(config_);
+        traceRadio(initialized_ ? "REINIT_AFTER_TX_FAIL_OK" : "REINIT_AFTER_TX_FAIL_BAD");
     }
 #if defined(NURA_BENCH_SX1262_RXE_LOW)
     if (!succeeded(transmitState))
@@ -263,12 +296,7 @@ bool Sx1262LoRaHAL::send(const uint8_t *data, size_t length)
 bool Sx1262LoRaHAL::receive(uint8_t *buffer, size_t capacity, Sx1262LoRaPacket &packet)
 {
     packet = Sx1262LoRaPacket{};
-#if defined(NURA_BENCH_RADIO_DOWNLINK_ONLY)
-    (void)buffer;
-    (void)capacity;
-    return false;
-#else
-    if (!initialized_ || txBusy_ || buffer == nullptr || capacity == 0U)
+    if (!initialized_ || config_.downlinkOnly || txBusy_ || buffer == nullptr || capacity == 0U)
     {
         return false;
     }
@@ -305,7 +333,6 @@ bool Sx1262LoRaHAL::receive(uint8_t *buffer, size_t capacity, Sx1262LoRaPacket &
 
     packet.length = receivedLength;
     return true;
-#endif
 }
 
 int Sx1262LoRaHAL::rssi()
@@ -336,12 +363,22 @@ bool Sx1262LoRaHAL::applyConfig(const Sx1262LoRaConfig &config)
 
 void Sx1262LoRaHAL::setReceivePath(bool enabled)
 {
+    if (BoardPinMap::Sx1262LoRa::rxEnablePin == BoardPinMap::kUnassignedPin)
+    {
+        (void)enabled;
+        return;
+    }
     pinMode(BoardPinMap::Sx1262LoRa::rxEnablePin, OUTPUT);
     digitalWrite(BoardPinMap::Sx1262LoRa::rxEnablePin, enabled ? HIGH : LOW);
 }
 
 bool Sx1262LoRaHAL::startReceive()
 {
+    if (!waitBusyLow())
+    {
+        traceRadio("START_RX_BUSY_TIMEOUT");
+        return false;
+    }
     const int16_t state = radio_.startReceive();
     traceRadioState("START_RX_RET", state);
     return succeeded(state);
@@ -350,11 +387,35 @@ bool Sx1262LoRaHAL::startReceive()
 bool Sx1262LoRaHAL::finishTransmitAndRestartReceive()
 {
     traceRadio("FINISH_TX_CALL");
-    const int16_t finishState = radio_.finishTransmit();
+    int16_t finishState = radio_.finishTransmit();
     traceRadioState("FINISH_TX_RET", finishState);
+    if (!succeeded(finishState))
+    {
+        delay(2);
+        (void)waitBusyLow();
+        finishState = radio_.finishTransmit();
+        traceRadioState("FINISH_TX_RETRY_RET", finishState);
+    }
     txBusy_ = false;
+    lastTxDoneMs_ = millis();
 
-#if !defined(NURA_BENCH_RADIO_DOWNLINK_ONLY)
+    if (config_.downlinkOnly)
+    {
+        setReceivePath(false);
+        if (succeeded(finishState))
+        {
+            return true;
+        }
+        if (configValid_)
+        {
+            initialized_ = false;
+            traceRadio("REINIT_AFTER_TX_FINISH_FAIL_CALL");
+            initialized_ = begin(config_);
+            traceRadio(initialized_ ? "REINIT_AFTER_TX_FINISH_FAIL_OK" : "REINIT_AFTER_TX_FINISH_FAIL_BAD");
+        }
+        return false;
+    }
+
     traceRadio("START_RX_AFTER_TX_CALL");
     const int16_t receiveState = radio_.startReceive();
     traceRadioState("START_RX_AFTER_TX_RET", receiveState);
@@ -371,21 +432,6 @@ bool Sx1262LoRaHAL::finishTransmitAndRestartReceive()
         traceRadio(initialized_ ? "REINIT_AFTER_TX_FINISH_FAIL_OK" : "REINIT_AFTER_TX_FINISH_FAIL_BAD");
     }
     return false;
-#else
-    setReceivePath(false);
-    if (succeeded(finishState))
-    {
-        return true;
-    }
-    if (configValid_)
-    {
-        initialized_ = false;
-        traceRadio("REINIT_AFTER_TX_FINISH_FAIL_CALL");
-        initialized_ = begin(config_);
-        traceRadio(initialized_ ? "REINIT_AFTER_TX_FINISH_FAIL_OK" : "REINIT_AFTER_TX_FINISH_FAIL_BAD");
-    }
-    return false;
-#endif
 }
 
 void Sx1262LoRaHAL::abortTransmit()
@@ -393,7 +439,8 @@ void Sx1262LoRaHAL::abortTransmit()
     traceRadio("ABORT_TX_CALL");
     (void)radio_.finishTransmit();
     txBusy_ = false;
-#if !defined(NURA_BENCH_RADIO_DOWNLINK_ONLY)
-    (void)startReceive();
-#endif
+    if (!config_.downlinkOnly)
+    {
+        (void)startReceive();
+    }
 }

@@ -20,6 +20,7 @@ struct Sx1262LoRaConfig
     float tcxoVoltage = NuraConstants::LoRa::kFlightTcxoVoltage;
     bool useRegulatorLdo = NuraConstants::LoRa::kFlightUseRegulatorLdo;
     bool crcEnabled = true;
+    bool downlinkOnly = NuraConstants::LoRa::kFlightDownlinkOnly;
 };
 
 struct Sx1262LoRaPacket
@@ -64,4 +65,5 @@ private:
     bool txBusy_ = false;
     uint32_t txStartMs_ = 0UL;
     uint32_t txTimeoutMs_ = 0UL;
+    uint32_t lastTxDoneMs_ = 0UL;
 };

@@ -81,7 +81,7 @@ Initial implementation constants:
 
 | Constant | Initial value | Unit | Source / note |
 | --- | ---: | --- | --- |
-| `BOARD_POWER_SETTLE_DELAY_MS` | `2000` | ms | Team bench decision; allow the new board sensors, SD, and program flash logger to power up before bus/device init |
+| `BOARD_POWER_SETTLE_DELAY_MS` | `5000` | ms | Team bench decision; allow the new board sensors, SD, and program flash logger to power up before bus/device init |
 | `BUS_SETTLE_DELAY_MS` | `250` | ms | Team bench decision; allow SPI/I2C bus pins and pullups to settle before sensor `begin()` calls |
 | `PANIC_FAILURE_TONE_FREQUENCY_HZ` | `3200` | Hz | Team bench decision; audible init-failure alarm |
 | `PANIC_DEFAULT_FAILURE_BEEPS` | `2` | beeps | Team decision; unknown or non-storage/non-LoRa init failure |
@@ -90,6 +90,8 @@ Initial implementation constants:
 | `PANIC_FAILURE_REPEAT_PAUSE_MS` | `1000` | ms | Team decision; quiet gap between audible error-code groups |
 | `SENSOR_INIT_RETRY_ATTEMPTS` | `5` | attempts | Team bench decision; retry device `begin()` before treating init as failed |
 | `SENSOR_INIT_RETRY_DELAY_MS` | `150` | ms | Team bench decision; delay between sensor init retries |
+| `SD_INIT_RETRY_ATTEMPTS` | `20` | attempts | Team bench decision; SD is init-critical, but current PCB/card stack can need extra settle time |
+| `SD_INIT_RETRY_DELAY_MS` | `250` | ms | Team bench decision; delay between SD mount/directory retries |
 | `ACCEL_FALLBACK_MAX_SAMPLE_AGE_MS` | `50` | ms | Freshness bound for high-g/low-g acceleration samples used by launch and burnout detection |
 | `LAUNCH_ACCEL_THRESHOLD_G` | `2.0` | g | Team decision, based on 2025 acceleration-norm logs |
 | `LAUNCH_CONFIRM_SAMPLES` | `4` | samples | Team decision; consecutive selected-acceleration samples |
@@ -261,7 +263,8 @@ Inputs and units:
 - `Scheduler::lastInitFailureTaskName()`: name of the task whose `init()`
   returned `false`.
 - Buzzer output: D2.
-- Status LED output: D34.
+- Status LED output: D33. D34-D39 are treated as SDIO-reserved while built-in
+  microSD logging is enabled.
 - Pattern timing constants are in milliseconds.
 
 Allowed state:
@@ -279,8 +282,8 @@ Behavior:
 - `telemetry` init failure, currently LoRa bring-up failure: three short beeps,
   one second pause, repeat forever.
 - Storage-related init failure: four short beeps, one second pause, repeat
-  forever. Current `flight_log` storage failures are non-critical and do not
-  enter panic, but this code is reserved for a future storage-critical mode.
+  forever. In the current avionics build, `flight_log` storage is init-critical
+  because the microSD logger is required.
 - Any other init failure: two short beeps, one second pause, repeat forever.
 - The status LED follows each beep.
 - The loop uses `delay()` between tones and drains pending USB serial input so
@@ -742,8 +745,9 @@ Failure modes considered:
 
 - Boot/init failure: if physical pyro outputs are enabled and the HAL detects
   any overlap between D21 power sense and a pyro output, FSM init fails and the
-  app enters the existing panic path. The final pinmap D28/D29/D36/D37 has no
-  such overlap.
+  app enters the existing panic path. Current Drogue/Pyro 1 outputs are D28/D29.
+  Main/Pyro 2 output pins require PCB reassignment because D36/D37 overlap the
+  Teensy SDIO pin group used by built-in microSD logging.
 - Software reset or disarm: entering `SAFE`, `GROUND`, or `FAULT` calls
   `allOff()`.
 - Continuity/sense failure: not acted on yet because the sense circuit has not
@@ -754,7 +758,8 @@ Verification plan:
 - Host replay: `checkPyroOutputSequence()` verifies Drogue ON/OFF/retry and
   Main ON/OFF call order without hardware.
 - Bench GPIO test: with no e-matches attached, define `NURA_ENABLE_PYRO_OUTPUTS`
-  and scope/LED-test D28/D29/D36/D37.
+  and scope/LED-test D28/D29. Do not scope/drive D34-D39 as GPIO while built-in
+  microSD logging is enabled.
 - Hardware integration: verify continuity/sense readings before allowing arming
   gates to depend on them.
 
@@ -773,8 +778,8 @@ NURA_ENABLE_PYRO_OUTPUTS without NURA_ALLOW_PYRO_POWER_SENSE_PIN_CONFLICT:
 ```
 
 `NURA_ALLOW_PYRO_POWER_SENSE_PIN_CONFLICT` remains a bench-only escape hatch
-for an intentionally modified pinmap. It is not needed for the final D21,
-D28/D29/D36/D37 assignment and must not be used in a flight build.
+for an intentionally modified pinmap. It is not needed for the current D21 and
+D28/D29 assignment and must not be used in a flight build.
 
 Drogue sequence in `APOGEE`:
 

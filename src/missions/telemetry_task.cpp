@@ -272,10 +272,17 @@ bool TelemetryTask::sendFastTelemetry(uint32_t nowMs)
     uint8_t payload[nura::kFastPayloadLen];
     if (!nura::encodeFastPayload(fast, payload, sizeof(payload)))
     {
-        return false;
+        lastFastTxMs_ = nowMs;
+        sentFast_ = true;
+        return true;
     }
 
-    (void)sendRawFrame(nura::MESSAGE_FAST_TLM, payload, nura::kFastPayloadLen);
+    if (!sendRawFrame(nura::MESSAGE_FAST_TLM, payload, nura::kFastPayloadLen))
+    {
+        lastFastTxMs_ = nowMs;
+        sentFast_ = true;
+        return true;
+    }
     lastFastTxMs_ = nowMs;
     sentFast_ = true;
     return true;
@@ -287,10 +294,17 @@ bool TelemetryTask::sendGpsTelemetry(uint32_t nowMs)
     uint8_t payload[nura::kGpsPayloadLen];
     if (!nura::encodeGpsPayload(gps, payload, sizeof(payload)))
     {
-        return false;
+        lastGpsTxMs_ = nowMs;
+        sentGps_ = true;
+        return true;
     }
 
-    (void)sendRawFrame(nura::MESSAGE_GPS_TLM, payload, nura::kGpsPayloadLen);
+    if (!sendRawFrame(nura::MESSAGE_GPS_TLM, payload, nura::kGpsPayloadLen))
+    {
+        lastGpsTxMs_ = nowMs;
+        sentGps_ = true;
+        return true;
+    }
     lastGpsTxMs_ = nowMs;
     sentGps_ = true;
     return true;
@@ -627,5 +641,6 @@ Sx1262LoRaConfig TelemetryTask::buildRadioConfig() const
     radioConfig.preambleLength = config_.loraPreambleLength();
     radioConfig.syncWord = config_.loraSyncWord();
     radioConfig.crcEnabled = true;
+    radioConfig.downlinkOnly = NuraConstants::LoRa::kFlightDownlinkOnly;
     return radioConfig;
 }

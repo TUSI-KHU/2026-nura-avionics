@@ -34,7 +34,7 @@ namespace App
 {
 constexpr unsigned long kSerialBaudRate = 115200UL;
 constexpr uint16_t kFaultBlinkIntervalMs = 1000U;
-constexpr uint32_t kBoardPowerSettleDelayMs = 2000UL;
+constexpr uint32_t kBoardPowerSettleDelayMs = 5000UL;
 constexpr uint32_t kBusSettleDelayMs = 250UL;
 } // namespace App
 
@@ -94,8 +94,8 @@ namespace Logger
 {
 constexpr uint8_t kDrainBudget = 4U;
 constexpr uint8_t kOutputFailThreshold = 3U;
-constexpr uint8_t kSdInitRetryAttempts = 5U;
-constexpr uint32_t kSdInitRetryDelayMs = 200UL;
+constexpr uint8_t kSdInitRetryAttempts = 20U;
+constexpr uint32_t kSdInitRetryDelayMs = 250UL;
 constexpr uint16_t kFlightLogRamBufferBytes = 16U * 1024U;
 constexpr uint32_t kFlightLogProgramFlashBytes = 6UL * 1024UL * 1024UL;
 constexpr uint32_t kFlightLogFileSegmentBytes = 256UL * 1024UL;
@@ -155,14 +155,18 @@ constexpr uint8_t kStorageFailureBeeps = 4U;
 namespace LoRa
 {
 constexpr long kFlightFrequencyHz = 920900000L;
-constexpr uint32_t kFlightSpiFrequencyHz = 2000000UL;
+constexpr uint32_t kFlightSpiFrequencyHz = 250000UL;
 constexpr int kFlightTxPowerDbm = 17;
-constexpr uint8_t kFlightInitAttempts = 5U;
-constexpr uint32_t kFlightInitRetryDelayMs = 100UL;
+constexpr uint8_t kFlightInitAttempts = 10U;
+constexpr uint32_t kFlightInitRetryDelayMs = 250UL;
+constexpr uint32_t kFlightInitPreBeginSettleMs = 150UL;
+constexpr uint32_t kFlightBusyWaitTimeoutMs = 25UL;
+constexpr uint32_t kFlightTxInterPacketGapMs = 150UL;
 constexpr uint8_t kFlightSpiMode = 0x00U; // Teensy SPI_MODE0.
 constexpr bool kFlightProbeSpiMode = false;
 constexpr float kFlightTcxoVoltage = 0.0f; // 0 V assumes an XTAL, not a DIO3-controlled TCXO.
 constexpr bool kFlightUseRegulatorLdo = false;
+constexpr bool kFlightDownlinkOnly = true; // RX/uplink validation is a later stability phase.
 
 constexpr int kSpreadingFactor = 7;
 constexpr long kSignalBandwidthHz = 125000L;
@@ -248,18 +252,6 @@ constexpr float kHpaToPa = 100.0f;
 constexpr float kMinDatasheetPressurePa = 20000.0f;
 constexpr float kMaxDatasheetPressurePa = 110000.0f;
 } // namespace MPL3115A2
-
-namespace MS5611
-{
-constexpr float kMinDatasheetPressurePa = 1000.0f;
-constexpr float kMaxDatasheetPressurePa = 120000.0f;
-} // namespace MS5611
-
-namespace ADXL377
-{
-constexpr float kDatasheetReferenceVoltage = 3.0f;
-constexpr float kDatasheetSensitivityMvPerG = 6.5f;
-} // namespace ADXL377
 
 namespace Mock
 {

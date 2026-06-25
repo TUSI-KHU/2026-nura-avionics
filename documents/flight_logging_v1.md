@@ -195,12 +195,23 @@ only.
   is absent, cannot be mounted, cannot create `/NURA_LOG`, or cannot open a new
   `.NLG` file, `FlightLogTask::init()` fails and the application enters the
   init-failure panic path.
-- SD mount and `/NURA_LOG` directory creation are retried briefly during init to
-  tolerate card/power settle timing on the PCB.
+- SD mount and `/NURA_LOG` directory creation are retried during init
+  (`20 x 250 ms`) after the board-level power settle delay. This keeps SD
+  mandatory while tolerating card/power settle timing on the PCB.
 - The application attempts to mount/open the mandatory log storage before sensor
-  task initialization, then `FlightLogTask::init()` reuses the already-open
-  backend. This avoids observed SDIO mount failures after SPI sensor bring-up on
-  the current PCB/bench stack.
+  bus and task initialization, then `FlightLogTask::init()` reuses the
+  already-open backend. This avoids observed SDIO mount failures after SPI
+  sensor bring-up on the current PCB/bench stack.
+- `src/main.cpp` performs a boot preflight `SD.sdfs.begin(SdioConfig(FIFO_SDIO))`
+  before constructing `FlightControllerApp`. On the current Teensy 4.1 PCB
+  stack, claiming the built-in SDIO bus before the full app object is
+  constructed prevents `SD_CARD_ERROR_CMD0` failures during the later logger
+  init. `FlightLogTask::init()` still owns the init-fatal storage decision and
+  file creation.
+- On Teensy built-in SD, the backend mounts `SD.sdfs` directly with
+  `SdioConfig(FIFO_SDIO)` instead of `SD.begin(BUILTIN_SDCARD)`. The Teensy
+  compatibility wrapper drives the DAT3 card-detect line pulldown after a
+  failed early probe; direct SdFat mounting avoids poisoning later boot retries.
 - Program flash may be used as the primary logging backend, but it does not make
   an absent SD card acceptable in this revision.
 - If the program-flash backend fails but SD still writes, continue logging and

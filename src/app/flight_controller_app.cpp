@@ -14,6 +14,12 @@ bool FlightControllerApp::setup(uint32_t nowMs)
     delay(NuraConstants::App::kBoardPowerSettleDelayMs);
     nowMs = millis();
 
+    // 필수 로깅 저장소는 외부 센서 버스 초기화보다 먼저 잡아둔다. 현재 PCB에서
+    // SDIO mount가 SPI/I2C 장치 bring-up 이후 간헐 실패하는 증상이 있어 순서를 고정한다.
+#if !defined(NURA_BENCH_DISABLE_FLIGHT_LOG_TASK)
+    (void)flightLogStorage_.begin();
+#endif
+
     pinMode(BoardPinMap::LSM6DSO32::csPin, OUTPUT);
     pinMode(BoardPinMap::H3LIS331DL::csPin, OUTPUT);
     pinMode(BoardPinMap::Sx1262LoRa::ssPin, OUTPUT);
@@ -30,8 +36,11 @@ bool FlightControllerApp::setup(uint32_t nowMs)
     SPI1.setSCK(BoardPinMap::Spi1Bus::sckPin);
     SPI1.begin();
 #if defined(NURA_BENCH_SX1262_RXE_LOW)
-    pinMode(BoardPinMap::Sx1262LoRa::rxEnablePin, OUTPUT);
-    digitalWrite(BoardPinMap::Sx1262LoRa::rxEnablePin, LOW);
+    if (BoardPinMap::Sx1262LoRa::rxEnablePin != BoardPinMap::kUnassignedPin)
+    {
+        pinMode(BoardPinMap::Sx1262LoRa::rxEnablePin, OUTPUT);
+        digitalWrite(BoardPinMap::Sx1262LoRa::rxEnablePin, LOW);
+    }
 #endif
 #endif
 #if !defined(NURA_MOCK_TELEMETRY)
@@ -49,12 +58,6 @@ bool FlightControllerApp::setup(uint32_t nowMs)
 #endif
     delay(NuraConstants::App::kBusSettleDelayMs);
     nowMs = millis();
-
-    // SDIO mount가 SPI 센서 초기화 이후 간헐 실패하는 보드 상태를 피하기 위해
-    // 필수 로깅 저장소를 먼저 잡아둔다. 최종 init-fatal 판정은 FlightLogTask가 한다.
-#if !defined(NURA_BENCH_DISABLE_FLIGHT_LOG_TASK)
-    (void)flightLogStorage_.begin();
-#endif
 
     // 태스크 등록 순서는 실제 실행 순서에도 영향을 준다.
 #if defined(NURA_MOCK_TELEMETRY)
