@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="BackendCodeEditorMiscSettings">
-    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="8" type="long" />
+    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="12" type="long" />
     <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexedValue" value="true" type="bool" />
   </component>
   <component name="CMakeProjectFlavorService">
@@ -21,29 +21,13 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="init fail 로직수정">
+    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="레거시 hal제거, 파이로2번 간섭으로 임시 비활성화,pcb업로">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/documents/flight_logging_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/flight_logging_v1.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/documents/ground_receiver_telemetry_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/ground_receiver_telemetry_v1.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/documents/sensors.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/sensors.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/include/board_pinmap.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/board_pinmap.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/include/nura_constants.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/nura_constants.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/platformio.ini" beforeDir="false" afterPath="$PROJECT_DIR$/platformio.ini" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/flight_controller_app.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/flight_controller_app.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hal/adxl377_hal.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hal/adxl377_hal.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hal/mosfet_pyro_hal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/mosfet_pyro_hal.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hal/ms5611_hal.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hal/ms5611_hal.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hal/sx1262_lora_hal.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/sx1262_lora_hal.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hal/sx1262_lora_hal.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/hal/sx1262_lora_hal.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/logging/sd_flight_log_storage.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/logging/sd_flight_log_storage.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/missions/telemetry_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/telemetry_task.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/test/sensor_test/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/adxl377_high_g_accel_test.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/sensor_test/ms5611_baro_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/missions/flight_log_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/flight_log_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/state/flight_state.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/state/flight_state.h" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -269,7 +253,7 @@
       <workItem from="1779943422742" duration="8604000" />
       <workItem from="1780555814485" duration="39000" />
       <workItem from="1781855666077" duration="785000" />
-      <workItem from="1782114974287" duration="9397000" />
+      <workItem from="1782114974287" duration="12195000" />
     </task>
     <task id="LOCAL-00001" summary="port on teensy4.1">
       <option name="closed" value="true" />
@@ -471,7 +455,23 @@
       <option name="project" value="LOCAL" />
       <updated>1782223626704</updated>
     </task>
-    <option name="localTasksCounter" value="26" />
+    <task id="LOCAL-00026" summary="레거시 hal제거, 파이로2번 간섭으로 임시 비활성화,pcb업로">
+      <option name="closed" value="true" />
+      <created>1782374676393</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1782374676393</updated>
+    </task>
+    <task id="LOCAL-00027" summary="레거시 hal제거, 파이로2번 간섭으로 임시 비활성화,pcb업로">
+      <option name="closed" value="true" />
+      <created>1782374683047</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1782374683047</updated>
+    </task>
+    <option name="localTasksCounter" value="28" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -500,6 +500,7 @@
     <MESSAGE value="실기판기반 핀맵수정 &amp; 로거로직추가 &amp; 파이로 로직추가 &amp; 버저 구현 추가 &amp; 배터리 전압 체킹 및 변환 로직추가 &amp; pcb lora sx1276으로 변" />
     <MESSAGE value="blocking I/O 전부 non-blocking으로 수정, 로라 안정성 체크" />
     <MESSAGE value="init fail 로직수정" />
-    <option name="LAST_COMMIT_MESSAGE" value="init fail 로직수정" />
+    <MESSAGE value="레거시 hal제거, 파이로2번 간섭으로 임시 비활성화,pcb업로" />
+    <option name="LAST_COMMIT_MESSAGE" value="레거시 hal제거, 파이로2번 간섭으로 임시 비활성화,pcb업로" />
   </component>
 </project>

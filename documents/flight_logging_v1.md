@@ -34,7 +34,7 @@ on boot:
     create/open /NURA_LOG/FLxxx.NLG
 
 while logging:
-    append complete encoded frames
+    append the complete encoded frame stream emitted by FlightLogTask
     rotate to a new file segment after 256 KB
     delete the lowest-numbered older log file if free space is low
 
@@ -57,6 +57,12 @@ easier post-test extraction path.
 microSD receives the same encoded binary records as the storage interface sees.
 The SD backend writes one `.NLG` file per boot under `/NURA_LOG/` and selects
 the first free name from `FL000.NLG` through `FL999.NLG`.
+
+Program flash and microSD do not make independent logging decisions. They both
+receive the same already-encoded stream from `FlightLogTask`, so a state
+transition, decision trace, FAST sample, or SLOW sample either has the same
+frame contents on both targets or is marked as a target-specific storage
+failure by `FlightLogMirrorStorage`.
 
 SD failure must not affect the flight state machine. When flash and SD are both
 enabled, `FlightLogMirrorStorage` keeps writing as long as at least one target
@@ -143,7 +149,12 @@ Contents:
 
 ### EVENT Record
 
-Written when discrete events occur:
+Written when discrete events occur. State-transition events are not inferred by
+polling the current state at the 20 ms logging period. The FSM pushes every
+transition into a fixed queue at `transitionTo()` time, and `FlightLogTask`
+drains that queue into EVENT frames. This is required because recovery states
+such as `DROGUE` can complete faster than one logger tick; polling would record
+`APOGEE -> DEPLOY` and silently lose the intermediate `DROGUE` state.
 
 - BOOT / logger init.
 - state transition.
@@ -171,6 +182,37 @@ Examples:
 - landing stability decision.
 
 This is the record family that answers, "why did the FSM fire recovery here?"
+
+## Event And Decision Queue Policy
+
+Only periodic sensor snapshots are sampled by polling:
+
+- FAST records at `kFlightLogFastPeriodMs`.
+- SLOW records at `kFlightLogSlowPeriodMs`.
+
+Discrete flight-logic evidence is source-queued instead:
+
+- State transitions are queued by `FlightStateMachineTask::transitionTo()`.
+- Decision traces are queued by the FSM's `recordDecision()` path.
+- Ground stop is emitted by `FlightLogTask::stopAtGround()` after pending
+  records are drained.
+
+Both queues are fixed-size ring buffers with oldest-record drop on overflow.
+The current transition queue depth is 16. That is intentionally larger than the
+number of possible state transitions in one scheduler tick, and avoids dynamic
+allocation in flight code. Overflow indicates a logging bug or unexpected rapid
+state oscillation; it must be investigated in post-test review.
+
+The policy is:
+
+```text
+periodic sensor values  -> sampled by FlightLogTask period
+flight decisions/events -> pushed by the source at the exact decision time
+encoded frames          -> mirrored unchanged to program flash and microSD
+```
+
+This keeps SD and flash logs consistent while preventing short-lived states or
+multiple same-tick decisions from disappearing.
 
 ## Raw And Filtered Data
 
@@ -243,7 +285,7 @@ only.
 | U3 program flash `.NLG` backend | `src/logging/program_flash_flight_log_storage.*` |
 | microSD `.NLG` backend | `src/logging/sd_flight_log_storage.*` |
 | Periodic snapshot/event/decision task | `src/missions/flight_log_task.*` |
-| FSM decision trace source | `src/state/flight_state.h`, `src/missions/fsm_task.cpp` |
+| FSM decision and transition trace source | `src/state/flight_state.h`, `src/missions/fsm_task.cpp` |
 | Dump decoder / CSV exporter | `tools/decode_flight_log.py` |
 | Host-side logger tests | `test/logging/*` |
 
