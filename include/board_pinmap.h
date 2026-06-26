@@ -114,6 +114,18 @@ struct MPL3115A2 final
     static constexpr uint8_t i2cAddress = 0x60U;
 };
 
+struct BMP180 final
+{
+    static TwoWire &wire()
+    {
+        return I2c0Bus::wire();
+    }
+
+    static constexpr uint8_t sdaPin = I2c0Bus::sdaPin;
+    static constexpr uint8_t sclPin = I2c0Bus::sclPin;
+    static constexpr uint8_t i2cAddress = 0x77U;
+};
+
 struct UbloxM6 final
 {
     static decltype(Serial3) &serial()
@@ -162,8 +174,8 @@ struct Pyro1 final
 
 struct Pyro2 final
 {
-    static constexpr uint8_t gpio1Pin = kUnassignedPin;
-    static constexpr uint8_t gpio2Pin = kUnassignedPin;
+    static constexpr uint8_t gpio1Pin = 35U;
+    static constexpr uint8_t gpio2Pin = 38U;
     static constexpr uint8_t sensePin = 40U;
 };
 

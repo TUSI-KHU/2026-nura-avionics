@@ -1,0 +1,41 @@
+References,Value,Footprint,LCSC/JLCPCB Part,Verification,Notes
+BZ1,Buzzer,Buzzer_Beeper:Buzzer_12x9.5RM7.6,,MISSING/VERIFY,"No locked supplier part. Need active/passive and voltage; footprint only verifies 12x9.5mm, 7.6mm pin pitch."
+"C1, C2",1u,Capacitor_SMD:C_0805_2012Metric,C28323,OK,0805 capacitor footprint matches selected 0805 MLCC.
+C3,1n,Capacitor_SMD:C_0805_2012Metric,C1791,OK,0805 capacitor footprint matches selected 0805 MLCC.
+"C4, C6, C7, C9, C11, C15, C16, C18, C21",100n,Capacitor_SMD:C_0805_2012Metric,C49678,OK,0805 capacitor footprint matches selected 0805 MLCC.
+"C5, C20",100p,Capacitor_SMD:C_0805_2012Metric,C1790,OK,0805 capacitor footprint matches selected 0805 MLCC.
+"C8, C17",10u,Capacitor_SMD:C_0805_2012Metric,C15850,OK,0805 capacitor footprint matches selected 0805 MLCC.
+"C10, C12, C13, C14, C19",22u,Capacitor_SMD:C_0805_2012Metric,C45783,OK,0805 capacitor footprint matches selected 0805 MLCC.
+D1,LED Red,LED_THT:LED_D1.8mm_W3.3mm_H2.4mm,,OK,Selected 1.8mm through-hole LED matches LED_THT:LED_D1.8mm_W3.3mm_H2.4mm footprint; check polarity during assembly.
+D2,LED Green,LED_THT:LED_D1.8mm_W3.3mm_H2.4mm,,OK,Selected 1.8mm through-hole LED matches LED_THT:LED_D1.8mm_W3.3mm_H2.4mm footprint; check polarity during assembly.
+F1,5A,avionics:Fuse_2410_6127Metric,C178993,OK,C178993 is Littelfuse 0453005.MR package 2410; custom 2410/6127 footprint used.
+"J1, J2",U.FL-R-SMT-1(10),Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical,C88373,OK,"C88373 is Hirose U.FL-R-SMT-1(10), footprint is exact Hirose U.FL-R-SMT-1 vertical."
+JP1,GPS_RST,Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm,,DNP/OK,"Solder jumper is PCB copper, not purchased BOM item."
+JP2,LORA_RST,Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm,,DNP/OK,"Solder jumper is PCB copper, not purchased BOM item."
+J_POWER1,XT60,Connector_AMASS:AMASS_XT60-F_1x02_P7.20mm_Vertical,,OK,Selected AMASS XT60-F matches KiCad Connector_AMASS:AMASS_XT60-F_1x02_P7.20mm_Vertical footprint.
+"J_PYRO1, J_PYRO2",IGNITER_5R6,TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm,,MISSING/VERIFY,No locked supplier part. Footprint is MaiXu MX126-5.0-02P; DigiKey generic terminal blocks need pitch/drill/body verification.
+L1,10uH,Inductor_SMD:L_Changjiang_FXL1050,C5359264,OK,C5359264 is FXL1050-100-M SMD 11.5x10mm; footprint name matches FXL1050 family.
+"Q1, Q2, Q3, Q4",IRLR8726,Package_TO_SOT_SMD:TO-252-2,C5350860,OK,"Selected IRLR8726 package TO-252 matches TO-252-2 footprint; C5350860 is in stock alternative, not Infineon original."
+"R1, R2",10k,Resistor_SMD:R_0805_2012Metric,C17414,OK,0805 resistor footprint matches selected 0805 chip resistor.
+"R3, R15",330k,Resistor_SMD:R_0805_2012Metric,C17629,OK,0805 resistor footprint matches selected 0805 chip resistor.
+"R4, R16",68k,Resistor_SMD:R_0805_2012Metric,C17801,OK,0805 resistor footprint matches selected 0805 chip resistor.
+R5,180k,Resistor_SMD:R_0805_2012Metric,C17501,OK,0805 resistor footprint matches selected 0805 chip resistor.
+"R6, R9, R17, R19",100,Resistor_SMD:R_0805_2012Metric,C17408,OK,0805 resistor footprint matches selected 0805 chip resistor.
+"R7, R10, R13, R18, R20",100k,Resistor_SMD:R_0805_2012Metric,C149504,OK,0805 resistor footprint matches selected 0805 chip resistor.
+R8,30k,Resistor_SMD:R_0805_2012Metric,C17621,OK,0805 resistor footprint matches selected 0805 chip resistor.
+R11,150k,Resistor_SMD:R_0805_2012Metric,C17470,OK,0805 resistor footprint matches selected 0805 chip resistor.
+R12,1k,Resistor_SMD:R_0805_2012Metric,C17513,OK,0805 resistor footprint matches selected 0805 chip resistor.
+R14,33k,Resistor_SMD:R_0805_2012Metric,C17633,OK,0805 resistor footprint matches selected 0805 chip resistor.
+"R21, R22, R23, R24",4.7k,Resistor_SMD:R_0805_2012Metric,C17673,OK,0805 resistor footprint matches selected 0805 chip resistor.
+"R25, R26",220,Resistor_SMD:R_0805_2012Metric,C17557,OK,0805 resistor footprint matches selected 0805 chip resistor.
+SW1,ARM,TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm,,MISSING/VERIFY,No locked supplier part. Footprint is MaiXu MX126-5.0-02P; DigiKey generic terminal blocks need pitch/drill/body verification.
+U1,Adafruit_LSM6DSO32,avionics:LSM6DSOX,,MODULE/VERIFY,Custom module/breakout footprint; verify header/pad geometry against purchased breakout revision.
+U2,Sparkfun_H3LIS331DL,avionics:Sparkfun_H3LIS331DL,,MODULE/VERIFY,Custom module/breakout footprint; verify header/pad geometry against purchased breakout revision.
+U3,Adafruit_MPC3315A2,avionics:Adafruit_MPC3315A2,,MODULE/VERIFY,Custom module/breakout footprint; verify header/pad geometry against purchased breakout revision.
+U4,Teensy4.1,avionics:Teensy41,,MODULE/VERIFY,Custom module/breakout footprint; verify header/pad geometry against purchased breakout revision.
+U5,LIS3MDL,avionics:Adafruit_LIS3MDL,,MODULE/VERIFY,Custom module/breakout footprint; verify header/pad geometry against purchased breakout revision.
+U6,NEO-M9N-00B,easyeda2kicad:GPSM-SMD_24P-L16.0-W12.2-P1.10-BL,C5119087,OK,C5119087 NEO-M9N-00B package SMD-24P matches EasyEDA SMD-24P GPS module footprint.
+U7,SX1262S9S+T-X1,easyeda2kicad:WIRELM-SMD_SX1278S165SY-T-X1,C718839,WARNING,"BOM part is SX1262S9S+T-X1; footprint name references SX1278S165SY-T-X1. Both may be 16x16mm modules, but verify pinout/mechanical before ordering."
+U8,MCP1825S-5002,Package_TO_SOT_SMD:SOT-223-3_TabPin2,,WARNING,BOM currently uses DigiKey fallback MCP1825S-5002E/AB; verify SOT-223-3 package. Previously seen JLC C641145 is TO-220 and does NOT match.
+U9,AP63200WU-7,Package_TO_SOT_SMD:TSOT-23-6,C2071868,OK,AP63200WU-7 package TSOT-23-6 matches footprint.
+U10,AP2210K-3.3,Package_TO_SOT_SMD:SOT-23-5,C176959,OK,AP2210K-3.3TRG1 package SOT-23-5 matches footprint.

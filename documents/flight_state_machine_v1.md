@@ -40,11 +40,11 @@ Excluded from this version:
 - Flight logging records state transitions and decision traces, but the FSM
   itself still owns the recovery decisions.
 - Barometer fault fallback is implemented for apogee/main decisions. High-g
-  acceleration fallback is implemented only for launch and burnout detection.
+  acceleration fallback is implemented only as a degraded launch/burnout backup.
   Broader sensor degraded-mode policy is still TODO.
 - Launch and burnout detection use a single scalar acceleration norm in g.
-  High-g is the primary source; low-g is used only when high-g is unavailable,
-  faulted, stale, or non-finite.
+  Low-g is the primary source; high-g is used only when low-g is unavailable,
+  stale, or non-finite.
 - Constants and thresholds must live in code as named constants, not inline
   literals.
 - `APOGEE` is a real state in this design. It represents the drogue pyro
@@ -114,8 +114,9 @@ Initial implementation constants:
 | `MIN_APOGEE_DETECT_ALT_M` | `30.0` | m AGL | Prevent low-altitude false deployment |
 | `APOGEE_DROP_THRESHOLD_M` | `4.0` | m | Backup descent detector |
 | `APOGEE_DESCENT_CONFIRM_SAMPLES` | `4` | samples | Consecutive backup descent samples |
-| `MPL3115A2_CONVERSION_TIMEOUT_MS` | `50` | ms | Matches the 50 ms barometer task period; bench trace showed the library default OS128 one-shot path blocking for about 383 ms |
-| `MPL3115A2_FAST_BAROMETER_CTRL_REG1` | `0x00` | register value | BAR mode with OS1; team bench decision to keep MPL3115A2 conversion time inside the scheduler budget |
+| `BMP180_CONVERSION_TIMEOUT_MS` | `50` | ms | Matches the 50 ms barometer task period; BMP180 pressure/temperature conversions are polled non-blocking instead of using a blocking library path |
+| `BMP180_OVERSAMPLING` | `0` | OSS | Team bring-up decision; OSS0 keeps pressure conversion short for scheduler-safe apogee sampling |
+| `BMP180_TEMPERATURE_REFRESH_PRESSURE_SAMPLES` | `20` | pressure samples | BMP180 pressure compensation needs temperature-derived `B5`; temperature is refreshed periodically while pressure samples continue at the barometer task cadence |
 | `BARO_MEDIAN_WINDOW_SAMPLES` | `3` | samples | Spike rejection in barometer task; implementation-local constant |
 | `BARO_ALTITUDE_LPF_ALPHA` | `0.35` | ratio | First-order low-pass on median altitude; implementation-local constant, tune after replay |
 | `BARO_STALE_FAULT_MS` | `300` | ms | Barometer health policy; stale last-valid sample threshold |
@@ -153,9 +154,9 @@ Notes:
 
 - The 4-sample launch and burnout confirmations are intentionally sample-count
   based, not millisecond based.
-- The launch and burnout confirmation source is high-g (`H3LIS331DL`) first.
-  If high-g is faulted or stale, the low-g IMU acceleration norm is used as a
-  degraded fallback. A healthy high-g sample is never mixed with a low-g sample
+- The launch and burnout confirmation source is low-g (`LSM6DSO32`) first.
+  If low-g is stale or unavailable, the high-g IMU acceleration norm is used as a
+  degraded fallback. A healthy low-g sample is never mixed with a high-g sample
   for the same detector step.
 - Low-g IMU tilt fallback is also used after a barometer fault, but that is a
   separate apogee fallback path.
@@ -309,7 +310,7 @@ Verification plan:
 ### Flight Acceleration Source And Norm
 
 Launch and burnout detection use one selected acceleration source per fresh
-sample. The primary source is high-g. The fallback source is low-g.
+sample. The primary source is low-g. The fallback source is high-g.
 
 High-g is usable only when:
 
@@ -331,17 +332,17 @@ AND lowG accel x/y/z values are finite
 Selection rule:
 
 ```text
-if high-g is usable:
-    use high-g
-else if low-g is usable:
+if low-g is usable:
     use low-g
+else if high-g is usable:
+    use high-g
 else:
     do not update launch/burnout confirmation this tick
 ```
 
-The detector consumes only one new sample per source timestamp. If high-g is
-healthy but has no new timestamp yet, the detector waits for high-g instead of
-opportunistically mixing in low-g samples.
+The detector consumes only one new sample per source timestamp. If low-g is
+healthy but has no new timestamp yet, the detector waits for low-g instead of
+opportunistically mixing in high-g samples.
 
 For high-g accelerometer values:
 
@@ -476,7 +477,7 @@ sample from a latched sensor fault.
 
 Inputs and units:
 
-- MPL3115A2 pressure in Pa.
+- BMP180 pressure in Pa.
 - Pad-relative raw altitude in m AGL.
 - Filtered altitude in m AGL.
 - Sample timestamp in ms.
@@ -746,8 +747,10 @@ Failure modes considered:
 - Boot/init failure: if physical pyro outputs are enabled and the HAL detects
   any overlap between D21 power sense and a pyro output, FSM init fails and the
   app enters the existing panic path. Current Drogue/Pyro 1 outputs are D28/D29.
-  Main/Pyro 2 output pins require PCB reassignment because D36/D37 overlap the
-  Teensy SDIO pin group used by built-in microSD logging.
+  Main/Pyro 2 has been rerouted from the old D36/D37 pair to the D35/D38 output
+  pair, with sense on D40. The exact gpio1/gpio2 order must be confirmed by
+  continuity from Teensy pins to the MOSFET gate/driver nets before physical
+  pyro outputs are enabled.
 - Software reset or disarm: entering `SAFE`, `GROUND`, or `FAULT` calls
   `allOff()`.
 - Continuity/sense failure: not acted on yet because the sense circuit has not
@@ -758,8 +761,9 @@ Verification plan:
 - Host replay: `checkPyroOutputSequence()` verifies Drogue ON/OFF/retry and
   Main ON/OFF call order without hardware.
 - Bench GPIO test: with no e-matches attached, define `NURA_ENABLE_PYRO_OUTPUTS`
-  and scope/LED-test D28/D29. Do not scope/drive D34-D39 as GPIO while built-in
-  microSD logging is enabled.
+  and scope/LED-test D28/D29 and the confirmed D35/D38 Pyro 2 pair. Verify
+  microSD logging still works during the same bench session before accepting
+  the rerouted Pyro 2 pins.
 - Hardware integration: verify continuity/sense readings before allowing arming
   gates to depend on them.
 
@@ -891,7 +895,7 @@ check implementation drift quickly.
 | Low-g quaternion attitude estimate | `src/sensors/imu_task.cpp`, `src/state/imu_state.h` | `updateAttitudeEstimate()`, `ImuData::rollDeg/pitchDeg/yawDeg/tiltAngleDeg` | Integrates gyro, corrects with accel direction only near 1 g, and publishes roll/pitch/yaw plus the scalar FSM tilt. |
 | Barometer telemetry fields | `src/state/telemetry_state.h` | `BarometerTelemetryData` | `rawAltitudeM` is unfiltered; `altitudeM` is filtered and used by FSM. |
 | Barometer pressure-to-altitude conversion | `src/sensors/barometer_task.cpp` | `relativeAltitudeM()` | Uses pad reference pressure captured on first valid sample. |
-| MPL3115A2 conversion timing | `src/hal/mpl3115a2_hal.cpp`, `include/nura_constants.h` | `MPL3115A2HAL::begin()`, `MPL3115A2HAL::poll()`, `kFastBarometerCtrlReg1`, `kConversionTimeoutMs` | Overrides the Adafruit library default OS128 one-shot setup with BAR/OS1 and non-blocking one-shot polling. `PENDING` yields the scheduler without counting as a read failure; conversion timeout is counted as a read failure. |
+| BMP180 conversion timing | `src/hal/bmp180_hal.cpp`, `include/nura_constants.h` | `BMP180HAL::begin()`, `BMP180HAL::poll()`, `BMP180` constants | Reads factory calibration coefficients, alternates temperature refresh with pressure conversions, and returns `PENDING` while conversion is in progress. Conversion timeout is counted as a read failure. |
 | Barometer filtering | `src/sensors/barometer_task.cpp`, `src/sensors/barometer_task.h` | `BarometerTask::filterAltitude()` and filter member state | 3-sample median followed by EWMA alpha `0.35`. |
 | Barometer sample publication | `src/sensors/barometer_task.cpp` | `BarometerTask::tick()` | Updates pressure, reference, raw altitude, filtered altitude, and sample timestamp. |
 | Barometer sample rejection / fault latch | `src/sensors/barometer_task.cpp`, `src/state/telemetry_state.h` | `recordReadFailure()`, `recordBadValue()`, `markFault()`, `BarometerTelemetryData` | Rejects isolated bad samples; latches read-fail, stale, bad-value, and stuck fault flags after the configured thresholds. |
@@ -899,8 +903,8 @@ check implementation drift quickly.
 | Watchdog recovery scheduling | `src/missions/watchdog_task.cpp`, `src/sensors/imu_task.cpp`, `src/sensors/high_g_imu_task.cpp`, `src/sensors/magnetometer_task.cpp`, `src/sensors/barometer_task.cpp` | `WatchdogTask::tick()`, sensor `recover()` / `initialize()` paths | Runtime recovery attempts are bounded to one immediate sensor `begin()` attempt per watchdog recovery interval. The recovery path avoids multi-attempt `delay()` loops that can stall FSM, telemetry, and sensor scheduling. |
 | Nonblocking LoRa TX | `src/hal/sx1262_lora_hal.cpp`, `src/missions/telemetry_task.cpp` | `Sx1262LoRaHAL::send()`, `Sx1262LoRaHAL::service()`, `TelemetryTask::tick()` | TX starts with `startTransmit()` and completes from periodic service on DIO1 so LoRa airtime does not block FSM/sensor scheduling. ACKs are retained until TX starts; FAST/GPS samples may be skipped until the next period if TX cannot start. |
 | INIT / abort handling / dispatch | `src/missions/fsm_task.cpp` | `FlightStateMachineTask::tick()` | `INIT -> SAFE`; active abort returns to `SAFE`; state-specific handlers are called here. |
-| ARMED launch detection | `src/missions/fsm_task.cpp` | `tickArmed()`, `consumeFlightAccelSample()` | Selected acceleration norm `>= 2.0 g` for four fresh samples enters `LAUNCH`; high-g is primary, low-g is fallback. |
-| LAUNCH burnout detection | `src/missions/fsm_task.cpp` | `tickLaunch()`, `consumeFlightAccelSample()` | Selected acceleration norm `< 1.0 g` for four fresh samples enters `COAST`; high-g is primary, low-g is fallback. |
+| ARMED launch detection | `src/missions/fsm_task.cpp` | `tickArmed()`, `consumeFlightAccelSample()` | Selected acceleration norm `>= 2.0 g` for four fresh samples enters `LAUNCH`; low-g is primary, high-g is fallback. |
+| LAUNCH burnout detection | `src/missions/fsm_task.cpp` | `tickLaunch()`, `consumeFlightAccelSample()` | Selected acceleration norm `< 1.0 g` for four fresh samples enters `COAST`; low-g is primary, high-g is fallback. |
 | COAST apogee detection | `src/missions/fsm_task.cpp` | `tickCoast()`, `consumeBarometerSample()`, `pushApogeeSample()`, `apogeePredictionReady()` | Uses filtered barometer altitude, quality-checked nine-sample fit, `plus2sigma5` aggregation, descent backup, and timeout fallback. |
 | Barometer-fault attitude fallback | `src/missions/fsm_task.cpp` | `baroFaultAttitudeFallbackReady()` | When barometer is faulted in `COAST`, requires launch+8 s, fresh valid tilt, tilt `>= 70 deg`, and five consecutive samples before `APOGEE`; timer fallback remains active. |
 | In-flight barometer stuck detection | `src/missions/fsm_task.cpp` | `trackBarometerStuck()`, `markBarometerFault()` | Tracks 5 s altitude range only in `COAST`/`DROGUE`; latches `BARO_FAULT_STUCK` and leaves recovery to timer fallback. |

@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="BackendCodeEditorMiscSettings">
-    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="12" type="long" />
+    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="25" type="long" />
     <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexedValue" value="true" type="bool" />
   </component>
   <component name="CMakeProjectFlavorService">
@@ -21,13 +21,128 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="레거시 hal제거, 파이로2번 간섭으로 임시 비활성화,pcb업로">
+    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="시험발사용 프로젝트 fork 추가">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/documents/flight_logging_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/flight_logging_v1.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/flight_state_machine_v1.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/documents/pinmap_summary.txt" beforeDir="false" afterPath="$PROJECT_DIR$/documents/pinmap_summary.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/documents/sensors.md" beforeDir="false" afterPath="$PROJECT_DIR$/documents/sensors.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/AGENTS.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/LICENSE" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/NOTICE" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/include/README" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/include/board_pinmap.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/include/nura_constants.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/include/nura_radio_secrets.h.example" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/lib/README" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/platformio.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/protocol/include/nura_protocol_v1_lite.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/app/app_config.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/app/app_config.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/app/flight_controller_app.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/app/flight_controller_app.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/core/logger/log_output.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/core/logger/logger.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/core/logger/logger.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/core/recoverable_task/recoverable_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/core/recoverable_task/recoverable_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/core/scheduler.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/core/scheduler.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/core/states.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/core/tasks.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/battery_voltage_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/battery_voltage_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/buzzer_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/buzzer_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/buzzer_output.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/digital_output_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/h3lis331dl_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/h3lis331dl_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/lis3mdl_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/lis3mdl_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/lsm6dso32_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/lsm6dso32_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/lsm6dsox_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/lsm6dsox_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/mock_flight_data_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/mock_flight_data_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/mosfet_pyro_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/mosfet_pyro_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/mpl3115a2_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/mpl3115a2_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/panic_handler.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/panic_handler.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/pyro_output.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/serial_log_output.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/serial_log_output.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/sx1262_lora_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/sx1262_lora_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/sx127x_lora_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/sx127x_lora_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/ublox_m6_gnss_hal.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/hal/ublox_m6_gnss_hal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/logging/flight_log_mirror_storage.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/logging/flight_log_mirror_storage.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/logging/flight_log_ram_buffer.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/logging/flight_log_ram_buffer.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/logging/flight_log_record.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/logging/flight_log_record.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/logging/flight_log_storage.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/logging/program_flash_flight_log_storage.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/logging/program_flash_flight_log_storage.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/logging/sd_flight_log_storage.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/logging/sd_flight_log_storage.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/main.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/missions/flight_log_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/missions/flight_log_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/missions/fsm_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/missions/fsm_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/missions/logger_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/missions/logger_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/missions/mock_telemetry_source_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/missions/mock_telemetry_source_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/missions/telemetry_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/missions/telemetry_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/missions/watchdog_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/missions/watchdog_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/sensors/barometer_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/sensors/barometer_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/sensors/gnss_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/sensors/gnss_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/sensors/high_g_imu_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/sensors/high_g_imu_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/sensors/imu_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/sensors/imu_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/sensors/magnetometer_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/sensors/magnetometer_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/sensors/power_sense_task.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/sensors/power_sense_task.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/state/abort_state.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/state/flight_state.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/state/gps_state.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/state/high_g_imu_state.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/state/imu_state.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/state/magnetometer_state.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/src/state/telemetry_state.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/test/embedded/sd_dump_latest_main.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/tools/decode_flight_log.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/flight_no_radio_gps/tools/platformio_teensy_upload_retry.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/include/board_pinmap.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/board_pinmap.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/include/nura_constants.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/nura_constants.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/missions/flight_log_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/flight_log_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/platformio.ini" beforeDir="false" afterPath="$PROJECT_DIR$/platformio.ini" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/flight_controller_app.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/flight_controller_app.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/logging/flight_log_mirror_storage.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/logging/flight_log_mirror_storage.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/logging/program_flash_flight_log_storage.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/logging/program_flash_flight_log_storage.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/logging/program_flash_flight_log_storage.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/logging/program_flash_flight_log_storage.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/missions/fsm_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/missions/fsm_task.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/state/flight_state.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/state/flight_state.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/barometer_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/barometer_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/barometer_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/barometer_task.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/high_g_imu_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/high_g_imu_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/high_g_imu_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/high_g_imu_task.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/imu_task.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/imu_task.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sensors/imu_task.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/sensors/imu_task.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/embedded/storage_logger_main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/embedded/storage_logger_main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/fsm_replay/flight_state_machine_replay.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/test/fsm_replay/flight_state_machine_replay.cpp" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -97,35 +212,35 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;PlatformIO.PlatformIO.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.RadMigrateCodeStyle&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
-    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
-    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
-    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/sb/Documents/안드로이드 태블릿 키보드&amp;마우스&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "PlatformIO.PlatformIO.executor": "Run",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.RadMigrateCodeStyle": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "main",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "/home/sb/TUSI/2026-nura-avionics/emergency_universal_board",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/test" />
@@ -253,7 +368,7 @@
       <workItem from="1779943422742" duration="8604000" />
       <workItem from="1780555814485" duration="39000" />
       <workItem from="1781855666077" duration="785000" />
-      <workItem from="1782114974287" duration="12195000" />
+      <workItem from="1782114974287" duration="27769000" />
     </task>
     <task id="LOCAL-00001" summary="port on teensy4.1">
       <option name="closed" value="true" />
@@ -471,7 +586,15 @@
       <option name="project" value="LOCAL" />
       <updated>1782374683047</updated>
     </task>
-    <option name="localTasksCounter" value="28" />
+    <task id="LOCAL-00028" summary="시험발사용 프로젝트 fork 추가">
+      <option name="closed" value="true" />
+      <created>1782457516588</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1782457516588</updated>
+    </task>
+    <option name="localTasksCounter" value="29" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -501,6 +624,7 @@
     <MESSAGE value="blocking I/O 전부 non-blocking으로 수정, 로라 안정성 체크" />
     <MESSAGE value="init fail 로직수정" />
     <MESSAGE value="레거시 hal제거, 파이로2번 간섭으로 임시 비활성화,pcb업로" />
-    <option name="LAST_COMMIT_MESSAGE" value="레거시 hal제거, 파이로2번 간섭으로 임시 비활성화,pcb업로" />
+    <MESSAGE value="시험발사용 프로젝트 fork 추가" />
+    <option name="LAST_COMMIT_MESSAGE" value="시험발사용 프로젝트 fork 추가" />
   </component>
 </project>

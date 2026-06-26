@@ -7,7 +7,8 @@ Scope
 - Pin ownership lives in include/board_pinmap.h. This file is the human wiring checklist.
 
 Pin ownership check
-- Pyro 1 is the drogue channel and uses D28/D29; Pyro 2 is the main channel and uses D37/D36.
+- Pyro 1 is the drogue channel and uses D28/D29; Pyro 2 is the main channel and has been rerouted to the D35/D38 output pair.
+- Pyro 2 gpio1/gpio2 order must be confirmed by continuity from Teensy pins to the MOSFET gate/driver nets before enabling real outputs.
 - Battery voltage sense uses D21.
 - These assignments do not overlap. Firmware records this with
   BoardPinMap::PowerSense::conflictsWithPyroOutput, which must remain false for flight hardware.
@@ -25,11 +26,13 @@ Power / indicators
   the expected codes are approximately 704 at 12.6 V and 620 at 11.1 V.
   Pack voltage is encoded to telemetry as FAST batt_mv in millivolts.
 
-I2C0, MPL3115A2 barometer
+I2C0, BMP180 barometer
 - Bus: Wire.
 - SDA0 -> D18.
 - SCL0 -> D19.
-- Address: 0x60.
+- Address: 0x77.
+- MPL3115A2 is not used in the current firmware because the I2C0 barometer
+  hardware is being isolated/replaced during bring-up.
 - Recommended pull-ups: one SDA/SCL pull-up pair to 3.3 V on this bus if the PCB/module does not already provide it.
 
 I2C1, LIS3MDL magnetometer
@@ -70,12 +73,12 @@ Pyro channels, firing order
 - Pyro 1 / Drogue gpio1 -> D28.
 - Pyro 1 / Drogue gpio2 -> D29.
 - Pyro 1 / Drogue sense -> D25.
-- Pyro 2 / Main gpio1 -> D37.
-- Pyro 2 / Main gpio2 -> D36.
+- Pyro 2 / Main output pair -> D35 and D38.
+- Pyro 2 / Main gpio1/gpio2 order -> TODO: confirm by continuity from Teensy pins to the MOSFET gate/driver nets.
 - Pyro 2 / Main sense -> D40.
 - MOSFET HAL exists, but real GPIO output is dry-run unless `NURA_ENABLE_PYRO_OUTPUTS` is defined.
 - The D21 voltage-sense input is distinct from both pyro channels. Before enabling
-  real output, still LED/scope-test D28/D29/D36/D37 with no e-matches attached.
+  real output, still LED/scope-test D28/D29/D35/D38 with no e-matches attached.
 
 SPI1 / flight LoRa bus
 - MISO1 -> D1.
@@ -84,7 +87,7 @@ SPI1 / flight LoRa bus
 - SX1262 uses this bus; sensors remain on SPI0.
 
 Expected quick bring-up observations
-- I2C scanner should find MPL3115A2 at 0x60 on Wire 18/19.
+- I2C scanner should find BMP180 at 0x77 on Wire 18/19.
 - I2C scanner should find LIS3MDL at 0x1C on Wire1 17/16.
 - SPI0 WHOAMI/probe should use LSM6DSO32 CS D10 and H3LIS331DL CS D0.
 - LoRa probe should use SPI1, NSS D9, RXE D30, DIO1 D31, and BUSY D32.

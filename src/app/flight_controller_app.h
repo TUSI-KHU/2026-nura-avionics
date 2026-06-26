@@ -21,7 +21,7 @@
 #include "hal/h3lis331dl_hal.h"
 #include "hal/lis3mdl_hal.h"
 #include "hal/lsm6dso32_hal.h"
-#include "hal/mpl3115a2_hal.h"
+#include "hal/bmp180_hal.h"
 #include "hal/ublox_m6_gnss_hal.h"
 #include "sensors/barometer_task.h"
 #include "sensors/gnss_task.h"
@@ -72,7 +72,7 @@ private:
     LSM6DSO32HAL imuHal_;
     H3LIS331DLHAL highGImuHal_;
     LIS3MDLHAL magnetometerHal_;
-    MPL3115A2HAL barometerHal_;
+    BMP180HAL barometerHal_;
     UbloxM6GNSSHAL gnssHal_;
     BatteryVoltageHAL batteryVoltageHal_;
 #endif
@@ -82,7 +82,7 @@ private:
 #if defined(NURA_MOCK_TELEMETRY) || defined(NURA_DISABLE_PROGRAM_FLASH_LOG)
     NullFlightLogStorage programFlashLogStorage_;
 #else
-    LittleFS_Program programFlashFs_;
+    LittleFS_QSPIFlash programFlashFs_;
     ProgramFlashFlightLogStorage programFlashLogStorage_{programFlashFs_, NuraConstants::Logger::kFlightLogProgramFlashBytes};
 #endif
     SdFlightLogStorage sdLogStorage_{BoardPinMap::MicroSD::csPin};
@@ -102,7 +102,7 @@ private:
                                logger_,
                                config_,
                                BoardPinMap::H3LIS331DL::csPin,
-                               H3LIS331DLRange::RANGE_200G};
+                               H3LIS331DLRange::RANGE_100G};
     MagnetometerTask magnetometerTask_{magnetometerHal_, magnetometerState_, telemetryState_, logger_, config_};
     BarometerTask barometerTask_{barometerHal_, telemetryState_, logger_, config_};
     GNSSTask gnssTask_{gnssHal_, gpsState_, config_};

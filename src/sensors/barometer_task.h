@@ -5,14 +5,14 @@
 #include "app/app_config.h"
 #include "core/logger/logger.h"
 #include "core/tasks.h"
-#include "hal/mpl3115a2_hal.h"
+#include "hal/bmp180_hal.h"
 #include "nura_constants.h"
 #include "state/telemetry_state.h"
 
 class BarometerTask : public Task
 {
 public:
-    BarometerTask(MPL3115A2HAL &barometer, TelemetryState &telemetryState, Logger &logger, const IAppConfig &config);
+    BarometerTask(BMP180HAL &barometer, TelemetryState &telemetryState, Logger &logger, const IAppConfig &config);
 
     const char *name() const override;
     bool init() override;
@@ -26,11 +26,11 @@ private:
     void recordReadFailure(uint32_t nowMs);
     bool sampleAltitudeValid(float altitudeM) const;
     void recordBadValue(uint32_t nowMs, uint16_t faultFlag);
-    void publishValidSample(const Mpl3115a2Reading &sample, float rawAltitudeM);
+    void publishValidSample(const Bmp180Reading &sample, float rawAltitudeM);
     void markFault(uint32_t nowMs, uint16_t faultFlag);
     float filterAltitude(float rawAltitudeM);
 
-    MPL3115A2HAL &barometer_;
+    BMP180HAL &barometer_;
     TelemetryState &telemetryState_;
     Logger &logger_;
     const IAppConfig &config_;

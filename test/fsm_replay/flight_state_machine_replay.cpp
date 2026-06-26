@@ -55,7 +55,11 @@ struct FakeConfig : public IAppConfig
 struct FakePanicHandler : public IPanicHandler
 {
     bool panicked = false;
-    void panic() override { panicked = true; }
+    void panic(const char *reason = nullptr) override
+    {
+        (void)reason;
+        panicked = true;
+    }
 };
 
 struct RecordingPyroOutput : public IPyroOutput
@@ -881,7 +885,7 @@ bool checkLowGFallbackBurnout()
     return pass("low_g_burnout_fallback");
 }
 
-bool checkHighGPreferredOverLowG()
+bool checkLowGPreferredOverHighG()
 {
     FakeConfig config;
     FakePanicHandler panic;
@@ -904,11 +908,11 @@ bool checkHighGPreferredOverLowG()
         fsm.tick(nowMs);
     }
 
-    if (flight.state != State::ARMED)
+    if (flight.state != State::LAUNCH)
     {
-        return fail("high_g_preferred", "healthy high-g detector was bypassed by low-g samples");
+        return fail("low_g_preferred", "low-g primary detector was bypassed by healthy high-g samples");
     }
-    return pass("high_g_preferred");
+    return pass("low_g_preferred");
 }
 
 bool checkPyroOutputSequence()
@@ -1156,7 +1160,7 @@ int main()
     ok = checkLaunchConfirmation() && ok;
     ok = checkLowGFallbackLaunch() && ok;
     ok = checkLowGFallbackBurnout() && ok;
-    ok = checkHighGPreferredOverLowG() && ok;
+    ok = checkLowGPreferredOverHighG() && ok;
     ok = checkPyroOutputSequence() && ok;
     ok = checkBuzzerStateTransitionPatterns() && ok;
     ok = checkAbortToSafe() && ok;
