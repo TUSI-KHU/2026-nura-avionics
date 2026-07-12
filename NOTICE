@@ -6,6 +6,5 @@ It is provided without warranty and must be independently reviewed,
 tested, and validated before any flight or safety-critical use.
 
 Third-party libraries and tools retain their original licenses.
-The PlatformIO dependencies used by this project include libraries
-from Adafruit, Rob Tillaart, Mikal Hart, Sandeep Mistry, and others.
-See each dependency package for its license and attribution notices.
+Zephyr RTOS, its modules, toolchains, and all KiCad libraries retain their
+original licenses and attribution notices.
