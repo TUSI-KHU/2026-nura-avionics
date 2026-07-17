@@ -21,7 +21,7 @@
 #include "hal/h3lis331dl_hal.h"
 #include "hal/lis3mdl_hal.h"
 #include "hal/lsm6dso32_hal.h"
-#include "hal/bmp180_hal.h"
+#include "hal/mpl3115a2_hal.h"
 #include "hal/ublox_m6_gnss_hal.h"
 #include "sensors/barometer_task.h"
 #include "sensors/gnss_task.h"
@@ -34,7 +34,11 @@
 #include "hal/buzzer_hal.h"
 #include "hal/mosfet_pyro_hal.h"
 #include "hal/serial_log_output.h"
+#if defined(NURA_USE_SX127X_LORA)
+#include "hal/sx127x_lora_hal.h"
+#else
 #include "hal/sx1262_lora_hal.h"
+#endif
 #include "logging/flight_log_mirror_storage.h"
 #include "logging/flight_log_storage.h"
 #if !defined(NURA_MOCK_TELEMETRY) && !defined(NURA_DISABLE_PROGRAM_FLASH_LOG)
@@ -72,11 +76,11 @@ private:
     LSM6DSO32HAL imuHal_;
     H3LIS331DLHAL highGImuHal_;
     LIS3MDLHAL magnetometerHal_;
-    BMP180HAL barometerHal_;
+    MPL3115A2HAL barometerHal_;
     UbloxM6GNSSHAL gnssHal_;
     BatteryVoltageHAL batteryVoltageHal_;
 #endif
-    Sx1262LoRaHAL loraHal_;
+    TelemetryLoRaHAL loraHal_;
     MosfetPyroHAL pyroHal_;
     BuzzerHAL buzzerHal_{BoardPinMap::Buzzer::pin};
 #if defined(NURA_MOCK_TELEMETRY) || defined(NURA_DISABLE_PROGRAM_FLASH_LOG)

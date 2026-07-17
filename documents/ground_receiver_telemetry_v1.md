@@ -8,7 +8,23 @@ The default receiver firmware is receive-only. It must not transmit recovery/con
 
 The ground SX1276 uses the flight link profile: 920.9 MHz, BW 125 kHz, SF7,
 CR 4/5, preamble 8, sync word `0x12`, explicit header, and LoRa PHY CRC
-enabled. These settings must match the avionics SX1262 exactly.
+enabled. These settings must match the avionics radio exactly.
+
+For the current avionics SX1276 bench transmitter, build the avionics firmware
+with `pio run -e real_telemetry_tx` and upload it with
+`pio run -e real_telemetry_tx -t upload`. This environment uses the real sensor
+tasks and the normal NURA V2 Lite FAST/GPS encoders, but selects the SX127x
+LoRa HAL and `NURA_TELEMETRY_DOWNLINK_ONLY`. It is intended only for receiving
+actual avionics sensor values at the ground station; it does not listen for or
+execute uplink commands.
+
+When sensors are not installed and the goal is only to see whether the avionics
+SX1276 transmits, use `pio run -e sx1276_visual_tx -t upload` instead. This
+bench-only firmware sends one authenticated FAST frame per second with synthetic
+values, pulses `StatusIndicator::led1Pin` after each successful transmit, pulses
+`StatusIndicator::led2Pin` on init/transmit failure, and prints `tx ok` or
+`tx fail` over USB serial. It does not initialize sensor, FSM, logging, uplink,
+or pyro tasks.
 
 The current ground-module bench wiring uses `RXEN=D4` and `TXEN=D3`. The
 receive-only `sx1276_ground` build drives RXEN high and TXEN low before radio
@@ -57,6 +73,11 @@ FAST_TLM inputs from avionics:
 | `gyro_*_dps10` | deg/s * 10 |
 | `batt_mv` | mV, `0` if avionics marks the voltage sample invalid/unavailable |
 
+The avionics SX1276 `real_telemetry_tx` environment sends these FAST fields
+from the live low-g IMU, barometer state, and pack-voltage sense path. High-g
+accelerometer and magnetometer health still appear as status bits only; their
+raw vector values are not part of the current V2 Lite packet.
+
 GPS_TLM inputs from avionics:
 
 | Field | Unit |
@@ -68,6 +89,9 @@ GPS_TLM inputs from avionics:
 | `hdop_x10` | HDOP * 10 |
 | `satellites` | count |
 | `age_100ms` | 100 ms |
+
+The GPS fields come from the live u-blox task. Until the receiver has a fix,
+the ground output may show zero position with the GPS status bit clear.
 
 CONTROL/ACK inputs are decoded for operator visibility and pair-test validation.
 
@@ -127,6 +151,12 @@ the avionics and GCS build machines.
 ## Verification Plan
 
 - Build receive-only receiver: `pio run -d receiver -e teensy41`.
+- Build SX1276 receive-only receiver for the 920.9 MHz flight profile:
+  `pio run -d receiver -e sx1276_ground`.
+- Build avionics SX1276 real-sensor transmitter:
+  `pio run -e real_telemetry_tx`.
+- Build avionics SX1276 visual transmitter with no sensors installed:
+  `pio run -e sx1276_visual_tx`.
 - Build pair-test receiver: `pio run -d receiver -e pair_test`.
 - Run script syntax check: `python3 -m py_compile receiver/tools/run_pair_test.py`.
 - Hardware bench verification: upload real avionics firmware and receive-only receiver, then confirm FAST/GPS lines show changing IMU/barometer/GNSS fields and no `cmd tx` lines appear.

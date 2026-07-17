@@ -12,11 +12,20 @@
 namespace
 {
 constexpr unsigned long kSerialBaud = 115200UL;
-#if defined(NURA_GROUND_SX1276)
+#if defined(NURA_GROUND_SX1276) || defined(NURA_FLIGHT_PCB_SX127X) || defined(NURA_FORCE_FLIGHT_FREQ)
 constexpr long kLoraFrequencyHz = NuraConstants::LoRa::kFlightFrequencyHz;
 #else
 constexpr long kLoraFrequencyHz = 433000000L;
 #endif
+#if defined(NURA_FLIGHT_PCB_SX127X)
+constexpr uint32_t kLoraSpiFrequencyHz = NuraConstants::LoRa::kFlightSpiFrequencyHz;
+constexpr uint8_t kLoraSsPin = BoardPinMap::Sx1262LoRa::ssPin;
+constexpr int8_t kLoraResetPin = BoardPinMap::Sx1262LoRa::resetPin;
+constexpr int8_t kLoraLibraryResetPin = BoardPinMap::Sx1262LoRa::resetPin;
+constexpr uint8_t kLoraDio0Pin = BoardPinMap::Sx1262LoRa::dio1Pin;
+constexpr uint8_t kLoraRxEnablePin = BoardPinMap::Sx1262LoRa::rxEnablePin;
+constexpr uint8_t kLoraTxEnablePin = BoardPinMap::kUnassignedPin;
+#else
 constexpr uint32_t kLoraSpiFrequencyHz = 125000UL;
 constexpr uint8_t kLoraSsPin = 10U;
 constexpr uint8_t kLoraResetPin = 9U;
@@ -24,6 +33,7 @@ constexpr int8_t kLoraLibraryResetPin = -1;
 constexpr uint8_t kLoraDio0Pin = 2U;
 constexpr uint8_t kLoraRxEnablePin = 4U;
 constexpr uint8_t kLoraTxEnablePin = 3U;
+#endif
 constexpr int kLoraTxPowerDbm = 10;
 constexpr int kLoraSpreadingFactor = 7;
 constexpr long kLoraSignalBandwidthHz = 125000L;
@@ -86,16 +96,29 @@ PendingCommand pending;
 
 void beginSpi()
 {
+#if defined(NURA_FLIGHT_PCB_SX127X)
+    SPI1.setMISO(BoardPinMap::Spi1Bus::misoPin);
+    SPI1.setMOSI(BoardPinMap::Spi1Bus::mosiPin);
+    SPI1.setSCK(BoardPinMap::Spi1Bus::sckPin);
+    SPI1.begin();
+#else
     SPI.begin();
+#endif
 }
 
 void configureRfSwitchForReceive()
 {
-#if defined(NURA_GROUND_SX1276)
-    pinMode(kLoraRxEnablePin, OUTPUT);
-    pinMode(kLoraTxEnablePin, OUTPUT);
-    digitalWrite(kLoraTxEnablePin, LOW);
-    digitalWrite(kLoraRxEnablePin, HIGH);
+#if defined(NURA_GROUND_SX1276) || defined(NURA_FLIGHT_PCB_SX127X)
+    if (kLoraTxEnablePin != BoardPinMap::kUnassignedPin)
+    {
+        pinMode(kLoraTxEnablePin, OUTPUT);
+        digitalWrite(kLoraTxEnablePin, LOW);
+    }
+    if (kLoraRxEnablePin != BoardPinMap::kUnassignedPin)
+    {
+        pinMode(kLoraRxEnablePin, OUTPUT);
+        digitalWrite(kLoraRxEnablePin, HIGH);
+    }
 #endif
 }
 
@@ -114,14 +137,27 @@ uint8_t readLoraRegisterRaw(uint8_t address, uint8_t spiMode)
     SPISettings settings(kLoraSpiFrequencyHz, MSBFIRST, spiMode);
     pinMode(kLoraSsPin, OUTPUT);
     digitalWrite(kLoraSsPin, HIGH);
+#if defined(NURA_FLIGHT_PCB_SX127X)
+    SPI1.beginTransaction(settings);
+#else
     SPI.beginTransaction(settings);
+#endif
     digitalWrite(kLoraSsPin, LOW);
     delayMicroseconds(20);
+#if defined(NURA_FLIGHT_PCB_SX127X)
+    SPI1.transfer(address & 0x7FU);
+    const uint8_t value = SPI1.transfer(0x00U);
+#else
     SPI.transfer(address & 0x7FU);
     const uint8_t value = SPI.transfer(0x00U);
+#endif
     delayMicroseconds(20);
     digitalWrite(kLoraSsPin, HIGH);
+#if defined(NURA_FLIGHT_PCB_SX127X)
+    SPI1.endTransaction();
+#else
     SPI.endTransaction();
+#endif
     return value;
 }
 
@@ -129,6 +165,11 @@ void resetRadio()
 {
     pinMode(kLoraSsPin, OUTPUT);
     digitalWrite(kLoraSsPin, HIGH);
+    if (kLoraResetPin < 0)
+    {
+        delay(50);
+        return;
+    }
     pinMode(kLoraResetPin, OUTPUT);
     digitalWrite(kLoraResetPin, LOW);
     delay(50);
@@ -139,6 +180,11 @@ void resetRadio()
 bool beginRadio()
 {
     LoRa.setPins(kLoraSsPin, kLoraLibraryResetPin, kLoraDio0Pin);
+#if defined(NURA_FLIGHT_PCB_SX127X)
+    LoRa.setSPI(SPI1);
+#else
+    LoRa.setSPI(SPI);
+#endif
     LoRa.setSPIFrequency(kLoraSpiFrequencyHz);
 
     for (uint8_t attempt = 1U; attempt <= kLoraInitAttempts; ++attempt)
@@ -165,7 +211,7 @@ bool beginRadio()
         printHexByte(lastMode3Version);
         Serial.println();
 
-#if defined(NURA_GROUND_SX1276)
+#if defined(NURA_GROUND_SX1276) || defined(NURA_FLIGHT_PCB_SX127X)
         if (lastMode0Version == kLoraExpectedVersion)
         {
             selectedSpiMode = SPI_MODE0;
@@ -755,6 +801,8 @@ void setup()
     Serial.println("packet_set=FAST,GPS,CONTROL");
 #if defined(NURA_GROUND_SX1276)
     Serial.println("rf=freq920900000_sf7_bw125_cr45_sx1276_ground");
+#elif defined(NURA_FLIGHT_PCB_SX127X)
+    Serial.println("rf=freq920900000_sf7_bw125_cr45_flight_pcb_sx127x");
 #else
     Serial.println("rf=freq433_sf7_bw125_cr45_dev");
 #endif

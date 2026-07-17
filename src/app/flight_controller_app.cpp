@@ -22,20 +22,30 @@ bool FlightControllerApp::setup(uint32_t nowMs)
 
     pinMode(BoardPinMap::LSM6DSO32::csPin, OUTPUT);
     pinMode(BoardPinMap::H3LIS331DL::csPin, OUTPUT);
-    pinMode(BoardPinMap::Sx1262LoRa::ssPin, OUTPUT);
     digitalWrite(BoardPinMap::LSM6DSO32::csPin, HIGH);
     digitalWrite(BoardPinMap::H3LIS331DL::csPin, HIGH);
+#if defined(NURA_USE_SX127X_LORA)
+#if defined(NURA_FLIGHT_PCB_SX127X)
+    pinMode(BoardPinMap::Sx1262LoRa::ssPin, OUTPUT);
     digitalWrite(BoardPinMap::Sx1262LoRa::ssPin, HIGH);
+#else
+    pinMode(BoardPinMap::Ra01DevelopmentLoRa::ssPin, OUTPUT);
+    digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, HIGH);
+#endif
+#else
+    pinMode(BoardPinMap::Sx1262LoRa::ssPin, OUTPUT);
+    digitalWrite(BoardPinMap::Sx1262LoRa::ssPin, HIGH);
+#endif
     SPI.setMOSI(BoardPinMap::SpiBus::mosiPin);
     SPI.setMISO(BoardPinMap::SpiBus::misoPin);
     SPI.setSCK(BoardPinMap::SpiBus::sckPin);
     SPI.begin();
-#if !defined(NURA_DISABLE_LORA)
+#if !defined(NURA_DISABLE_LORA) && (!defined(NURA_USE_SX127X_LORA) || defined(NURA_FLIGHT_PCB_SX127X))
     SPI1.setMISO(BoardPinMap::Spi1Bus::misoPin);
     SPI1.setMOSI(BoardPinMap::Spi1Bus::mosiPin);
     SPI1.setSCK(BoardPinMap::Spi1Bus::sckPin);
     SPI1.begin();
-#if defined(NURA_BENCH_SX1262_RXE_LOW)
+#if defined(NURA_BENCH_SX1262_RXE_LOW) || (defined(NURA_USE_SX127X_LORA) && defined(NURA_FLIGHT_PCB_SX127X))
     if (BoardPinMap::Sx1262LoRa::rxEnablePin != BoardPinMap::kUnassignedPin)
     {
         pinMode(BoardPinMap::Sx1262LoRa::rxEnablePin, OUTPUT);

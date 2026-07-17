@@ -99,7 +99,7 @@ bool TelemetryTask::AckQueue::pop(nura::ControlPayload &out)
     return true;
 }
 
-TelemetryTask::TelemetryTask(Sx1262LoRaHAL &radio,
+TelemetryTask::TelemetryTask(TelemetryLoRaHAL &radio,
                              const ImuState &imuState,
                              const GpsState &gpsState,
                              TelemetryState &telemetryState,
@@ -130,12 +130,16 @@ bool TelemetryTask::init()
         LOGW(logger_, 0U, "telemetry", "public bench radio identity; unsafe for flight");
     }
 
-    const Sx1262LoRaConfig radioConfig = buildRadioConfig();
+    const TelemetryLoRaConfig radioConfig = buildRadioConfig();
     radioReady_ = false;
     const uint8_t attempts = config_.loraInitAttempts();
     for (uint8_t attempt = 0U; attempt < attempts; ++attempt)
     {
+#if defined(NURA_USE_SX127X_LORA) && defined(NURA_FLIGHT_PCB_SX127X)
+        radioReady_ = radio_.begin(radioConfig, SPI1);
+#else
         radioReady_ = radio_.begin(radioConfig);
+#endif
         if (radioReady_)
         {
             break;
@@ -197,7 +201,7 @@ uint32_t TelemetryTask::periodMs() const
 bool TelemetryTask::receiveControl(uint32_t nowMs)
 {
     uint8_t buffer[nura::kMaxFrameLen];
-    Sx1262LoRaPacket packet;
+    TelemetryLoRaPacket packet;
     if (!radio_.receive(buffer, sizeof(buffer), packet))
     {
         return false;
@@ -630,9 +634,9 @@ uint8_t TelemetryTask::currentFlightStateCode() const
     }
 }
 
-Sx1262LoRaConfig TelemetryTask::buildRadioConfig() const
+TelemetryLoRaConfig TelemetryTask::buildRadioConfig() const
 {
-    Sx1262LoRaConfig radioConfig;
+    TelemetryLoRaConfig radioConfig;
     radioConfig.frequencyHz = config_.loraFrequencyHz();
     radioConfig.txPowerDbm = config_.loraTxPowerDbm();
     radioConfig.spreadingFactor = config_.loraSpreadingFactor();
@@ -641,6 +645,22 @@ Sx1262LoRaConfig TelemetryTask::buildRadioConfig() const
     radioConfig.preambleLength = config_.loraPreambleLength();
     radioConfig.syncWord = config_.loraSyncWord();
     radioConfig.crcEnabled = true;
+#if defined(NURA_USE_SX127X_LORA)
+#if defined(NURA_FLIGHT_PCB_SX127X)
+    radioConfig.ssPin = BoardPinMap::Sx1262LoRa::ssPin;
+    radioConfig.resetPin = BoardPinMap::Sx1262LoRa::resetPin;
+    radioConfig.libraryResetPin = BoardPinMap::Sx1262LoRa::resetPin;
+    radioConfig.dio0Pin = BoardPinMap::Sx1262LoRa::dio1Pin;
+#endif
+    radioConfig.spiFrequency = config_.loraSpiFrequencyHz();
+    radioConfig.spiMode = config_.loraSpiMode();
+    radioConfig.probeSpiMode = config_.loraProbeSpiMode();
+    radioConfig.initAttempts = config_.loraInitAttempts();
+#endif
+#if defined(NURA_TELEMETRY_DOWNLINK_ONLY)
+    radioConfig.downlinkOnly = true;
+#else
     radioConfig.downlinkOnly = NuraConstants::LoRa::kFlightDownlinkOnly;
+#endif
     return radioConfig;
 }

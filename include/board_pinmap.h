@@ -10,7 +10,7 @@ constexpr uint8_t kUnassignedPin = 255U;
 struct StatusIndicator final
 {
     static constexpr uint8_t pin = 33U;
-    static constexpr uint8_t led1Pin = kUnassignedPin;
+    static constexpr uint8_t led1Pin = 34U;
     static constexpr uint8_t led2Pin = 33U;
 };
 
@@ -43,11 +43,6 @@ struct I2c0Bus final
     static constexpr uint8_t sdaPin = 18U;
     static constexpr uint8_t sclPin = 19U;
     static constexpr uint32_t clockHz = 100000UL;
-
-    static const char *name()
-    {
-        return "Wire 18/19";
-    }
 };
 
 struct I2c1Bus final
@@ -60,46 +55,6 @@ struct I2c1Bus final
     static constexpr uint8_t sdaPin = 17U;
     static constexpr uint8_t sclPin = 16U;
     static constexpr uint32_t clockHz = 100000UL;
-
-    static const char *name()
-    {
-        return "Wire1 17/16";
-    }
-};
-
-using I2cBus = I2c1Bus;
-
-struct LSM6DSO32 final
-{
-    static constexpr uint8_t csPin = 10U;
-    static constexpr uint8_t int1Pin = kUnassignedPin;
-    static constexpr uint8_t int2Pin = kUnassignedPin;
-};
-
-struct LSM6DSOX final
-{
-    static constexpr uint8_t csPin = LSM6DSO32::csPin;
-    static constexpr uint8_t int1Pin = LSM6DSO32::int1Pin;
-    static constexpr uint8_t int2Pin = LSM6DSO32::int2Pin;
-};
-
-struct H3LIS331DL final
-{
-    static constexpr uint8_t csPin = 0U;
-    static constexpr uint8_t int1Pin = kUnassignedPin;
-    static constexpr uint8_t int2Pin = kUnassignedPin;
-};
-
-struct LIS3MDL final
-{
-    static TwoWire &wire()
-    {
-        return I2c1Bus::wire();
-    }
-
-    static constexpr uint8_t sdaPin = I2c1Bus::sdaPin;
-    static constexpr uint8_t sclPin = I2c1Bus::sclPin;
-    static constexpr uint8_t i2cAddress = 0x1CU;
 };
 
 struct MPL3115A2 final
@@ -126,6 +81,28 @@ struct BMP180 final
     static constexpr uint8_t i2cAddress = 0x77U;
 };
 
+struct LIS3MDL final
+{
+    static TwoWire &wire()
+    {
+        return I2c1Bus::wire();
+    }
+
+    static constexpr uint8_t sdaPin = I2c1Bus::sdaPin;
+    static constexpr uint8_t sclPin = I2c1Bus::sclPin;
+    static constexpr uint8_t i2cAddress = 0x1CU;
+};
+
+struct LSM6DSO32 final
+{
+    static constexpr uint8_t csPin = 10U;
+};
+
+struct H3LIS331DL final
+{
+    static constexpr uint8_t csPin = 0U;
+};
+
 struct UbloxM6 final
 {
     static decltype(Serial3) &serial()
@@ -135,7 +112,7 @@ struct UbloxM6 final
 
     static constexpr uint8_t rxPin = 15U;
     static constexpr uint8_t txPin = 14U;
-    static constexpr uint32_t baud = 9600UL;
+    static constexpr uint32_t baud = 38400UL;
 };
 
 struct MicroSD final
@@ -159,7 +136,7 @@ struct Ra01DevelopmentLoRa final
 struct Sx1262LoRa final
 {
     static constexpr uint8_t ssPin = 9U;
-    static constexpr uint8_t rxEnablePin = kUnassignedPin;
+    static constexpr uint8_t rxEnablePin = 30U;
     static constexpr int8_t resetPin = -1;
     static constexpr uint8_t dio1Pin = 31U;
     static constexpr uint8_t busyPin = 32U;
@@ -174,9 +151,9 @@ struct Pyro1 final
 
 struct Pyro2 final
 {
-    static constexpr uint8_t gpio1Pin = 35U;
-    static constexpr uint8_t gpio2Pin = 38U;
-    static constexpr uint8_t sensePin = 40U;
+    static constexpr uint8_t gpio1Pin = 38U;
+    static constexpr uint8_t gpio2Pin = 35U;
+    static constexpr uint8_t sensePin = 41U;
 };
 
 using DroguePyro = Pyro1;
@@ -184,7 +161,7 @@ using MainPyro = Pyro2;
 
 struct PowerSense final
 {
-    static constexpr uint8_t voltagePin = 21U;
+    static constexpr uint8_t voltagePin = 22U;
     static constexpr bool conflictsWithPyroOutput =
         voltagePin == Pyro1::gpio1Pin ||
         voltagePin == Pyro1::gpio2Pin ||

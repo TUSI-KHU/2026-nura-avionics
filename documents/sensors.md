@@ -32,7 +32,7 @@ Target controller: **Teensy 4.1**
 | Controller | Teensy 4.1 | Board | Main flight controller target. |
 | Low-g IMU, 16 g | LSM6DSOX / LSM6DSO32 | Breakout | 6-DOF accelerometer + gyroscope. BOM entry includes Adafruit LSM6DSO32 6-DOF accelerometer breakout. |
 | Magnetometer | LIS3MDL | Breakout | STEMMA QT LIS3MDL magnetometer. |
-| Pressure / barometer | BMP180 | Breakout / isolated I2C0 replacement | Active pressure sensor for altitude estimation. |
+| Pressure / barometer | MPL3115A2 | Breakout / isolated I2C0 replacement | Active pressure sensor for altitude estimation. |
 | GNSS | u-blox M6 / NEO-6M | Breakout | Development module listed as GY-GPS6MV2 / NEO-6M GPS module. |
 | LoRa radio | SX1262 | PCB | Target flight LoRa telemetry radio. |
 
@@ -43,7 +43,7 @@ Target controller: **Teensy 4.1**
 | Low-g IMU | LSM6DSOX / LSM6DSO32 | Breakout | Primary 16 g accelerometer + gyroscope path. |
 | High-g accelerometer | H3LIS331DL | Breakout | Digital triple-axis accelerometer path for high-g launch detection and logging. |
 | Magnetometer | LIS3MDL | Breakout | Magnetic heading source, subject to hard-iron and soft-iron calibration. |
-| Pressure / barometer | BMP180 | Breakout / isolated I2C0 replacement | Active pressure/altitude sensor. |
+| Pressure / barometer | MPL3115A2 | Breakout / isolated I2C0 replacement | Active pressure/altitude sensor. |
 | GNSS | u-blox M6 / NEO-6M | Breakout | Position/time source for development and recovery. |
 | LoRa radio | SX1262 | PCB | Flight transmitter at 920.9 MHz; shares the LoRa PHY profile with ground SX1276. |
 | LoRa radio, ground | SX1276 | Module | Ground receiver at 920.9 MHz. |
@@ -74,7 +74,7 @@ Target controller: **Teensy 4.1**
 | LSM6DSOX / LSM6DSO32 low-g IMU | I2C or SPI | HAL present. Sensor task integration still needed for the selected part. |
 | H3LIS331DL high-g accelerometer candidate | I2C or SPI | HAL present for candidate testing. Select or drop before flight integration. |
 | LIS3MDL magnetometer | I2C | HAL present. Manual calibration storage path still needed. |
-| BMP180 pressure sensor | I2C | HAL reads factory calibration coefficients, checks chip-id `0x55`, refreshes temperature compensation periodically, and uses non-blocking pressure conversions with a 50 ms timeout for scheduler-safe sampling. |
+| MPL3115A2 pressure sensor | I2C0, address `0x60` | HAL configures barometer mode and uses non-blocking one-shot conversions with a 50 ms timeout for scheduler-safe sampling. |
 | u-blox M6 / NEO-6M GNSS | UART | HAL/parser scaffold present. Flight task and message configuration still needed. |
 | SX1262 LoRa | SPI + DIO1/BUSY | HAL is integrated with RadioLib. `RXE` D30 and TCXO/reset hardware assumptions need bench confirmation. |
 | SX1276 ground LoRa | SPI + DIO0 | Receiver uses the matching 920.9 MHz LoRa PHY profile. |
@@ -113,4 +113,4 @@ This logic is intended only for high-g event support and logging. The low-g IMU 
 | Device | Removal Reason |
 | --- | --- |
 | ADXL377 | Not populated in the current avionics stack. Its former analog pins overlap GPS and I2C1 nets, so the HAL and bring-up sketch were removed to avoid accidental enablement. |
-| MPL3115A2 / MS5611 | Not used in the current avionics stack. BMP180 is the active barometer for this bring-up path; the MPL3115A2 HAL source remains in the tree but is excluded from the active PlatformIO build. |
+| BMP180 / MS5611 | Not used in the current avionics stack. MPL3115A2 is the active barometer for this bring-up path. |

@@ -27,6 +27,7 @@ struct Sx127xLoRaConfig
     long preambleLength = 8;
     int syncWord = 0x12;
     bool crcEnabled = true;
+    bool downlinkOnly = false;
 };
 
 struct Sx127xLoRaPacket
@@ -43,7 +44,10 @@ public:
     bool begin(const Sx127xLoRaConfig &config, SPIClass &spi = SPI);
     void end();
 
-    bool send(const uint8_t *data, size_t length, bool async = false);
+    void service(uint32_t nowMs);
+    bool txBusy() const;
+    bool send(const uint8_t *data, size_t length, bool async);
+    bool send(const uint8_t *data, size_t length);
     bool receive(uint8_t *buffer, size_t capacity, Sx127xLoRaPacket &packet);
     int rssi() const;
 
@@ -54,6 +58,8 @@ private:
     void resetRadio(const Sx127xLoRaConfig &config);
 
     bool initialized_ = false;
+    bool downlinkOnly_ = false;
+    bool txBusy_ = false;
     uint8_t selectedSpiMode_ = SPI_MODE0;
     uint32_t selectedSpiFrequency_ = 8000000UL;
 };

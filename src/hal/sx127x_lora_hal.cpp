@@ -9,6 +9,8 @@
 bool Sx127xLoRaHAL::begin(const Sx127xLoRaConfig &config, SPIClass &spi)
 {
     initialized_ = false;
+    downlinkOnly_ = config.downlinkOnly;
+    txBusy_ = false;
     selectedSpiFrequency_ = config.spiFrequency;
 
     LoRa.setPins(config.ssPin, config.libraryResetPin, config.dio0Pin);
@@ -54,42 +56,68 @@ void Sx127xLoRaHAL::end()
         LoRa.end();
     }
     initialized_ = false;
+    txBusy_ = false;
+}
+
+void Sx127xLoRaHAL::service(uint32_t nowMs)
+{
+    (void)nowMs;
+}
+
+bool Sx127xLoRaHAL::txBusy() const
+{
+    return txBusy_;
 }
 
 bool Sx127xLoRaHAL::send(const uint8_t *data, size_t length, bool async)
 {
-    if (!initialized_ || data == nullptr || length == 0U)
+    if (!initialized_ || txBusy_ || data == nullptr || length == 0U)
     {
         return false;
     }
 
+    txBusy_ = true;
     LoRa._spiSettings = SPISettings(selectedSpiFrequency_, MSBFIRST, selectedSpiMode_);
     LoRa.idle();
     delay(2);
     if (!LoRa.beginPacket())
     {
-        LoRa.receive();
+        if (!downlinkOnly_)
+        {
+            LoRa.receive();
+        }
+        txBusy_ = false;
         return false;
     }
 
     const size_t written = LoRa.write(data, length);
     if (written != length)
     {
-        LoRa.receive();
+        if (!downlinkOnly_)
+        {
+            LoRa.receive();
+        }
+        txBusy_ = false;
         return false;
     }
 
     const bool ok = LoRa.endPacket(async) == 1;
-    if (!async)
+    if (!async && !downlinkOnly_)
     {
         LoRa.receive();
     }
+    txBusy_ = false;
     return ok;
+}
+
+bool Sx127xLoRaHAL::send(const uint8_t *data, size_t length)
+{
+    return send(data, length, false);
 }
 
 bool Sx127xLoRaHAL::receive(uint8_t *buffer, size_t capacity, Sx127xLoRaPacket &packet)
 {
-    if (!initialized_ || buffer == nullptr || capacity == 0U)
+    if (!initialized_ || downlinkOnly_ || buffer == nullptr || capacity == 0U)
     {
         return false;
     }

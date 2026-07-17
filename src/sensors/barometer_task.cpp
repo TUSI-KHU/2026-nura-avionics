@@ -39,7 +39,7 @@ namespace
     }
 }
 
-BarometerTask::BarometerTask(BMP180HAL &barometer, TelemetryState &telemetryState, Logger &logger, const IAppConfig &config)
+BarometerTask::BarometerTask(MPL3115A2HAL &barometer, TelemetryState &telemetryState, Logger &logger, const IAppConfig &config)
     : barometer_(barometer),
       telemetryState_(telemetryState),
       logger_(logger),
@@ -71,13 +71,13 @@ bool BarometerTask::tick(uint32_t nowMs)
         return true;
     }
 
-    Bmp180Reading sample;
-    const Bmp180PollResult pollResult = barometer_.poll(sample, nowMs);
-    if (pollResult == Bmp180PollResult::PENDING)
+    Mpl3115a2Reading sample;
+    const Mpl3115a2PollResult pollResult = barometer_.poll(sample, nowMs);
+    if (pollResult == Mpl3115a2PollResult::PENDING)
     {
         return true;
     }
-    if (pollResult == Bmp180PollResult::ERROR)
+    if (pollResult == Mpl3115a2PollResult::ERROR)
     {
         recordReadFailure(nowMs);
         return true;
@@ -117,15 +117,16 @@ uint32_t BarometerTask::periodMs() const
 bool BarometerTask::initialize(uint32_t nowMs)
 {
     lastInitAttemptMs_ = nowMs;
-    const bool ok = barometer_.begin(BoardPinMap::BMP180::wire(), BoardPinMap::BMP180::i2cAddress);
+    const bool ok = barometer_.begin(BoardPinMap::MPL3115A2::wire(),
+                                     NuraConstants::MPL3115A2::kConversionTimeoutMs);
 
     if (ok)
     {
-        LOGI(logger_, nowMs, "baro", "bmp180 initialized");
+        LOGI(logger_, nowMs, "baro", "mpl3115a2 initialized");
     }
     else
     {
-        LOGW(logger_, nowMs, "baro", "bmp180 init failed");
+        LOGW(logger_, nowMs, "baro", "mpl3115a2 init failed");
     }
     return ok;
 }
@@ -207,7 +208,7 @@ void BarometerTask::recordBadValue(uint32_t nowMs, uint16_t faultFlag)
     }
 }
 
-void BarometerTask::publishValidSample(const Bmp180Reading &sample, float rawAltitudeM)
+void BarometerTask::publishValidSample(const Mpl3115a2Reading &sample, float rawAltitudeM)
 {
     consecutiveReadFailCount_ = 0U;
     consecutiveBadValueCount_ = 0U;
