@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "SparkFun_Tri_Axis_Accel_Breakout-H3LIS331DL-eagle-import") (type "KiCad") (uri "${KIPRJMOD}/SparkFun_Tri_Axis_Accel_Breakout-H3LIS331DL-eagle-import.kicad_sym") (options "") (descr ""))
+)

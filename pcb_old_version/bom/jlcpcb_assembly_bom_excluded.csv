@@ -1,0 +1,16 @@
+Reference,Value,Footprint,LCSC Part,Reason
+BZ1,Buzzer,Buzzer_Beeper:Buzzer_12x9.5RM7.6,,not SMD/THT; no LCSC/JLCPCB part
+D1,LED,LED_THT:LED_D1.8mm_W3.3mm_H2.4mm,,not SMD/THT; no LCSC/JLCPCB part
+D2,LED,LED_THT:LED_D1.8mm_W3.3mm_H2.4mm,,not SMD/THT; no LCSC/JLCPCB part
+JP1,GPS_RST,Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm,,not SMD/THT; no LCSC/JLCPCB part
+JP2,LORA_RST,Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm,,not SMD/THT; no LCSC/JLCPCB part
+J_POWER1,XT60,Connector_AMASS:AMASS_XT60-F_1x02_P7.20mm_Vertical,,not SMD/THT; no LCSC/JLCPCB part
+J_PYRO1,IGNITER_5R6,TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm,,not SMD/THT; no LCSC/JLCPCB part
+J_PYRO2,IGNITER_5R6,TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm,,not SMD/THT; no LCSC/JLCPCB part
+SW1,ARM,TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm,,not SMD/THT; no LCSC/JLCPCB part
+U1,Adafruit_LSM6DSO32,avionics:LSM6DSOX,,not SMD/THT; no LCSC/JLCPCB part
+U2,Sparkfun_H3LIS331DL,avionics:Sparkfun_H3LIS331DL,,not SMD/THT; no LCSC/JLCPCB part
+U3,Adafruit_MPC3315A2,avionics:Adafruit_MPC3315A2,,not SMD/THT; no LCSC/JLCPCB part
+U4,Teensy4.1,avionics:Teensy41,,not SMD/THT; no LCSC/JLCPCB part
+U5,LIS3MDL,avionics:Adafruit_LIS3MDL,,not SMD/THT; no LCSC/JLCPCB part
+U8,MCP1825S-5002,Package_TO_SOT_SMD:SOT-223-3_TabPin2,,no LCSC/JLCPCB part

@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100">
+  <defs>
+    <style>
+      .bg { fill: #f7f8fb; }
+      .title { font-family: "Noto Sans CJK KR", "Noto Sans KR", sans-serif; font-size: 42px; font-weight: 800; fill: #1b2430; }
+      .subtitle { font-family: "Noto Sans CJK KR", "Noto Sans KR", sans-serif; font-size: 19px; fill: #5c6675; }
+      .group-title { font-family: "Noto Sans CJK KR", "Noto Sans KR", sans-serif; font-size: 20px; font-weight: 800; fill: #1f2937; }
+      .card { fill: #ffffff; stroke: #cfd6e3; stroke-width: 2; rx: 14; }
+      .card-alt { fill: #fbfcff; stroke: #cfd6e3; stroke-width: 2; rx: 14; }
+      .mcu { fill: #172033; stroke: #334155; stroke-width: 3; rx: 22; }
+      .mcu-title { font-family: "Noto Sans CJK KR", "Noto Sans KR", sans-serif; font-size: 34px; font-weight: 900; fill: #ffffff; }
+      .mcu-text { font-family: "Noto Sans CJK KR", "Noto Sans KR", sans-serif; font-size: 20px; fill: #d8e1ef; }
+      .label { font-family: "Noto Sans CJK KR", "Noto Sans KR", sans-serif; font-size: 17px; font-weight: 800; fill: #475569; }
+      .role { font-family: "Noto Sans CJK KR", "Noto Sans KR", sans-serif; font-size: 25px; font-weight: 900; fill: #111827; }
+      .model { font-family: "Noto Sans CJK KR", "Noto Sans KR", sans-serif; font-size: 20px; font-weight: 800; fill: #253044; }
+      .note { font-family: "Noto Sans CJK KR", "Noto Sans KR", sans-serif; font-size: 17px; fill: #435166; }
+      .badge { fill: #edf2ff; stroke: #b7c7ef; stroke-width: 1.5; rx: 12; }
+      .badge-text { font-family: "Noto Sans CJK KR", "Noto Sans KR", sans-serif; font-size: 16px; font-weight: 900; fill: #25418a; }
+      .spi { fill: #e7f8ef; stroke: #9fd8b6; }
+      .i2c { fill: #fff3df; stroke: #e5bd74; }
+      .uart { fill: #f4eafe; stroke: #c7a2ea; }
+      .gpio { fill: #ffe8e8; stroke: #e9a4a4; }
+      .none { fill: #eef0f3; stroke: #c8ced8; }
+      .line { stroke: #9aa8ba; stroke-width: 2.5; fill: none; }
+      .line-spi { stroke: #3a9b62; }
+      .line-i2c { stroke: #c18426; }
+      .line-uart { stroke: #8b56c2; }
+      .line-gpio { stroke: #c54f4f; }
+      .legend-title { font-family: "Noto Sans CJK KR", "Noto Sans KR", sans-serif; font-size: 16px; font-weight: 800; fill: #475569; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="1100"/>
+  <text class="title" x="80" y="68">NURA Avionics 하드웨어 구성</text>
+  <text class="subtitle" x="82" y="104">보고서용 요약 도식: 역할, 모델, 인터페이스, 비고를 생략 없이 재배치</text>
+
+  <rect class="mcu" x="590" y="430" width="420" height="250"/>
+  <text class="mcu-title" x="800" y="500" text-anchor="middle">MCU</text>
+  <text class="mcu-title" x="800" y="548" text-anchor="middle">Teensy 4.1</text>
+  <text class="mcu-text" x="800" y="598" text-anchor="middle">메인 비행 컴퓨터</text>
+  <text class="mcu-text" x="800" y="630" text-anchor="middle">내장 SPI Flash 활용</text>
+  <text class="mcu-text" x="800" y="662" text-anchor="middle">지상국 측 보드로도 동일 모델 채택</text>
+
+  <path class="line line-spi" d="M590 475 C470 430 420 330 350 250"/>
+  <path class="line line-spi" d="M590 535 C470 530 420 515 350 515"/>
+  <path class="line line-spi" d="M590 615 C460 695 420 790 350 830"/>
+  <path class="line line-i2c" d="M1010 475 C1130 430 1180 330 1250 250"/>
+  <path class="line line-i2c" d="M1010 535 C1130 530 1180 515 1250 515"/>
+  <path class="line line-uart" d="M1010 615 C1130 695 1180 790 1250 830"/>
+  <path class="line line-spi" d="M800 430 C800 355 800 280 800 210"/>
+  <path class="line line-gpio" d="M800 680 C800 750 800 835 800 900"/>
+
+  <g transform="translate(80 160)">
+    <rect class="card" x="0" y="0" width="470" height="165"/>
+    <text class="role" x="28" y="42">Low-g IMU (16g)</text>
+    <text class="label" x="28" y="75">모델</text>
+    <text class="model" x="88" y="75">LSM6DSO32 (Adafruit)</text>
+    <rect class="badge spi" x="360" y="24" width="78" height="36"/>
+    <text class="badge-text" x="399" y="48" text-anchor="middle">SPI</text>
+    <text class="note" x="28" y="113">정상 비행 구간 자세/가속도 추정용</text>
+  </g>
+
+  <g transform="translate(80 425)">
+    <rect class="card-alt" x="0" y="0" width="470" height="165"/>
+    <text class="role" x="28" y="42">High-g IMU (200g)</text>
+    <text class="label" x="28" y="75">모델</text>
+    <text class="model" x="88" y="75">H3LIS331DL (SparkFun)</text>
+    <rect class="badge spi" x="360" y="24" width="78" height="36"/>
+    <text class="badge-text" x="399" y="48" text-anchor="middle">SPI</text>
+    <text class="note" x="28" y="111">모터 연소 등 고가속도 구간 측정</text>
+    <text class="note" x="28" y="139">IMU 체인지 (High↔Low) 로직 적용</text>
+  </g>
+
+  <g transform="translate(80 750)">
+    <rect class="card" x="0" y="0" width="470" height="165"/>
+    <text class="role" x="28" y="42">통신 모듈</text>
+    <text class="label" x="28" y="75">모델</text>
+    <text class="model" x="88" y="75">SX1278 RA-01 (개발)</text>
+    <text class="model" x="88" y="103">SX1262S9S + T-X1 (실장)</text>
+    <rect class="badge spi" x="360" y="24" width="78" height="36"/>
+    <text class="badge-text" x="399" y="48" text-anchor="middle">SPI</text>
+    <text class="note" x="28" y="132">LoRa, 개발 중 433 MHz → 915 MHz 대역 전환</text>
+    <text class="note" x="28" y="157">(SX1276) 작업 진행</text>
+  </g>
+
+  <g transform="translate(1130 160)">
+    <rect class="card" x="0" y="0" width="390" height="165"/>
+    <text class="role" x="28" y="42">지자기 센서</text>
+    <text class="label" x="28" y="75">모델</text>
+    <text class="model" x="88" y="75">LIS3MDL (Adafruit)</text>
+    <rect class="badge i2c" x="284" y="24" width="78" height="36"/>
+    <text class="badge-text" x="323" y="48" text-anchor="middle">I2C</text>
+    <text class="note" x="28" y="112">자세 보조</text>
+    <text class="note" x="28" y="140">모터 전선 등 전류원과 충분한 거리 확보 필요</text>
+  </g>
+
+  <g transform="translate(1130 425)">
+    <rect class="card-alt" x="0" y="0" width="390" height="165"/>
+    <text class="role" x="28" y="42">기압계(고도계)</text>
+    <text class="label" x="28" y="75">모델</text>
+    <text class="model" x="88" y="75">MPL3115A2 (Adafruit)</text>
+    <rect class="badge i2c" x="284" y="24" width="78" height="36"/>
+    <text class="badge-text" x="323" y="48" text-anchor="middle">I2C</text>
+    <text class="note" x="28" y="113">고도 추정</text>
+    <text class="note" x="28" y="141">Apogee (정점) 판정의 주 센서</text>
+  </g>
+
+  <g transform="translate(1130 750)">
+    <rect class="card" x="0" y="0" width="390" height="165"/>
+    <text class="role" x="28" y="42">GNSS</text>
+    <text class="label" x="28" y="75">모델</text>
+    <text class="model" x="88" y="75">GY-GPS6MV2 (개발용)</text>
+    <text class="model" x="88" y="103">NEO-M9N-00B (실장용)</text>
+    <rect class="badge uart" x="284" y="24" width="78" height="36"/>
+    <text class="badge-text" x="323" y="48" text-anchor="middle">UART</text>
+    <text class="note" x="28" y="140">회수 위치 확인용, 1 Hz 갱신</text>
+  </g>
+
+  <g transform="translate(585 125)">
+    <rect class="card" x="0" y="0" width="430" height="170"/>
+    <text class="role" x="28" y="45">로깅 매체</text>
+    <text class="label" x="28" y="78">모델</text>
+    <text class="model" x="88" y="78">Teensy 4.1 내장 SPI Flash + SD카드</text>
+    <rect class="badge spi" x="324" y="25" width="78" height="36"/>
+    <text class="badge-text" x="363" y="49" text-anchor="middle">SPI</text>
+    <text class="note" x="28" y="116">이중화 로깅</text>
+    <text class="note" x="28" y="144">두 매체 동시 손상 가능성은 낮다고 판단</text>
+  </g>
+
+  <g transform="translate(585 870)">
+    <rect class="card-alt" x="0" y="0" width="430" height="165"/>
+    <text class="role" x="28" y="42">사출 구동</text>
+    <text class="label" x="28" y="75">모델</text>
+    <text class="model" x="88" y="75">모스펫 드라이버 TC4452</text>
+    <text class="model" x="88" y="103">+ 모스펫 (IRZ44N 등)</text>
+    <rect class="badge gpio" x="324" y="24" width="78" height="36"/>
+    <text class="badge-text" x="363" y="48" text-anchor="middle">GPIO</text>
+    <text class="note" x="28" y="140">Pyro 채널 구동, 파이로 이중화</text>
+  </g>
+
+  <g transform="translate(80 1030)">
+    <text class="legend-title" x="0" y="0">인터페이스 색상</text>
+    <rect class="badge spi" x="130" y="-24" width="68" height="30"/><text class="badge-text" x="164" y="-3" text-anchor="middle">SPI</text>
+    <rect class="badge i2c" x="214" y="-24" width="68" height="30"/><text class="badge-text" x="248" y="-3" text-anchor="middle">I2C</text>
+    <rect class="badge uart" x="298" y="-24" width="78" height="30"/><text class="badge-text" x="337" y="-3" text-anchor="middle">UART</text>
+    <rect class="badge gpio" x="392" y="-24" width="78" height="30"/><text class="badge-text" x="431" y="-3" text-anchor="middle">GPIO</text>
+  </g>
+</svg>
