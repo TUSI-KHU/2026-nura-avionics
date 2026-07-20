@@ -5,8 +5,9 @@
 #include "app/app_config.h"
 #include "core/logger/logger.h"
 #include "hal/mock_flight_data_hal.h"
-#include "missions/fsm_task.h"
+#include "missions/flight/fsm_task.h"
 #include "nura_constants.h"
+#include "state/telemetry_state.h"
 
 namespace
 {

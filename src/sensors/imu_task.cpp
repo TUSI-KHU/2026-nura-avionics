@@ -28,7 +28,12 @@ namespace
     }
 }
 
-IMUTask::IMUTask(LSM6DSO32HAL &imu, ImuState &imuState, Logger &logger, const IAppConfig &config)
+IMUTask::IMUTask(ILowGImu &imu,
+                 ImuState &imuState,
+                 Logger &logger,
+                 const IAppConfig &config,
+                 uint8_t csPin,
+                 SPIClass &spi)
     : RecoverableTask(TaskCriticality::CRITICAL,
                       config.imuReadFailureThreshold(),
                       config.imuMaxRecoveryAttempts(),
@@ -36,7 +41,9 @@ IMUTask::IMUTask(LSM6DSO32HAL &imu, ImuState &imuState, Logger &logger, const IA
       imu_(imu),
       imuState_(imuState),
       logger_(logger),
-      config_(config) {}
+      config_(config),
+      csPin_(csPin),
+      spi_(spi) {}
 
 const char *IMUTask::name() const
 {
@@ -109,7 +116,7 @@ uint32_t IMUTask::periodMs() const
 bool IMUTask::recover(uint32_t nowMs)
 {
     (void)nowMs;
-    return imu_.begin(config_.imuCsPin());
+    return imu_.beginDefault(csPin_, spi_);
 }
 
 bool IMUTask::initializeDevice(uint32_t logTs)
@@ -118,7 +125,7 @@ bool IMUTask::initializeDevice(uint32_t logTs)
 
     for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
     {
-        if (imu_.begin(config_.imuCsPin()))
+        if (imu_.beginDefault(csPin_, spi_))
         {
             return true;
         }

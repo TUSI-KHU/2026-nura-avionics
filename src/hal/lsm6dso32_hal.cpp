@@ -121,6 +121,11 @@ bool LSM6DSO32HAL::begin(uint8_t csPin,
     return true;
 }
 
+bool LSM6DSO32HAL::beginDefault(uint8_t csPin, SPIClass &spi)
+{
+    return begin(csPin, spi);
+}
+
 bool LSM6DSO32HAL::read(Lsm6dso32Reading &out, uint32_t nowMs)
 {
     if (!initialized_)

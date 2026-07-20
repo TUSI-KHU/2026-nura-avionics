@@ -10,18 +10,18 @@ Target controller: **Teensy 4.1**
 
 | Device | Flight Role | Required Startup Checks | Calibration Requirement | Missing Calibration / Fault Impact |
 | --- | --- | --- | --- | --- |
-| BMP180 | Active barometer / altitude source | chip-id `0x55`, calibration coefficient readout, pressure and temperature sanity range | Build ground pressure/altitude baseline on the pad before arming. If absolute altitude is required, set current field elevation or sea-level pressure. | Critical active altitude source. Relative altitude will be wrong if baseline is missing or stale. |
+| MPL3115A2 | Active barometer / altitude source | WHO_AM_I `0xC4`, pressure/temperature sanity range, conversion timeout | Build ground pressure/altitude baseline on the pad before arming. If absolute altitude is required, set current field elevation or sea-level pressure. | Critical active altitude source. Relative altitude will be wrong if baseline is missing or stale. |
 | LSM6DSO32 / LSM6DSOX | Low-g IMU, 16 g acceleration and gyro | WHO_AM_I, selected accel/gyro ranges, data-ready/read sanity, axis sign sanity | Auto-calibrate stationary accel and gyro bias at boot while the rocket is still on the pad. Confirm axis mapping before flight. | High impact. Gyro bias drift and accel offset can break attitude estimates, launch detection, and state transitions. |
 | H3LIS331DL | High-g accelerometer candidate, 100 g class in firmware | WHO_AM_I, selected high-g range, sample sanity, axis sign sanity | Auto-calibrate stationary offset at boot while preserving the stationary 1 g vector norm. Confirm axis mapping before flight. | High impact if used for launch/high-g event detection or acceleration logging. High-g data is coarse and filtered; do not use it as a precision low-g attitude source. |
 | LIS3MDL | Magnetometer | WHO_AM_I, magnetic range sanity, saturation check | Hard-iron and soft-iron calibration must be done manually after assembly or stored from a prior calibration. Not a full boot-only calibration. | Medium impact unless heading is flight-critical. Bad calibration can make heading unusable near motors, batteries, or steel hardware. |
 | u-blox M6 / NEO-6M | GNSS / position and time | UART response, baud rate, valid NMEA/UBX frames, fix status | No sensor calibration. Configure update rate, message set, and fallback behavior before flight. | Usually non-critical to autonomous recovery logic, but loss of telemetry position hurts tracking and recovery. |
-| SX1262 | Flight LoRa telemetry | SPI command response, BUSY behavior, DIO1 IRQ, frequency band, output power, packet loopback/range test | No sensor calibration. RF settings and antenna match must be verified before launch. | Not a sensor fault, but telemetry loss can block ground visibility and recovery workflow. |
+| SparkFun SPX-18572 / E19-915M30S SX1276 1W | Flight LoRa telemetry | SPI version response, DIO0 IRQ, RXE/TXE RF-switch behavior, frequency band, output power, packet loopback/range test | No sensor calibration. The module needs its 5 V power rail, 3.3 V control logic, matched antenna, and current margin verified before launch. | Not a sensor fault, but telemetry loss can block ground visibility and recovery workflow. |
 
 ## Calibration Timing
 
 | Timing | Devices | Requirement |
 | --- | --- | --- |
-| Automatic at boot, before arming | BMP180, LSM6DSO32 / LSM6DSOX, H3LIS331DL | Run only while the rocket is stationary on the pad. Average multiple samples, reject obvious outliers, and fail arming if the active flight-critical sensor cannot calibrate. |
+| Automatic at boot, before arming | MPL3115A2, LSM6DSO32 / LSM6DSOX, H3LIS331DL | Run only while the rocket is stationary on the pad. Average multiple samples, reject obvious outliers, and fail arming if the active flight-critical sensor cannot calibrate. |
 | Manual after boot or after assembly | LIS3MDL, optional barometer absolute-altitude reference | Rotate the fully assembled avionics stack for magnetometer calibration. Enter field elevation or sea-level pressure only if absolute altitude is needed. |
 | Pre-flight characterization / stored constants | LIS3MDL, axis mapping for every motion sensor | Store board-specific magnetometer compensation and axis orientation after bench testing. Recheck after PCB, wiring, battery, or mounting changes. |
 
@@ -32,9 +32,9 @@ Target controller: **Teensy 4.1**
 | Controller | Teensy 4.1 | Board | Main flight controller target. |
 | Low-g IMU, 16 g | LSM6DSOX / LSM6DSO32 | Breakout | 6-DOF accelerometer + gyroscope. BOM entry includes Adafruit LSM6DSO32 6-DOF accelerometer breakout. |
 | Magnetometer | LIS3MDL | Breakout | STEMMA QT LIS3MDL magnetometer. |
-| Pressure / barometer | BMP180 | Breakout / isolated I2C0 replacement | Active pressure sensor for altitude estimation. |
+| Pressure / barometer | MPL3115A2 | Breakout on I2C0 | Active pressure sensor for altitude estimation. |
 | GNSS | u-blox M6 / NEO-6M | Breakout | Development module listed as GY-GPS6MV2 / NEO-6M GPS module. |
-| LoRa radio | SX1262 | PCB | Target flight LoRa telemetry radio. |
+| LoRa radio | SparkFun SPX-18572 / E19-915M30S SX1276 1W | Breakout | Target flight LoRa telemetry radio; RXE/TXE switch the external PA/LNA path. |
 
 ## Flight Sensor Stack
 
@@ -43,11 +43,11 @@ Target controller: **Teensy 4.1**
 | Low-g IMU | LSM6DSOX / LSM6DSO32 | Breakout | Primary 16 g accelerometer + gyroscope path. |
 | High-g accelerometer | H3LIS331DL | Breakout | Digital triple-axis accelerometer path for high-g launch detection and logging. |
 | Magnetometer | LIS3MDL | Breakout | Magnetic heading source, subject to hard-iron and soft-iron calibration. |
-| Pressure / barometer | BMP180 | Breakout / isolated I2C0 replacement | Active pressure/altitude sensor. |
+| Pressure / barometer | MPL3115A2 | Breakout on I2C0 | Active pressure/altitude sensor. |
 | GNSS | u-blox M6 / NEO-6M | Breakout | Position/time source for development and recovery. |
-| LoRa radio | SX1262 | PCB | Flight transmitter at 920.9 MHz; shares the LoRa PHY profile with ground SX1276. |
-| LoRa radio, ground | SX1276 | Module | Ground receiver at 920.9 MHz. |
-| Battery voltage sense | 3S pack divider | PCB analog input | Telemetry-only pack voltage monitor on D21. Divider ratio is 5.545: 12.6 V maps to 2.2723 V and 11.1 V maps to 2.0018 V at the ADC input. |
+| LoRa radio | SparkFun SPX-18572 / E19-915M30S SX1276 1W | Breakout | Flight transmitter at 920.9 MHz; shares the LoRa PHY profile with the matching SX1276 ground radio. |
+| LoRa radio, ground | SparkFun SPX-18572 / E19-915M30S SX1276 1W | Breakout | Ground receiver at 920.9 MHz. |
+| Battery voltage sense | 3S pack divider | PCB analog input | Telemetry-only pack voltage monitor on D22. Divider ratio is 5.545: 12.6 V maps to 2.2723 V and 11.1 V maps to 2.0018 V at the ADC input. |
 
 ## RF and Cabling
 
@@ -74,12 +74,12 @@ Target controller: **Teensy 4.1**
 | LSM6DSOX / LSM6DSO32 low-g IMU | I2C or SPI | HAL present. Sensor task integration still needed for the selected part. |
 | H3LIS331DL high-g accelerometer candidate | I2C or SPI | HAL present for candidate testing. Select or drop before flight integration. |
 | LIS3MDL magnetometer | I2C | HAL present. Manual calibration storage path still needed. |
-| BMP180 pressure sensor | I2C | HAL reads factory calibration coefficients, checks chip-id `0x55`, refreshes temperature compensation periodically, and uses non-blocking pressure conversions with a 50 ms timeout for scheduler-safe sampling. |
+| MPL3115A2 pressure sensor | I2C0 (SDA18/SCL19) | HAL checks WHO_AM_I `0xC4` and uses non-blocking pressure conversions with a bounded timeout for scheduler-safe sampling. |
 | u-blox M6 / NEO-6M GNSS | UART | HAL/parser scaffold present. Flight task and message configuration still needed. |
-| SX1262 LoRa | SPI + DIO1/BUSY | HAL is integrated with RadioLib. `RXE` D30 and TCXO/reset hardware assumptions need bench confirmation. |
-| SX1276 ground LoRa | SPI + DIO0 | Receiver uses the matching 920.9 MHz LoRa PHY profile. |
-| TC4452 MOSFET driver | GPIO output | MOSFET pyro HAL present; physical output is build-gated by `NURA_ENABLE_PYRO_OUTPUTS`. Drogue/Pyro 1 is D28/D29. Main/Pyro 2 has been rerouted to the D35/D38 output pair with sense on D40; confirm the exact gpio1/gpio2 order by continuity and verify microSD logging still works before enabling main pyro output. |
-| Battery voltage divider | Analog input | HAL and sensor task present. Publishes `TelemetryState.power.batteryMv` and FAST `batt_mv`; invalid/stale samples downlink as `0`. D21 uses a 10-bit, 3.3 V ADC and a divider ratio of 5.545. |
+| SparkFun SX1276 1W LoRa | SPI1 + DIO0/RXE/TXE/RST | HAL uses the SPX-18572/E19-915M30S register interface. RXE D30, TXE D31, DIO0 D32, RST D24, and 5 V module power require bench verification. |
+| SX1276 ground LoRa | SPI1 + DIO0/RXE/TXE/RST | Receiver uses the matching 920.9 MHz LoRa PHY profile and RF-switch path. |
+| TC4452 MOSFET driver | GPIO output | MOSFET pyro HAL present; physical output is build-gated by `NURA_ENABLE_PYRO_OUTPUTS`. Drogue/Pyro 1 is gpio1 D28/gpio2 D29 with sense D25. Main/Pyro 2 is gpio1 D38/gpio2 D35 with sense D41; confirm continuity before enabling main pyro output. |
+| Battery voltage divider | Analog input | HAL and sensor task present. Publishes `TelemetryState.power.batteryMv` and FAST `batt_mv`; invalid/stale samples downlink as `0`. D22 uses a 10-bit, 3.3 V ADC and a divider ratio of 5.545. |
 
 ## H3LIS331DL High-g Filtering Policy
 
@@ -113,4 +113,4 @@ This logic is intended only for high-g event support and logging. The low-g IMU 
 | Device | Removal Reason |
 | --- | --- |
 | ADXL377 | Not populated in the current avionics stack. Its former analog pins overlap GPS and I2C1 nets, so the HAL and bring-up sketch were removed to avoid accidental enablement. |
-| MPL3115A2 / MS5611 | Not used in the current avionics stack. BMP180 is the active barometer for this bring-up path; the MPL3115A2 HAL source remains in the tree but is excluded from the active PlatformIO build. |
+| BMP180 | Not used in the current avionics stack. MPL3115A2 is the active I2C0 barometer; the legacy BMP180 HAL remains in the tree only for compatibility and is excluded from the active PlatformIO build. |

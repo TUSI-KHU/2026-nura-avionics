@@ -7,9 +7,15 @@ import argparse
 import csv
 import json
 import struct
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from decode_flight_log import extract_flash_journal, extract_sd_blocks  # noqa: E402
 
 
 FRAME_MAGIC = 0x4E4C
@@ -379,6 +385,16 @@ def parse_nlg(data: bytes) -> list[ParsedFrame]:
     return frames
 
 
+def unwrap_container(data: bytes) -> tuple[bytes, str]:
+    sd_stream = extract_sd_blocks(data)
+    if sd_stream is not None:
+        return sd_stream, "sd_block_journal_v1"
+    flash_stream = extract_flash_journal(data, 4096)
+    if flash_stream is not None:
+        return flash_stream, "qspi_raw_journal_v1"
+    return data, "plain_nlg_stream_v1"
+
+
 def row_for_frame(frame: ParsedFrame) -> dict[str, Any]:
     row = {
         "offset": frame.offset,
@@ -439,7 +455,8 @@ def main() -> int:
     out_dir = args.out_dir or default_output_dir(input_path)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    data = input_path.read_bytes()
+    input_data = input_path.read_bytes()
+    data, container_format = unwrap_container(input_data)
     frames = parse_nlg(data)
     rows = [row_for_frame(frame) for frame in frames]
 
@@ -455,7 +472,9 @@ def main() -> int:
 
     summary = {
         "input": str(input_path),
-        "input_bytes": len(data),
+        "input_bytes": len(input_data),
+        "logical_stream_bytes": len(data),
+        "container_format": container_format,
         "frames": len(frames),
         "first_sequence": frames[0].sequence if frames else None,
         "last_sequence": frames[-1].sequence if frames else None,

@@ -11,7 +11,21 @@ struct BatteryVoltageReading
     uint32_t sampleMs = 0UL;
 };
 
-class BatteryVoltageHAL
+class IBatteryVoltage
+{
+public:
+    virtual ~IBatteryVoltage() = default;
+    virtual bool begin(uint8_t pin,
+                       uint16_t adcReferenceMv,
+                       uint8_t adcResolutionBits,
+                       uint16_t dividerRatioNumerator,
+                       uint16_t dividerRatioDenominator,
+                       uint16_t minValidBatteryMv,
+                       uint16_t maxValidBatteryMv) = 0;
+    virtual bool read(BatteryVoltageReading &out, uint32_t nowMs) const = 0;
+};
+
+class BatteryVoltageHAL : public IBatteryVoltage
 {
 public:
     bool begin(uint8_t pin,
@@ -20,8 +34,8 @@ public:
                uint16_t dividerRatioNumerator,
                uint16_t dividerRatioDenominator,
                uint16_t minValidBatteryMv,
-               uint16_t maxValidBatteryMv);
-    bool read(BatteryVoltageReading &out, uint32_t nowMs) const;
+               uint16_t maxValidBatteryMv) override;
+    bool read(BatteryVoltageReading &out, uint32_t nowMs) const override;
 
 private:
     static uint16_t scaleRawToSenseMv(uint16_t raw, uint16_t adcMax, uint16_t adcReferenceMv);

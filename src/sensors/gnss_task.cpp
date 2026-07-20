@@ -1,11 +1,18 @@
 #include "gnss_task.h"
 
 #include "board_pinmap.h"
+#include "nura_constants.h"
 
-GNSSTask::GNSSTask(UbloxM6GNSSHAL &gnss, GpsState &gpsState, const IAppConfig &config)
+GNSSTask::GNSSTask(IGnss &gnss,
+                   GpsState &gpsState,
+                   const IAppConfig &config,
+                   HardwareSerial &serial,
+                   uint32_t baudRate)
     : gnss_(gnss),
       gpsState_(gpsState),
-      config_(config) {}
+      config_(config),
+      serial_(serial),
+      baudRate_(baudRate) {}
 
 const char *GNSSTask::name() const
 {
@@ -15,12 +22,18 @@ const char *GNSSTask::name() const
 bool GNSSTask::init()
 {
     gpsState_.data = GpsData{};
-    auto &serial = BoardPinMap::UbloxM6::serial();
-    serial.setRX(BoardPinMap::UbloxM6::rxPin);
-    serial.setTX(BoardPinMap::UbloxM6::txPin);
-    return gnss_.begin(serial,
-                       BoardPinMap::UbloxM6::baud,
-                       config_.gnssMaxFixAgeMs());
+    for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
+    {
+        if (gnss_.begin(serial_, baudRate_, config_.gnssMaxFixAgeMs()))
+        {
+            return true;
+        }
+        if ((attempt + 1U) < NuraConstants::Sensors::kSensorInitRetryAttempts)
+        {
+            delay(NuraConstants::Sensors::kSensorInitRetryDelayMs);
+        }
+    }
+    return false;
 }
 
 bool GNSSTask::tick(uint32_t nowMs)

@@ -26,6 +26,11 @@ bool LIS3MDLHAL::begin(uint8_t i2cAddress,
     return true;
 }
 
+bool LIS3MDLHAL::beginDefault(uint8_t i2cAddress, TwoWire &wire)
+{
+    return begin(i2cAddress, wire);
+}
+
 bool LIS3MDLHAL::read(Lis3mdlReading &out, uint32_t nowMs)
 {
     if (!initialized_)

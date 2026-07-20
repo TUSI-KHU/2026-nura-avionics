@@ -76,6 +76,11 @@ uint16_t FlightLogRamBuffer::recordCount() const
     return records_;
 }
 
+uint16_t FlightLogRamBuffer::frontLength() const
+{
+    return records_ == 0U ? 0U : peekLength();
+}
+
 uint32_t FlightLogRamBuffer::droppedRecords() const
 {
     return droppedRecords_;

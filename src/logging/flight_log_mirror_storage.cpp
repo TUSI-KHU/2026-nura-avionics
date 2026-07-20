@@ -8,7 +8,7 @@ FlightLogMirrorStorage::FlightLogMirrorStorage(IFlightLogStorage &primary, IFlig
 
 bool FlightLogMirrorStorage::begin()
 {
-    if (healthy())
+    if (fullyHealthy())
     {
         return true;
     }
@@ -16,12 +16,22 @@ bool FlightLogMirrorStorage::begin()
     stopped_ = false;
     primaryActive_ = primary_.begin() && primary_.healthy();
     mirrorActive_ = mirror_.begin() && mirror_.healthy();
-    return healthy();
+    return fullyHealthy();
+}
+
+bool FlightLogMirrorStorage::canAppend(uint16_t length) const
+{
+    if (stopped_ || length == 0U || (!primaryActive_ && !mirrorActive_))
+    {
+        return false;
+    }
+    return (!primaryActive_ || primary_.canAppend(length)) &&
+           (!mirrorActive_ || mirror_.canAppend(length));
 }
 
 bool FlightLogMirrorStorage::append(const uint8_t *data, uint16_t length)
 {
-    if (stopped_ || data == nullptr || length == 0U)
+    if (stopped_ || data == nullptr || !canAppend(length))
     {
         return false;
     }
@@ -36,20 +46,39 @@ bool FlightLogMirrorStorage::append(const uint8_t *data, uint16_t length)
         mirrorActive_ = mirror_.append(data, length) && mirror_.healthy();
     }
 
-    return healthy();
+    return primaryActive_ || mirrorActive_;
 }
 
-bool FlightLogMirrorStorage::flush()
+bool FlightLogMirrorStorage::service(uint32_t nowMs)
 {
     if (primaryActive_)
     {
-        primaryActive_ = primary_.flush() && primary_.healthy();
+        primaryActive_ = primary_.service(nowMs) && primary_.healthy();
     }
     if (mirrorActive_)
     {
-        mirrorActive_ = mirror_.flush() && mirror_.healthy();
+        mirrorActive_ = mirror_.service(nowMs) && mirror_.healthy();
     }
     return healthy();
+}
+
+bool FlightLogMirrorStorage::requestFlush()
+{
+    if (primaryActive_)
+    {
+        primaryActive_ = primary_.requestFlush() && primary_.healthy();
+    }
+    if (mirrorActive_)
+    {
+        mirrorActive_ = mirror_.requestFlush() && mirror_.healthy();
+    }
+    return healthy();
+}
+
+bool FlightLogMirrorStorage::idle() const
+{
+    return (!primaryActive_ || primary_.idle()) &&
+           (!mirrorActive_ || mirror_.idle());
 }
 
 void FlightLogMirrorStorage::stop()
@@ -63,7 +92,7 @@ void FlightLogMirrorStorage::stop()
 
 bool FlightLogMirrorStorage::healthy() const
 {
-    return !stopped_ && primaryActive_ && mirrorActive_;
+    return !stopped_ && (primaryActive_ || mirrorActive_);
 }
 
 bool FlightLogMirrorStorage::primaryHealthy() const
@@ -74,4 +103,9 @@ bool FlightLogMirrorStorage::primaryHealthy() const
 bool FlightLogMirrorStorage::mirrorHealthy() const
 {
     return mirrorActive_;
+}
+
+bool FlightLogMirrorStorage::fullyHealthy() const
+{
+    return !stopped_ && primaryActive_ && mirrorActive_;
 }

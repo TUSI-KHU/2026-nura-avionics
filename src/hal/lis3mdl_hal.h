@@ -34,15 +34,24 @@ struct Lis3mdlCalibration
     float scaleZ = 1.0f;
 };
 
-class LIS3MDLHAL
+class IMagnetometer
 {
 public:
+    virtual ~IMagnetometer() = default;
+    virtual bool beginDefault(uint8_t i2cAddress, TwoWire &wire) = 0;
+    virtual bool read(Lis3mdlReading &out, uint32_t nowMs) = 0;
+};
+
+class LIS3MDLHAL : public IMagnetometer
+{
+public:
+    bool beginDefault(uint8_t i2cAddress, TwoWire &wire) override;
     bool begin(uint8_t i2cAddress = LIS3MDL_I2CADDR_DEFAULT,
                TwoWire &wire = Wire1,
                lis3mdl_range_t range = LIS3MDL_RANGE_16_GAUSS,
                lis3mdl_dataRate_t dataRate = LIS3MDL_DATARATE_155_HZ,
                lis3mdl_performancemode_t performanceMode = LIS3MDL_ULTRAHIGHMODE);
-    bool read(Lis3mdlReading &out, uint32_t nowMs);
+    bool read(Lis3mdlReading &out, uint32_t nowMs) override;
     void setCalibration(const Lis3mdlCalibration &calibration);
     void clearCalibration();
     bool calibrateHardIron(uint32_t durationMs = 15000UL,

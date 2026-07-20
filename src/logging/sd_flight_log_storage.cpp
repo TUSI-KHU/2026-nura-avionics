@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "logging/flight_log_record.h"
 #include "nura_constants.h"
 
 namespace
@@ -83,13 +84,17 @@ bool mountStorage(uint8_t csPin)
 #if defined(BUILTIN_SDCARD)
     if (csPin == BUILTIN_SDCARD)
     {
-        // Teensy SD.begin(BUILTIN_SDCARD) pulls DAT3 down after a failed early
-        // probe. During boot, that can poison later retries. Mount the same
-        // backing SdFat object directly and leave card-detect pins untouched.
         return SD.sdfs.begin(SdioConfig(FIFO_SDIO));
     }
 #endif
     return SD.begin(csPin);
+}
+
+uint16_t blockHeaderCrc(const nura_sd_log::BlockHeader &header)
+{
+    nura_sd_log::BlockHeader copy = header;
+    copy.headerCrc16 = 0U;
+    return nura_log::crc16Ccitt(reinterpret_cast<const uint8_t *>(&copy), sizeof(copy));
 }
 } // namespace
 
@@ -108,6 +113,14 @@ bool SdFlightLogStorage::begin()
 
     stopped_ = false;
     healthy_ = false;
+    flushRequested_ = false;
+    logicalBytesWritten_ = 0U;
+    physicalBytesWritten_ = 0U;
+    blockSequence_ = 0U;
+    sessionId_ = 0U;
+    busyStartedMs_ = 0U;
+    busyObserved_ = false;
+    queue_.clear();
     path_[0] = '\0';
     if (file_)
     {
@@ -124,24 +137,24 @@ bool SdFlightLogStorage::begin()
         }
         delay(NuraConstants::Logger::kSdInitRetryDelayMs);
     }
-
     if (!mounted)
     {
         traceSdFailure("mount");
         return false;
     }
-    FsDateTime::setCallback(buildDateTime);
 
-    bool directoryReady = SD.exists(directory_);
-    for (uint8_t attempt = 0U; !directoryReady && attempt < NuraConstants::Logger::kSdInitRetryAttempts; ++attempt)
+    FsDateTime::setCallback(buildDateTime);
+    bool directoryReady = SD.sdfs.exists(directory_);
+    for (uint8_t attempt = 0U;
+         !directoryReady && attempt < NuraConstants::Logger::kSdInitRetryAttempts;
+         ++attempt)
     {
-        directoryReady = SD.mkdir(directory_) || SD.exists(directory_);
+        directoryReady = SD.sdfs.mkdir(directory_) || SD.sdfs.exists(directory_);
         if (!directoryReady)
         {
             delay(NuraConstants::Logger::kSdInitRetryDelayMs);
         }
     }
-
     if (!directoryReady)
     {
         traceSdFailure("directory");
@@ -151,46 +164,107 @@ bool SdFlightLogStorage::begin()
     healthy_ = openNextFile();
     if (!healthy_)
     {
-        traceSdFailure("open_file");
+        traceSdFailure("open_or_preallocate");
     }
     return healthy_;
 }
 
+bool SdFlightLogStorage::canAppend(uint16_t length) const
+{
+    return healthy() && !flushRequested_ && length > 0U && length <= queue_.free();
+}
+
 bool SdFlightLogStorage::append(const uint8_t *data, uint16_t length)
 {
-    if (!healthy_ || stopped_ || data == nullptr || length == 0U)
+    if (data == nullptr || !canAppend(length))
+    {
+        return false;
+    }
+    return queue_.push(data, length);
+}
+
+bool SdFlightLogStorage::service(uint32_t nowMs)
+{
+    if (!healthy() || stopped_)
     {
         return false;
     }
 
-    const size_t written = file_.write(data, length);
-    if (written != length)
+    if (file_.isBusy())
+    {
+        if (!busyObserved_)
+        {
+            busyObserved_ = true;
+            busyStartedMs_ = nowMs;
+        }
+        else if (static_cast<uint32_t>(nowMs - busyStartedMs_) >
+                 NuraConstants::Logger::kFlightLogSdBusyTimeoutMs)
+        {
+            healthy_ = false;
+            return false;
+        }
+        return true;
+    }
+    busyObserved_ = false;
+
+    const uint16_t sectorBytes = NuraConstants::Logger::kFlightLogSdSectorBytes;
+    const uint16_t payloadCapacity = static_cast<uint16_t>(
+        sectorBytes - sizeof(nura_sd_log::BlockHeader));
+    if (queue_.used() < payloadCapacity && !(flushRequested_ && !queue_.empty()))
+    {
+        return true;
+    }
+    if (physicalBytesWritten_ + sectorBytes >
+        NuraConstants::Logger::kFlightLogSdPreallocateBytes)
     {
         healthy_ = false;
         return false;
     }
 
+    const uint16_t validBytes = queue_.used() < payloadCapacity
+                                    ? queue_.used()
+                                    : payloadCapacity;
+    makeBlock(validBytes);
+    if (validBytes == 0U)
+    {
+        return true;
+    }
+
+    const size_t written = file_.write(sectorBuffer_, sectorBytes);
+    if (written != sectorBytes || !queue_.consume(validBytes))
+    {
+        healthy_ = false;
+        return false;
+    }
+    logicalBytesWritten_ += validBytes;
+    physicalBytesWritten_ += sectorBytes;
+    ++blockSequence_;
     return true;
 }
 
-bool SdFlightLogStorage::flush()
+bool SdFlightLogStorage::requestFlush()
 {
-    if (!healthy_ || stopped_)
+    if (!healthy() || stopped_)
     {
         return false;
     }
-    file_.flush();
+    flushRequested_ = true;
     return true;
+}
+
+bool SdFlightLogStorage::idle() const
+{
+    return queue_.empty() && (!file_ || !file_.isBusy());
 }
 
 void SdFlightLogStorage::stop()
 {
-    if (file_)
+    if (idle())
     {
-        file_.flush();
-        file_.close();
+        // The file remains preallocated and open. Closing or truncating would
+        // synchronously wait for FAT metadata after the cooperative scheduler starts.
+        stopped_ = true;
     }
-    stopped_ = true;
 }
 
 bool SdFlightLogStorage::healthy() const
@@ -203,20 +277,79 @@ const char *SdFlightLogStorage::path() const
     return path_;
 }
 
+uint32_t SdFlightLogStorage::logicalBytesWritten() const
+{
+    return logicalBytesWritten_;
+}
+
+uint32_t SdFlightLogStorage::sessionId() const
+{
+    return sessionId_;
+}
+
 bool SdFlightLogStorage::openNextFile()
 {
     for (uint16_t index = 0U; index < 1000U; ++index)
     {
         snprintf(path_, sizeof(path_), "%s/FL%03u.NLG", directory_, index);
-        if (SD.exists(path_))
+        if (SD.sdfs.exists(path_))
         {
             continue;
         }
 
-        file_ = SD.open(path_, FILE_WRITE);
-        return static_cast<bool>(file_);
+        file_ = SD.sdfs.open(path_, O_RDWR | O_CREAT | O_TRUNC);
+        if (!file_)
+        {
+            break;
+        }
+        if (!file_.preAllocate(NuraConstants::Logger::kFlightLogSdPreallocateBytes))
+        {
+            file_.close();
+            break;
+        }
+        file_.rewind();
+        if (!file_.sync())
+        {
+            file_.close();
+            break;
+        }
+        sessionId_ = makeSessionId(index);
+        return true;
     }
 
     path_[0] = '\0';
     return false;
+}
+
+void SdFlightLogStorage::makeBlock(uint16_t payloadLength)
+{
+    memset(sectorBuffer_, 0xFF, sizeof(sectorBuffer_));
+    const uint16_t copied = queue_.peek(
+        sectorBuffer_ + sizeof(nura_sd_log::BlockHeader), payloadLength);
+
+    nura_sd_log::BlockHeader header = {};
+    header.magic = nura_sd_log::kBlockMagic;
+    header.sessionId = sessionId_;
+    header.blockSequence = blockSequence_;
+    header.streamOffset = logicalBytesWritten_;
+    header.payloadLength = copied;
+    header.payloadCrc16 = nura_log::crc16Ccitt(
+        sectorBuffer_ + sizeof(nura_sd_log::BlockHeader), copied);
+    header.version = nura_sd_log::kBlockVersion;
+    header.headerCrc16 = blockHeaderCrc(header);
+    memcpy(sectorBuffer_, &header, sizeof(header));
+}
+
+uint32_t SdFlightLogStorage::makeSessionId(uint16_t fileIndex) const
+{
+    uint32_t value = 2166136261UL;
+    const char buildStamp[] = __DATE__ " " __TIME__;
+    for (uint16_t i = 0U; i < sizeof(buildStamp) - 1U; ++i)
+    {
+        value ^= static_cast<uint8_t>(buildStamp[i]);
+        value *= 16777619UL;
+    }
+    value ^= static_cast<uint32_t>(fileIndex) * 0x9E3779B9UL;
+    value ^= micros();
+    return value == 0U || value == 0xFFFFFFFFUL ? 0x4E555241UL : value;
 }

@@ -12,7 +12,12 @@ class IMUTask : public RecoverableTask
 {
 public:
     // SPI low-g IMU를 주기적으로 읽고 recoverable 정책을 적용하는 센서 태스크다.
-    IMUTask(LSM6DSO32HAL &imu, ImuState &imuState, Logger &logger, const IAppConfig &config);
+    IMUTask(ILowGImu &imu,
+            ImuState &imuState,
+            Logger &logger,
+            const IAppConfig &config,
+            uint8_t csPin,
+            SPIClass &spi);
 
     const char *name() const override;
     bool init() override;
@@ -32,10 +37,12 @@ private:
     void normalizeQuaternion();
     void rotateBodyToWorld(float x, float y, float z, float &outX, float &outY, float &outZ) const;
     void logSample(uint32_t nowMs);
-    LSM6DSO32HAL &imu_;
+    ILowGImu &imu_;
     ImuState &imuState_;
     Logger &logger_;
     const IAppConfig &config_;
+    uint8_t csPin_;
+    SPIClass &spi_;
     float attitudeReferenceX_ = 0.0f;
     float attitudeReferenceY_ = 0.0f;
     float attitudeReferenceZ_ = 1.0f;

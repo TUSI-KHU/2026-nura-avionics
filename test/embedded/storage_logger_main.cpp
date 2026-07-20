@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <LittleFS.h>
 #include <SD.h>
 #include <string.h>
 
@@ -9,18 +8,20 @@
 #include "logging/flight_log_record.h"
 #include "logging/program_flash_flight_log_storage.h"
 #include "logging/sd_flight_log_storage.h"
-#include "missions/flight_log_task.h"
+#include "hal/w25q128_qspi_hal.h"
+#include "missions/logging/flight_log_task.h"
 #include "nura_constants.h"
 
 namespace
 {
 constexpr uint32_t kSerialWaitMs = 60000UL;
 constexpr uint16_t kExpectedMinFrames = 8U;
+constexpr uint16_t kVerifyStreamBytes = 16U * 1024U;
+constexpr uint32_t kMaxAllowedRuntimeTickUs = 5000UL;
+uint32_t maxRuntimeTickUs = 0U;
 
-LittleFS_QSPIFlash programFs;
-ProgramFlashFlightLogStorage programStorage(programFs,
-                                            NuraConstants::Logger::kFlightLogProgramFlashBytes,
-                                            "/NURA_LOG");
+W25Q128QspiHAL programFlashHal;
+ProgramFlashFlightLogStorage programStorage(programFlashHal);
 SdFlightLogStorage sdStorage(BoardPinMap::MicroSD::csPin, "/NURA_LOG");
 FlightLogMirrorStorage mirrorStorage(programStorage, sdStorage);
 
@@ -29,7 +30,11 @@ ImuState imuState;
 HighGImuState highGImuState;
 MagnetometerState magnetometerState;
 GpsState gpsState;
-TelemetryState telemetryState;
+BarometerState barometerState;
+PowerState powerState;
+SystemHealthState healthState;
+TelemetrySnapshot telemetryState{barometerState, powerState, healthState};
+FlightTraceBuffer flightTrace;
 Logger logger;
 FlightLogTask flightLogTask(flightState,
                             imuState,
@@ -37,10 +42,27 @@ FlightLogTask flightLogTask(flightState,
                             magnetometerState,
                             gpsState,
                             telemetryState,
+                            flightTrace,
                             mirrorStorage,
                             logger);
 
-bool verifyLogFile(FS &fs, const char *path, const char *label, uint16_t minFrames)
+void tickFlightLog(uint32_t nowMs)
+{
+    const uint32_t startUs = micros();
+    flightLogTask.tick(nowMs);
+    const uint32_t durationUs = micros() - startUs;
+    if (durationUs > maxRuntimeTickUs)
+    {
+        maxRuntimeTickUs = durationUs;
+    }
+}
+
+bool verifyLogFile(FS &fs,
+                   const char *path,
+                   const char *label,
+                   uint16_t minFrames,
+                   uint32_t logicalBytes,
+                   uint32_t sessionId)
 {
     File file = fs.open(path, FILE_READ);
     if (!file)
@@ -51,22 +73,52 @@ bool verifyLogFile(FS &fs, const char *path, const char *label, uint16_t minFram
         return false;
     }
 
+    static uint8_t stream[kVerifyStreamBytes] = {};
+    uint32_t streamBytes = 0U;
+    uint8_t block[NuraConstants::Logger::kFlightLogSdSectorBytes] = {};
+    while (streamBytes < logicalBytes)
+    {
+        if (file.read(block, sizeof(block)) != static_cast<int>(sizeof(block)))
+        {
+            file.close();
+            return false;
+        }
+        nura_sd_log::BlockHeader header = {};
+        memcpy(&header, block, sizeof(header));
+        const uint16_t storedHeaderCrc = header.headerCrc16;
+        header.headerCrc16 = 0U;
+        const uint16_t headerCrc = nura_log::crc16Ccitt(
+            reinterpret_cast<const uint8_t *>(&header), sizeof(header));
+        if (header.magic != nura_sd_log::kBlockMagic ||
+            header.version != nura_sd_log::kBlockVersion ||
+            header.sessionId != sessionId ||
+            header.payloadLength == 0U ||
+            header.payloadLength > sizeof(block) - sizeof(header) ||
+            storedHeaderCrc != headerCrc ||
+            header.payloadCrc16 != nura_log::crc16Ccitt(
+                                       block + sizeof(header), header.payloadLength) ||
+            streamBytes + header.payloadLength > sizeof(stream))
+        {
+            file.close();
+            return false;
+        }
+        memcpy(stream + streamBytes, block + sizeof(header), header.payloadLength);
+        streamBytes += header.payloadLength;
+    }
+    file.close();
+
     uint8_t frame[nura_log::kMaxEncodedFrameBytes] = {};
     uint16_t frames = 0U;
     bool ok = true;
-
-    while (file.available() > 0)
+    uint32_t offset = 0U;
+    while (offset < streamBytes)
     {
-        const int headerRead = file.read(frame, sizeof(nura_log::FrameHeader));
-        if (headerRead == 0)
-        {
-            break;
-        }
-        if (headerRead != static_cast<int>(sizeof(nura_log::FrameHeader)))
+        if (streamBytes - offset < sizeof(nura_log::FrameHeader))
         {
             ok = false;
             break;
         }
+        memcpy(frame, stream + offset, sizeof(nura_log::FrameHeader));
 
         nura_log::FrameHeader header;
         memcpy(&header, frame, sizeof(header));
@@ -82,12 +134,14 @@ bool verifyLogFile(FS &fs, const char *path, const char *label, uint16_t minFram
         }
 
         const size_t remaining = frameLength - sizeof(nura_log::FrameHeader);
-        const size_t bodyRead = file.read(frame + sizeof(nura_log::FrameHeader), remaining);
-        if (bodyRead != remaining)
+        if (offset + frameLength > streamBytes)
         {
             ok = false;
             break;
         }
+        memcpy(frame + sizeof(nura_log::FrameHeader),
+               stream + offset + sizeof(nura_log::FrameHeader),
+               remaining);
 
         uint16_t storedCrc = 0U;
         memcpy(&storedCrc, frame + frameLength - sizeof(storedCrc), sizeof(storedCrc));
@@ -98,10 +152,10 @@ bool verifyLogFile(FS &fs, const char *path, const char *label, uint16_t minFram
         }
 
         ++frames;
+        offset += frameLength;
     }
 
-    const uint32_t fileSize = file.size();
-    file.close();
+    const uint32_t fileSize = logicalBytes;
 
     Serial.print(label);
     Serial.print(" RESULT ");
@@ -113,32 +167,6 @@ bool verifyLogFile(FS &fs, const char *path, const char *label, uint16_t minFram
     Serial.print(" frames=");
     Serial.println(frames);
     return ok && frames >= minFrames;
-}
-
-uint32_t fnv1aFileHash(FS &fs, const char *path, uint32_t &fileSize)
-{
-    File file = fs.open(path, FILE_READ);
-    if (!file)
-    {
-        fileSize = 0U;
-        return 0U;
-    }
-
-    uint32_t hash = 2166136261UL;
-    fileSize = 0U;
-    while (file.available() > 0)
-    {
-        const int value = file.read();
-        if (value < 0)
-        {
-            break;
-        }
-        hash ^= static_cast<uint8_t>(value);
-        hash *= 16777619UL;
-        ++fileSize;
-    }
-    file.close();
-    return hash;
 }
 
 void seedTelemetry(uint32_t nowMs)
@@ -207,6 +235,7 @@ bool runMirrorLoggerTest()
 {
     const uint32_t startMs = millis();
     seedTelemetry(startMs);
+    maxRuntimeTickUs = 0U;
 
     if (!flightLogTask.init())
     {
@@ -242,18 +271,47 @@ bool runMirrorLoggerTest()
             flightState.stateEnteredMs = nowMs;
         }
 
-        flightLogTask.tick(nowMs);
+        tickFlightLog(nowMs);
+        delay(20U);
     }
 
-    const uint32_t groundMs = startMs + 1400UL;
+    const uint32_t groundMs = millis();
     flightState.state = State::GROUND;
     flightState.stateEnteredMs = groundMs;
-    flightLogTask.tick(groundMs);
+    tickFlightLog(groundMs);
 
+    const uint32_t drainStartMs = millis();
+    while (!mirrorStorage.idle() && (millis() - drainStartMs) < 5000UL)
+    {
+        tickFlightLog(millis());
+        delay(20U);
+    }
+
+    uint32_t validFlashPages = 0U;
+    uint32_t flashPayloadBytes = 0U;
     const bool programOk = programStarted &&
-                           verifyLogFile(programFs, programStorage.path(), "PROGRAM FLASH", kExpectedMinFrames);
+                           programStorage.verifyJournal(validFlashPages, flashPayloadBytes) &&
+                           validFlashPages > 0U && flashPayloadBytes > 0U;
     const bool sdOk = sdStarted &&
-                      verifyLogFile(SD, sdStorage.path(), "SD", kExpectedMinFrames);
+                      verifyLogFile(SD,
+                                    sdStorage.path(),
+                                    "SD",
+                                    kExpectedMinFrames,
+                                    sdStorage.logicalBytesWritten(),
+                                    sdStorage.sessionId());
+
+    Serial.print("PROGRAM FLASH JOURNAL ");
+    Serial.print(programOk ? "OK" : "FAIL");
+    Serial.print(" pages=");
+    Serial.print(validFlashPages);
+    Serial.print(" payload_bytes=");
+    Serial.println(flashPayloadBytes);
+
+    const bool timingOk = maxRuntimeTickUs <= kMaxAllowedRuntimeTickUs;
+    Serial.print("LOGGER RUNTIME MAX_US ");
+    Serial.print(maxRuntimeTickUs);
+    Serial.print(" RESULT ");
+    Serial.println(timingOk ? "OK" : "FAIL");
 
     Serial.print("MIRROR LOGGER RESULT ");
     Serial.print(programOk && sdOk ? "OK" : "FAIL");
@@ -262,24 +320,7 @@ bool runMirrorLoggerTest()
     Serial.print(" sd_started=");
     Serial.println(sdStarted ? "true" : "false");
 
-    uint32_t programBytes = 0U;
-    uint32_t sdBytes = 0U;
-    const uint32_t programHash = fnv1aFileHash(programFs, programStorage.path(), programBytes);
-    const uint32_t sdHash = fnv1aFileHash(SD, sdStorage.path(), sdBytes);
-    const bool mirrorMatch = programBytes == sdBytes && programHash == sdHash;
-
-    Serial.print("MIRROR COMPARE ");
-    Serial.print(mirrorMatch ? "OK" : "FAIL");
-    Serial.print(" program_bytes=");
-    Serial.print(programBytes);
-    Serial.print(" sd_bytes=");
-    Serial.print(sdBytes);
-    Serial.print(" program_fnv1a=0x");
-    Serial.print(programHash, HEX);
-    Serial.print(" sd_fnv1a=0x");
-    Serial.println(sdHash, HEX);
-
-    return programOk && sdOk && mirrorMatch;
+    return programOk && sdOk && timingOk;
 }
 } // namespace
 

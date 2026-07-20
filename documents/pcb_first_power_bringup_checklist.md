@@ -38,7 +38,7 @@ Pyro 커넥터 구조는 다음과 같이 본다.
 
 ```text
 Pyro 2 output pair: D35 and D38
-Pyro 2 sense: D40
+Pyro 2 sense: D41
 ```
 
 Pyro 2의 정확한 `gpio1`/`gpio2` 순서는 펌웨어에서 실제 출력을 켜기 전,
@@ -108,7 +108,7 @@ SDA/SCL floating 문제는 줄어들 가능성이 있다.
 | 기능 | PCB / 수정된 보드 | 현재 리스크 |
 | --- | --- | --- |
 | Pyro 2 output pair | `D35`, `D38` | `include/board_pinmap.h`에서 Pyro2 GPIO가 아직 unassigned일 수 있음 |
-| Pyro 2 sense | `D40` | 도통 확인 시 `D40`으로 유지해야 함 |
+| Pyro 2 sense | `D41` | 도통 확인 시 `D41`으로 유지해야 함 |
 | LoRa RXE | `D30` | `Sx1262LoRa::rxEnablePin`이 아직 `kUnassignedPin`일 수 있음 |
 | LoRa reset | MCU reset 없음; R2 pull-up / JP2 GND | `D30`을 reset으로 매핑하면 안 됨 |
 
@@ -208,14 +208,14 @@ hard-short되어 있으면 즉시 중단한다.
 | Pyro 1 sense | Teensy `D25` |
 | Pyro 2 gate/input A | `D35` 또는 `D38` 중 하나 |
 | Pyro 2 gate/input B | `D35` 또는 `D38` 중 나머지 하나 |
-| Pyro 2 sense | Teensy `D40` |
+| Pyro 2 sense | Teensy `D41` |
 
 정확한 결과를 다음 형식으로 기록한다.
 
 ```text
 Pyro2 gpio1 = D__
 Pyro2 gpio2 = D__
-Pyro2 sense = D40 확인됨 / 미확인
+Pyro2 sense = D41 확인됨 / 미확인
 ```
 
 layout 모양만 보고 gpio1/gpio2 순서를 추측하지 않는다. Teensy pad/header에서
@@ -482,7 +482,7 @@ Scope 대상:
 
 - 어떤 pyro output이라도 init 중 예상치 않게 pulse.
 - Pyro2 새 D35/D38이 아니라 기존 D36/D37이 pulse.
-- D21 battery sense가 pyro output 상태와 상호작용.
+- D22 battery sense가 pyro output 상태와 상호작용.
 
 ## Phase 5: 권장 펌웨어 테스트 순서
 
@@ -552,7 +552,7 @@ Sx1262LoRa::resetPin = -1
 ```cpp
 Pyro2::gpio1Pin = D35 또는 D38, 도통 확인 결과 기준
 Pyro2::gpio2Pin = 나머지 핀
-Pyro2::sensePin = D40
+Pyro2::sensePin = D41
 ```
 
 기대 결과:
@@ -594,7 +594,7 @@ Pyro2::sensePin = D40
 Pyro2 reroute 도통:
   D35 연결 대상:
   D38 연결 대상:
-  D40 sense 확인:
+  D41 sense 확인:
 
 LoRa:
   LORA_RST-GND:

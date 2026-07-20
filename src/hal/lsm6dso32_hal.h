@@ -52,15 +52,24 @@ struct Lsm6dso32Calibration
     float gyroZDpsOffset = 0.0f;
 };
 
-class LSM6DSO32HAL
+class ILowGImu
 {
 public:
+    virtual ~ILowGImu() = default;
+    virtual bool beginDefault(uint8_t csPin, SPIClass &spi) = 0;
+    virtual bool read(Lsm6dso32Reading &out, uint32_t nowMs) = 0;
+};
+
+class LSM6DSO32HAL : public ILowGImu
+{
+public:
+    bool beginDefault(uint8_t csPin, SPIClass &spi) override;
     bool begin(uint8_t csPin,
                SPIClass &spi = SPI,
                lsm6dso32_accel_range_t accelRange = LSM6DSO32_ACCEL_RANGE_16_G,
                lsm6ds_gyro_range_t gyroRange = LSM6DS_GYRO_RANGE_2000_DPS,
                lsm6ds_data_rate_t dataRate = LSM6DS_RATE_416_HZ);
-    bool read(Lsm6dso32Reading &out, uint32_t nowMs);
+    bool read(Lsm6dso32Reading &out, uint32_t nowMs) override;
     void setCalibration(const Lsm6dso32Calibration &calibration);
     void clearCalibration();
     bool calibrateStationary(uint16_t sampleCount = 256U,

@@ -39,11 +39,16 @@ namespace
     }
 }
 
-BarometerTask::BarometerTask(BMP180HAL &barometer, TelemetryState &telemetryState, Logger &logger, const IAppConfig &config)
+BarometerTask::BarometerTask(MPL3115A2HAL &barometer,
+                             BarometerState &barometerState,
+                             Logger &logger,
+                             const IAppConfig &config,
+                             TwoWire &wire)
     : barometer_(barometer),
-      telemetryState_(telemetryState),
+      barometerState_(barometerState),
       logger_(logger),
-      config_(config)
+      config_(config),
+      wire_(wire)
 {
 }
 
@@ -71,19 +76,19 @@ bool BarometerTask::tick(uint32_t nowMs)
         return true;
     }
 
-    Bmp180Reading sample;
-    const Bmp180PollResult pollResult = barometer_.poll(sample, nowMs);
-    if (pollResult == Bmp180PollResult::PENDING)
+    Mpl3115a2Reading sample;
+    const Mpl3115a2PollResult pollResult = barometer_.poll(sample, nowMs);
+    if (pollResult == Mpl3115a2PollResult::PENDING)
     {
         return true;
     }
-    if (pollResult == Bmp180PollResult::ERROR)
+    if (pollResult == Mpl3115a2PollResult::ERROR)
     {
         recordReadFailure(nowMs);
         return true;
     }
 
-    BarometerTelemetryData &baro = telemetryState_.barometer;
+    BarometerState &baro = barometerState_;
     consecutiveReadFailCount_ = 0U;
     baro.consecutiveReadFailCount = 0U;
     if (!isfinite(sample.pressurePa) || sample.pressurePa <= 0.0f)
@@ -117,23 +122,35 @@ uint32_t BarometerTask::periodMs() const
 bool BarometerTask::initialize(uint32_t nowMs)
 {
     lastInitAttemptMs_ = nowMs;
-    const bool ok = barometer_.begin(BoardPinMap::BMP180::wire(), BoardPinMap::BMP180::i2cAddress);
+    bool ok = false;
+    for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
+    {
+        ok = barometer_.begin(wire_, NuraConstants::MPL3115A2::kConversionTimeoutMs);
+        if (ok)
+        {
+            break;
+        }
+        if ((attempt + 1U) < NuraConstants::Sensors::kSensorInitRetryAttempts)
+        {
+            delay(NuraConstants::Sensors::kSensorInitRetryDelayMs);
+        }
+    }
 
     if (ok)
     {
-        LOGI(logger_, nowMs, "baro", "bmp180 initialized");
+        LOGI(logger_, nowMs, "baro", "mpl3115a2 initialized");
     }
     else
     {
-        LOGW(logger_, nowMs, "baro", "bmp180 init failed");
+        LOGW(logger_, nowMs, "baro", "mpl3115a2 init failed");
     }
     return ok;
 }
 
 void BarometerTask::clearReading(uint32_t nowMs)
 {
-    telemetryState_.barometer.valid = false;
-    telemetryState_.barometer.lastUpdatedMs = nowMs;
+    barometerState_.valid = false;
+    barometerState_.lastUpdatedMs = nowMs;
     lastValidSampleMs_ = 0U;
     altitudeWindowHead_ = 0U;
     altitudeWindowCount_ = 0U;
@@ -146,7 +163,7 @@ void BarometerTask::resetHealth()
     consecutiveBadValueCount_ = 0U;
     totalBadValueCount_ = 0U;
 
-    BarometerTelemetryData &baro = telemetryState_.barometer;
+    BarometerState &baro = barometerState_;
     baro.fault = false;
     baro.faultFlags = BARO_FAULT_NONE;
     baro.consecutiveReadFailCount = 0U;
@@ -161,7 +178,7 @@ void BarometerTask::recordReadFailure(uint32_t nowMs)
         ++consecutiveReadFailCount_;
     }
 
-    BarometerTelemetryData &baro = telemetryState_.barometer;
+    BarometerState &baro = barometerState_;
     baro.consecutiveReadFailCount = consecutiveReadFailCount_;
 
     if (consecutiveReadFailCount_ >= NuraConstants::Sensors::kBarometerConsecutiveReadFailFault)
@@ -195,7 +212,7 @@ void BarometerTask::recordBadValue(uint32_t nowMs, uint16_t faultFlag)
         ++totalBadValueCount_;
     }
 
-    BarometerTelemetryData &baro = telemetryState_.barometer;
+    BarometerState &baro = barometerState_;
     baro.consecutiveReadFailCount = 0U;
     baro.consecutiveBadValueCount = consecutiveBadValueCount_;
     baro.totalBadValueCount = totalBadValueCount_;
@@ -207,12 +224,12 @@ void BarometerTask::recordBadValue(uint32_t nowMs, uint16_t faultFlag)
     }
 }
 
-void BarometerTask::publishValidSample(const Bmp180Reading &sample, float rawAltitudeM)
+void BarometerTask::publishValidSample(const Mpl3115a2Reading &sample, float rawAltitudeM)
 {
     consecutiveReadFailCount_ = 0U;
     consecutiveBadValueCount_ = 0U;
 
-    BarometerTelemetryData &baro = telemetryState_.barometer;
+    BarometerState &baro = barometerState_;
     baro.valid = true;
     baro.consecutiveReadFailCount = 0U;
     baro.consecutiveBadValueCount = 0U;
@@ -225,7 +242,7 @@ void BarometerTask::publishValidSample(const Bmp180Reading &sample, float rawAlt
 
 void BarometerTask::markFault(uint32_t nowMs, uint16_t faultFlag)
 {
-    BarometerTelemetryData &baro = telemetryState_.barometer;
+    BarometerState &baro = barometerState_;
     if ((baro.faultFlags & faultFlag) == 0U)
     {
         LOGW(logger_, nowMs, "baro", "barometer fault");

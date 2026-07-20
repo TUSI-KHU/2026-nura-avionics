@@ -22,14 +22,22 @@ struct UbloxM6GnssReading
     uint32_t sampleMs = 0;
 };
 
-class UbloxM6GNSSHAL
+class IGnss
+{
+public:
+    virtual ~IGnss() = default;
+    virtual bool begin(HardwareSerial &serial, uint32_t baudRate, uint32_t maxFixAgeMs) = 0;
+    virtual bool poll(UbloxM6GnssReading &out, uint32_t nowMs, uint16_t maxBytes) = 0;
+};
+
+class UbloxM6GNSSHAL : public IGnss
 {
 public:
     bool begin(HardwareSerial &serial,
                uint32_t baudRate = 9600UL,
-               uint32_t maxFixAgeMs = 2000UL);
+               uint32_t maxFixAgeMs = 2000UL) override;
     bool attach(Stream &stream, uint32_t maxFixAgeMs = 2000UL);
-    bool poll(UbloxM6GnssReading &out, uint32_t nowMs, uint16_t maxBytes = 128U);
+    bool poll(UbloxM6GnssReading &out, uint32_t nowMs, uint16_t maxBytes = 128U) override;
 
 private:
     void fillReading(UbloxM6GnssReading &out, uint32_t nowMs);

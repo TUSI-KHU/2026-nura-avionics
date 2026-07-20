@@ -188,9 +188,17 @@ Build gate:
 NURA_BENCH_FSM_AUTOFLOW == 1
 ```
 
-Current PlatformIO usage: this flag is not exposed by the three standard
-environments (`main`, `debug`, and `debug_no_lora`). It remains a manual,
+Current PlatformIO usage: this flag is not exposed by the four standard
+environments (`main`, `debug`, `main_no_lora`, and `debug_no_lora`). It remains a manual,
 bench-only compile flag and must never be added to a flight build.
+
+The additional `debug_lora_autoflow` environment is explicitly bench-only. It
+inherits the SX1276 LoRa debug build, defines `NURA_BENCH_FSM_AUTOFLOW`, and
+also defines `NURA_BENCH_FSM_STOP_AT_LAUNCH`. It therefore synthesizes
+`SAFE -> ARMED -> LAUNCH` using the two delays above and holds in `LAUNCH`;
+the automatic burnout/coast and recovery-output path is disabled in this
+variant. Radio TX drive is limited to 2 dBm and radio-init failure is allowed
+to keep wiring diagnostics observable.
 
 Inputs and units:
 
@@ -209,6 +217,11 @@ ARMED  -> LAUNCH after BENCH_FSM_AUTO_LAUNCH_DELAY_MS
 LAUNCH -> COAST  after BENCH_FSM_AUTO_BURNOUT_DELAY_MS
 DEPLOY -> GROUND after BENCH_FSM_AUTO_GROUND_DELAY_MS
 ```
+
+When `NURA_BENCH_FSM_STOP_AT_LAUNCH == 1`, the `LAUNCH -> COAST` leg is not
+executed and the FSM remains in `LAUNCH`. This is the behavior of
+`debug_lora_autoflow` and prevents this diagnostic build from advancing into
+the recovery sequence.
 
 The normal `COAST -> APOGEE`, `APOGEE -> DROGUE`, and `DROGUE -> DEPLOY`
 paths still use the existing timer/sequence logic. This keeps the integration
@@ -294,12 +307,12 @@ Failure modes considered:
 
 - Silent init stop mistaken for a dead board: mitigated by audible/LED pattern.
 - Unknown init failure source: mapped to the two-beep generic pattern.
-- LoRa failure during current SX1262 bring-up debugging: mapped to a distinct
+- LoRa failure during current SX1276 breakout bring-up debugging: mapped to a distinct
   three-beep pattern.
 
 Verification plan:
 
-- Build `main` and `debug_radio_flow` after the interface change.
+- Build `main` and `debug` after the interface change.
 - Force or observe a LoRa init failure on bench hardware and confirm the
   three-beep repeating pattern.
 - Force a generic init failure in a bench build and confirm the two-beep

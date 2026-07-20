@@ -11,9 +11,10 @@ Shared SPI wiring for H3LIS331DL, the low-g IMU, and LoRa:
 - Low-g IMU CS: 10
 - H3LIS331DL CS: 0
 - LoRa NSS/SS: 9
-- LoRa RST/RXE: 30
-- LoRa DIO0: 31
-- LoRa BUSY/reserved: 32
+- LoRa RST: 24
+- LoRa RXE: 30
+- LoRa TXE: 31
+- LoRa DIO0: 32
 
 I2C wiring on the current PCB:
 
@@ -26,9 +27,9 @@ Other current PCB pins:
 - Buzzer: 2
 - LED1: 34
 - LED2: 33
-- Pyro 1 / Drogue: gpio1 20, gpio2 21, sense 25
-- Pyro 2 / Main: gpio1 37, gpio2 36, sense 40
-- Battery voltage sense: 21, conflicts with Pyro 1 gpio2 until the schematic is clarified.
+- Pyro 1 / Drogue: gpio1 28, gpio2 29, sense 25
+- Pyro 2 / Main: gpio1 38, gpio2 35, sense 41
+- Battery voltage sense: 22
 
 Usage:
 
@@ -59,4 +60,6 @@ Files:
 - `lis3mdl_mag_test.ino`
 - `mpl3115a2_baro_test.ino`
 - `ublox_m6_gnss_test.ino`
-- `sx127x_lora_test.ino` - Teensy SPI pin map, RA-01/SX1278 433 MHz default frequency.
+- `sx127x_lora_test.ino` - legacy RA-01/SX1278 433 MHz sketch; use
+  `test/sx1276_breakout/` for the current SparkFun SPX-18572 1 W wiring and
+  920.9 MHz bench profile.

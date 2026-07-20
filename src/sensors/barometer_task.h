@@ -5,14 +5,18 @@
 #include "app/app_config.h"
 #include "core/logger/logger.h"
 #include "core/tasks.h"
-#include "hal/bmp180_hal.h"
+#include "hal/mpl3115a2_hal.h"
 #include "nura_constants.h"
-#include "state/telemetry_state.h"
+#include "state/barometer_state.h"
 
 class BarometerTask : public Task
 {
 public:
-    BarometerTask(BMP180HAL &barometer, TelemetryState &telemetryState, Logger &logger, const IAppConfig &config);
+    BarometerTask(MPL3115A2HAL &barometer,
+                  BarometerState &barometerState,
+                  Logger &logger,
+                  const IAppConfig &config,
+                  TwoWire &wire);
 
     const char *name() const override;
     bool init() override;
@@ -26,14 +30,15 @@ private:
     void recordReadFailure(uint32_t nowMs);
     bool sampleAltitudeValid(float altitudeM) const;
     void recordBadValue(uint32_t nowMs, uint16_t faultFlag);
-    void publishValidSample(const Bmp180Reading &sample, float rawAltitudeM);
+    void publishValidSample(const Mpl3115a2Reading &sample, float rawAltitudeM);
     void markFault(uint32_t nowMs, uint16_t faultFlag);
     float filterAltitude(float rawAltitudeM);
 
-    BMP180HAL &barometer_;
-    TelemetryState &telemetryState_;
+    MPL3115A2HAL &barometer_;
+    BarometerState &barometerState_;
     Logger &logger_;
     const IAppConfig &config_;
+    TwoWire &wire_;
     bool initialized_ = false;
     uint32_t lastInitAttemptMs_ = 0;
     uint32_t lastValidSampleMs_ = 0;

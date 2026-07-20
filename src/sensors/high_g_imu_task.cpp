@@ -5,24 +5,26 @@
 
 #include "nura_constants.h"
 
-HighGImuTask::HighGImuTask(H3LIS331DLHAL &imu,
+HighGImuTask::HighGImuTask(IHighGImu &imu,
                            HighGImuState &imuState,
-                           TelemetryState &telemetryState,
+                           SystemHealthState &healthState,
                            Logger &logger,
                            const IAppConfig &config,
                            uint8_t csPin,
-                           H3LIS331DLRange range)
+                           H3LIS331DLRange range,
+                           SPIClass &spi)
     : RecoverableTask(TaskCriticality::NON_CRITICAL,
                       config.imuReadFailureThreshold(),
                       config.imuMaxRecoveryAttempts(),
                       config.imuRecoveryIntervalMs()),
       imu_(imu),
       imuState_(imuState),
-      telemetryState_(telemetryState),
+      healthState_(healthState),
       logger_(logger),
       config_(config),
       csPin_(csPin),
-      range_(range) {}
+      range_(range),
+      spi_(spi) {}
 
 const char *HighGImuTask::name() const
 {
@@ -62,7 +64,7 @@ bool HighGImuTask::tick(uint32_t nowMs)
     {
         imuState_.connected = false;
         imuState_.hasNewData = false;
-        telemetryState_.health.highAccelOk = false;
+        healthState_.highAccelOk = false;
         markReadFailure();
     }
 
@@ -76,11 +78,11 @@ uint32_t HighGImuTask::periodMs() const
 
 bool HighGImuTask::recover(uint32_t nowMs)
 {
-    const bool ok = imu_.begin(csPin_, SPI, range_);
+    const bool ok = imu_.begin(csPin_, spi_, range_);
     imuState_.whoAmI = imu_.readWhoAmI();
     imuState_.connected = ok;
     imuState_.hasNewData = false;
-    telemetryState_.health.highAccelOk = false;
+    healthState_.highAccelOk = false;
     if (!ok)
     {
         LOGW(logger_, nowMs, "high_g_imu", "h3lis331dl begin failed");
@@ -99,7 +101,7 @@ bool HighGImuTask::initializeDevice(uint32_t logTs)
     bool ok = false;
     for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
     {
-        ok = imu_.begin(csPin_, SPI, range_);
+        ok = imu_.begin(csPin_, spi_, range_);
         if (ok)
         {
             break;
@@ -113,7 +115,7 @@ bool HighGImuTask::initializeDevice(uint32_t logTs)
     imuState_.whoAmI = imu_.readWhoAmI();
     imuState_.connected = ok;
     imuState_.hasNewData = false;
-    telemetryState_.health.highAccelOk = false;
+    healthState_.highAccelOk = false;
 
     if (!ok)
     {
@@ -200,7 +202,7 @@ void HighGImuTask::resetState()
     imuState_.connected = false;
     imuState_.hasNewData = false;
     imuState_.lastUpdatedMs = 0U;
-    telemetryState_.health.highAccelOk = false;
+    healthState_.highAccelOk = false;
     lastSampleLogMs_ = 0U;
     offsetXG_ = 0.0f;
     offsetYG_ = 0.0f;
@@ -232,7 +234,7 @@ void HighGImuTask::updateState(const H3LIS331DLReading &sample)
     imuState_.connected = true;
     imuState_.hasNewData = true;
     imuState_.lastUpdatedMs = sample.sampleMs;
-    telemetryState_.health.highAccelOk = true;
+    healthState_.highAccelOk = true;
 }
 
 void HighGImuTask::applyCalibrationAndFilter(const H3LIS331DLReading &sample,

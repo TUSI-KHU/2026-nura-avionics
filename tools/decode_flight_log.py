@@ -15,9 +15,16 @@ FRAME_VERSION = 1
 FRAME_HEADER = struct.Struct("<HBBHII")
 CRC16 = struct.Struct("<H")
 
-FLASH_SECTOR_MAGIC = 0x4E4C4653
-FLASH_SECTOR_HEADER = struct.Struct("<IHHIIIII")
-FLASH_PAYLOAD_OFFSET = 64
+FLASH_SECTOR_MAGIC = 0x4E534543
+FLASH_PAGE_MAGIC = 0x4E504147
+FLASH_JOURNAL_VERSION = 1
+FLASH_SECTOR_HEADER = struct.Struct("<IIIHH")
+FLASH_PAGE_HEADER = struct.Struct("<IIHHHBB")
+FLASH_PAGE_BYTES = 256
+SD_BLOCK_MAGIC = 0x4E534442
+SD_BLOCK_VERSION = 1
+SD_BLOCK_BYTES = 512
+SD_BLOCK_HEADER = struct.Struct("<IIIIHHHBB")
 
 TYPE_NAMES = {
     1: "FAST",
@@ -52,20 +59,131 @@ def crc16_ccitt(data: bytes) -> int:
     return crc
 
 
-def maybe_flash_sector_header(data: bytes, offset: int, sector_bytes: int) -> bool:
+def valid_flash_sector_header(data: bytes, offset: int) -> tuple[int, int] | None:
     if offset + FLASH_SECTOR_HEADER.size > len(data):
-        return False
-    fields = FLASH_SECTOR_HEADER.unpack_from(data, offset)
-    magic, version, header_bytes, stored_sector_bytes, payload_offset, session_id, _, header_crc = fields
-    return (
-        magic == FLASH_SECTOR_MAGIC
-        and version == 1
-        and header_bytes == FLASH_SECTOR_HEADER.size
-        and stored_sector_bytes == sector_bytes
-        and payload_offset == FLASH_PAYLOAD_OFFSET
-        and session_id not in (0, 0xFFFFFFFF)
-        and header_crc not in (0, 0xFFFFFFFF)
-    )
+        return None
+    magic, sequence, stream_offset, version, stored_crc = FLASH_SECTOR_HEADER.unpack_from(data, offset)
+    if magic != FLASH_SECTOR_MAGIC or version != FLASH_JOURNAL_VERSION:
+        return None
+    header = bytearray(data[offset : offset + FLASH_SECTOR_HEADER.size])
+    header[14:16] = b"\x00\x00"
+    if crc16_ccitt(header) != stored_crc:
+        return None
+    return sequence, stream_offset
+
+
+def valid_flash_page(page: bytes) -> tuple[int, bytes] | None:
+    if len(page) != FLASH_PAGE_BYTES:
+        return None
+    magic, stream_offset, payload_len, payload_crc, header_crc, version, _ = FLASH_PAGE_HEADER.unpack_from(page)
+    if (
+        magic != FLASH_PAGE_MAGIC
+        or version != FLASH_JOURNAL_VERSION
+        or payload_len == 0
+        or payload_len > FLASH_PAGE_BYTES - FLASH_PAGE_HEADER.size
+    ):
+        return None
+    header = bytearray(page[: FLASH_PAGE_HEADER.size])
+    header[12:14] = b"\x00\x00"
+    if crc16_ccitt(header) != header_crc:
+        return None
+    payload = page[FLASH_PAGE_HEADER.size : FLASH_PAGE_HEADER.size + payload_len]
+    if crc16_ccitt(payload) != payload_crc:
+        return None
+    return stream_offset, payload
+
+
+def extract_flash_journal(data: bytes, sector_bytes: int) -> bytes | None:
+    sectors: list[tuple[int, int]] = []
+    for base in range(0, len(data) - FLASH_SECTOR_HEADER.size + 1, sector_bytes):
+        header = valid_flash_sector_header(data, base)
+        if header is not None:
+            sequence, _ = header
+            sectors.append((sequence, base))
+    if not sectors:
+        return None
+
+    pages: list[tuple[int, bytes]] = []
+    for _, base in sorted(sectors):
+        for page_offset in range(FLASH_PAGE_BYTES, sector_bytes, FLASH_PAGE_BYTES):
+            start = base + page_offset
+            end = start + FLASH_PAGE_BYTES
+            if end > len(data):
+                break
+            page = data[start:end]
+            if page == b"\xff" * FLASH_PAGE_BYTES:
+                break
+            valid = valid_flash_page(page)
+            if valid is not None:
+                pages.append(valid)
+
+    if not pages:
+        return b""
+
+    stream = bytearray()
+    expected_offset: int | None = None
+    for stream_offset, payload in sorted(pages):
+        if expected_offset is not None and stream_offset > expected_offset:
+            stream.extend(b"\xff" * 16)
+        if expected_offset is not None and stream_offset < expected_offset:
+            overlap = expected_offset - stream_offset
+            if overlap >= len(payload):
+                continue
+            payload = payload[overlap:]
+        stream.extend(payload)
+        expected_offset = stream_offset + len(payload)
+    return bytes(stream)
+
+
+def valid_sd_block(block: bytes) -> tuple[int, int, int, bytes] | None:
+    if len(block) != SD_BLOCK_BYTES:
+        return None
+    fields = SD_BLOCK_HEADER.unpack_from(block)
+    magic, session_id, block_sequence, stream_offset, payload_len, payload_crc, header_crc, version, _ = fields
+    if (
+        magic != SD_BLOCK_MAGIC
+        or version != SD_BLOCK_VERSION
+        or session_id in (0, 0xFFFFFFFF)
+        or payload_len == 0
+        or payload_len > SD_BLOCK_BYTES - SD_BLOCK_HEADER.size
+    ):
+        return None
+    header = bytearray(block[: SD_BLOCK_HEADER.size])
+    header[20:22] = b"\x00\x00"
+    if crc16_ccitt(header) != header_crc:
+        return None
+    payload = block[SD_BLOCK_HEADER.size : SD_BLOCK_HEADER.size + payload_len]
+    if crc16_ccitt(payload) != payload_crc:
+        return None
+    return session_id, block_sequence, stream_offset, payload
+
+
+def extract_sd_blocks(data: bytes) -> bytes | None:
+    if len(data) < SD_BLOCK_BYTES:
+        return None
+    first = valid_sd_block(data[:SD_BLOCK_BYTES])
+    if first is None or first[1] != 0 or first[2] != 0:
+        return None
+
+    session_id = first[0]
+    stream = bytearray()
+    expected_sequence = 0
+    expected_offset = 0
+    for base in range(0, len(data) - SD_BLOCK_BYTES + 1, SD_BLOCK_BYTES):
+        valid = valid_sd_block(data[base : base + SD_BLOCK_BYTES])
+        if valid is None:
+            break
+        block_session, block_sequence, stream_offset, payload = valid
+        if (
+            block_session != session_id
+            or block_sequence != expected_sequence
+            or stream_offset != expected_offset
+        ):
+            break
+        stream.extend(payload)
+        expected_sequence += 1
+        expected_offset += len(payload)
+    return bytes(stream)
 
 
 def summarize_payload(record_type: int, payload: bytes) -> str:
@@ -104,11 +222,6 @@ def summarize_payload(record_type: int, payload: bytes) -> str:
 def decode(data: bytes, sector_bytes: int):
     offset = 0
     while offset + FRAME_HEADER.size + CRC16.size <= len(data):
-        if maybe_flash_sector_header(data, offset, sector_bytes):
-            sector_end = ((offset // sector_bytes) + 1) * sector_bytes
-            offset = min(offset + FLASH_PAYLOAD_OFFSET, sector_end)
-            continue
-
         magic, version, record_type, payload_len, sequence, timestamp_ms = FRAME_HEADER.unpack_from(data, offset)
         if magic != FRAME_MAGIC or version != FRAME_VERSION:
             if data[offset] == 0xFF:
@@ -151,6 +264,13 @@ def main() -> int:
     args = parser.parse_args()
 
     data = args.input.read_bytes()
+    sd_stream = extract_sd_blocks(data)
+    if sd_stream is not None:
+        data = sd_stream
+    else:
+        journal_stream = extract_flash_journal(data, args.sector_bytes)
+        if journal_stream is not None:
+            data = journal_stream
     rows = list(decode(data, args.sector_bytes))
 
     if args.csv:

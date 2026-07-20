@@ -33,14 +33,23 @@ struct H3LIS331DLReading
     uint32_t sampleMs = 0;
 };
 
-class H3LIS331DLHAL
+class IHighGImu
+{
+public:
+    virtual ~IHighGImu() = default;
+    virtual bool begin(uint8_t csPin, SPIClass &spi, H3LIS331DLRange range) = 0;
+    virtual bool read(H3LIS331DLReading &out, uint32_t nowMs) = 0;
+    virtual uint8_t readWhoAmI() = 0;
+};
+
+class H3LIS331DLHAL : public IHighGImu
 {
 public:
     bool begin(uint8_t csPin,
                SPIClass &spi = SPI,
-               H3LIS331DLRange range = H3LIS331DLRange::RANGE_100G);
-    bool read(H3LIS331DLReading &out, uint32_t nowMs);
-    uint8_t readWhoAmI();
+               H3LIS331DLRange range = H3LIS331DLRange::RANGE_100G) override;
+    bool read(H3LIS331DLReading &out, uint32_t nowMs) override;
+    uint8_t readWhoAmI() override;
 
 private:
     static bool validEvent(const sensors_event_t &event);

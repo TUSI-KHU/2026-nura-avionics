@@ -39,7 +39,8 @@ MockTelemetrySourceTask -> WatchdogTask -> FSMTask -> FlightLogTask -> Telemetry
 - GNSS path: `UbloxM6GNSSHAL` -> `GNSSTask` -> `GpsState`.
 - High-g IMU path: `H3LIS331DLHAL` -> `HighGImuTask` -> `HighGImuState`.
 - Magnetometer path: `LIS3MDLHAL` -> `MagnetometerTask` -> `MagnetometerState`.
-- LoRa path: `Sx127xLoRaHAL` plus `TelemetryTask`.
+- LoRa path: `Sx127xLoRaHAL` plus `TelemetryTask`, targeting the SparkFun
+  SPX-18572 / E19-915M30S SX1276 1 W breakout.
 - Protocol: fixed-length authenticated NURA V2 Lite frames in `protocol/include/nura_protocol_v1_lite.h`.
 - Flight logging: U3 program flash primary plus microSD mirror through `FlightLogTask`, with `.NLG` parsing tools under `log_parser/`.
 - Mock path: `MockFlightDataHAL` and `MockTelemetrySourceTask` feed deterministic telemetry for bench protocol tests.
@@ -66,7 +67,9 @@ GPS_TLM: 1 Hz
 CONTROL: on demand, ACK has priority over telemetry
 ```
 
-Flight radio defaults currently target SX1276-class 920 MHz operation. `NURA_DEV_SX1278` switches development builds toward the SX1278/Ra-01 433 MHz bench setup.
+Flight radio defaults currently target the SparkFun SX1276 1 W breakout at
+920.9 MHz. `NURA_DEV_SX1278` switches development builds toward the legacy
+SX1278/Ra-01 433 MHz bench setup.
 
 ## Repository Layout
 
@@ -89,22 +92,27 @@ documents/      protocol, requirements, schedule exports, and architecture asset
 
 | Environment | Purpose |
 | --- | --- |
-| `build` | normal Teensy 4.1 firmware build |
-| `debug` | same firmware with verbose logging |
-| `mock_test` | root firmware with mock telemetry and SX1278 bench radio flags |
-| `gnss_state_test` | isolated GNSS state integration sketch |
-| `hardware_integration_test` | isolated sensor/radio hardware bring-up sketch |
-| `storage_logger_test` | end-to-end program-flash plus SD logger verification |
+| `main` | Teensy 4.1 firmware with the SX1276 breakout |
+| `debug` | SX1276 breakout firmware with verbose logging |
+| `debug_lora_autoflow` | bench-only SX1276 debug; automatic `SAFE -> ARMED -> LAUNCH`, then hold |
+| `main_no_lora` | full application with the radio disabled |
+| `debug_no_lora` | verbose application with the radio disabled |
 
 Common commands:
 
 ```bash
-pio run -e build
+pio run -e main
 pio run -e debug
-pio run -e mock_test
-pio run -e gnss_state_test
-pio run -e storage_logger_test
+pio run -e debug_lora_autoflow
+pio run -e main_no_lora
+pio run -e debug_no_lora
 ```
+
+`debug_lora_autoflow` is a bench-only build. It inherits the SparkFun
+SPX-18572/E19-915M30S SX1276 path, limits the configured radio drive to 2 dBm,
+and allows radio-init failure for wiring diagnostics. The FSM synthesizes
+`SAFE -> ARMED -> LAUNCH` and then holds at `LAUNCH`; do not use it for flight
+and do not connect pyro hardware.
 
 Upload and monitor:
 

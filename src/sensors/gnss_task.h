@@ -10,7 +10,11 @@
 class GNSSTask : public Task
 {
 public:
-    GNSSTask(UbloxM6GNSSHAL &gnss, GpsState &gpsState, const IAppConfig &config);
+    GNSSTask(IGnss &gnss,
+             GpsState &gpsState,
+             const IAppConfig &config,
+             HardwareSerial &serial,
+             uint32_t baudRate);
 
     const char *name() const override;
     bool init() override;
@@ -20,7 +24,9 @@ public:
 private:
     void updateState(const UbloxM6GnssReading &sample);
 
-    UbloxM6GNSSHAL &gnss_;
+    IGnss &gnss_;
     GpsState &gpsState_;
     const IAppConfig &config_;
+    HardwareSerial &serial_;
+    uint32_t baudRate_;
 };

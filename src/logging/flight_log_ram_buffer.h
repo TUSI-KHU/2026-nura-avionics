@@ -14,6 +14,7 @@ public:
     uint16_t used() const;
     uint16_t capacity() const;
     uint16_t recordCount() const;
+    uint16_t frontLength() const;
     uint32_t droppedRecords() const;
     void clear();
 

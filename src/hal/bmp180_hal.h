@@ -21,13 +21,21 @@ enum class Bmp180PollResult : uint8_t
     ERROR
 };
 
-class BMP180HAL
+class IBarometer
+{
+public:
+    virtual ~IBarometer() = default;
+    virtual bool begin(TwoWire &wire, uint8_t i2cAddress, uint16_t conversionTimeoutMs) = 0;
+    virtual Bmp180PollResult poll(Bmp180Reading &out, uint32_t nowMs) = 0;
+};
+
+class BMP180HAL : public IBarometer
 {
 public:
     bool begin(TwoWire &wire = Wire,
                uint8_t i2cAddress = NuraConstants::BMP180::kI2cAddress,
-               uint16_t conversionTimeoutMs = NuraConstants::BMP180::kConversionTimeoutMs);
-    Bmp180PollResult poll(Bmp180Reading &out, uint32_t nowMs);
+               uint16_t conversionTimeoutMs = NuraConstants::BMP180::kConversionTimeoutMs) override;
+    Bmp180PollResult poll(Bmp180Reading &out, uint32_t nowMs) override;
     bool read(Bmp180Reading &out, uint32_t nowMs);
 
 private:

@@ -5,12 +5,15 @@
 #include "core/logger/logger.h"
 #include "core/tasks.h"
 #include "hal/battery_voltage_hal.h"
-#include "state/telemetry_state.h"
+#include "state/power_state.h"
 
 class PowerSenseTask : public Task
 {
 public:
-    PowerSenseTask(BatteryVoltageHAL &batteryVoltage, TelemetryState &telemetryState, Logger &logger);
+    PowerSenseTask(IBatteryVoltage &batteryVoltage,
+                   PowerState &powerState,
+                   Logger &logger,
+                   uint8_t sensePin);
 
     const char *name() const override;
     bool init() override;
@@ -20,9 +23,10 @@ public:
 private:
     void publishInvalid(uint32_t nowMs);
 
-    BatteryVoltageHAL &batteryVoltage_;
-    TelemetryState &telemetryState_;
+    IBatteryVoltage &batteryVoltage_;
+    PowerState &powerState_;
     Logger &logger_;
     bool initialized_ = false;
     bool lastValid_ = false;
+    uint8_t sensePin_;
 };

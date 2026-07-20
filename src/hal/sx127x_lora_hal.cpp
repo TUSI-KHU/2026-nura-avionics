@@ -9,7 +9,11 @@
 bool Sx127xLoRaHAL::begin(const Sx127xLoRaConfig &config, SPIClass &spi)
 {
     initialized_ = false;
+    txBusy_ = false;
+    activeConfig_ = config;
     selectedSpiFrequency_ = config.spiFrequency;
+
+    setRfPath(config, false, false);
 
     LoRa.setPins(config.ssPin, config.libraryResetPin, config.dio0Pin);
     LoRa.setSPI(spi);
@@ -32,15 +36,18 @@ bool Sx127xLoRaHAL::begin(const Sx127xLoRaConfig &config, SPIClass &spi)
             if (!applyConfig(config))
             {
                 LoRa.end();
+                setRfPath(config, false, false);
                 return false;
             }
 
+            setRfPath(config, true, false);
             LoRa.receive();
             initialized_ = true;
             return true;
         }
 
         LoRa.end();
+        setRfPath(config, false, false);
         delay(250);
     }
 
@@ -51,40 +58,61 @@ void Sx127xLoRaHAL::end()
 {
     if (initialized_)
     {
+        LoRa.idle();
         LoRa.end();
     }
+    setRfPath(activeConfig_, false, false);
     initialized_ = false;
+    txBusy_ = false;
 }
 
 bool Sx127xLoRaHAL::send(const uint8_t *data, size_t length, bool async)
 {
-    if (!initialized_ || data == nullptr || length == 0U)
+    if (!initialized_ || txBusy_ || data == nullptr || length == 0U)
     {
         return false;
     }
 
+    txBusy_ = true;
     LoRa._spiSettings = SPISettings(selectedSpiFrequency_, MSBFIRST, selectedSpiMode_);
     LoRa.idle();
+    setRfPath(activeConfig_, false, true);
     delay(2);
     if (!LoRa.beginPacket())
     {
+        setRfPath(activeConfig_, true, false);
         LoRa.receive();
+        txBusy_ = false;
         return false;
     }
 
     const size_t written = LoRa.write(data, length);
     if (written != length)
     {
+        setRfPath(activeConfig_, true, false);
         LoRa.receive();
+        txBusy_ = false;
         return false;
     }
 
     const bool ok = LoRa.endPacket(async) == 1;
     if (!async)
     {
+        setRfPath(activeConfig_, true, false);
         LoRa.receive();
     }
+    txBusy_ = false;
     return ok;
+}
+
+bool Sx127xLoRaHAL::txBusy() const
+{
+    return txBusy_;
+}
+
+void Sx127xLoRaHAL::service(uint32_t nowMs)
+{
+    (void)nowMs;
 }
 
 bool Sx127xLoRaHAL::receive(uint8_t *buffer, size_t capacity, Sx127xLoRaPacket &packet)
@@ -94,6 +122,7 @@ bool Sx127xLoRaHAL::receive(uint8_t *buffer, size_t capacity, Sx127xLoRaPacket &
         return false;
     }
 
+    setRfPath(activeConfig_, true, false);
     const int packetSize = LoRa.parsePacket();
     if (packetSize <= 0)
     {
@@ -221,4 +250,24 @@ void Sx127xLoRaHAL::resetRadio(const Sx127xLoRaConfig &config)
     delay(50);
     digitalWrite(config.resetPin, HIGH);
     delay(500);
+}
+
+void Sx127xLoRaHAL::setRfPath(const Sx127xLoRaConfig &config,
+                              bool receivePath,
+                              bool transmitPath)
+{
+    const bool active = config.rfSwitchActiveHigh;
+    const bool rxLevel = receivePath ? active : !active;
+    const bool txLevel = transmitPath ? active : !active;
+
+    if (config.rxEnablePin >= 0)
+    {
+        pinMode(config.rxEnablePin, OUTPUT);
+        digitalWrite(config.rxEnablePin, rxLevel ? HIGH : LOW);
+    }
+    if (config.txEnablePin >= 0)
+    {
+        pinMode(config.txEnablePin, OUTPUT);
+        digitalWrite(config.txEnablePin, txLevel ? HIGH : LOW);
+    }
 }

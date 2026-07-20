@@ -2,7 +2,9 @@
 
 Status: Draft for implementation  
 Target vehicle: 2026 NURA avionics, sub-1 km class university rocket  
-Target radios: flight SX1262 and ground SX1276, both using the same proprietary LoRa PHY profile at 920.9 MHz
+Target radios: SparkFun LoRa 1W Breakout SPX-18572 (E19-915M30S/SX1276)
+on the flight and ground Teensy 4.1 test rigs, both using the same proprietary
+LoRa PHY profile at 920.9 MHz
 Target controller: Teensy 4.1  
 
 This document defines the authenticated NURA V2 Lite application-layer packet format carried inside a LoRa PHY packet. The filename is retained to avoid breaking existing repository links. V2 intentionally removes nonessential packet classes so the radio spends less time transmitting and more time available for uplink commands.
@@ -62,7 +64,7 @@ Recommended flight RF profile:
 
 | Parameter | Flight default | Notes |
 | --- | --- | --- |
-| Frequency | 920.9 MHz | Must be identical on flight SX1262 and ground SX1276. |
+| Frequency | 920.9 MHz | Must be identical on both SX1276 breakouts. |
 | Bandwidth | 125 kHz | Preferred for link margin and regional channel compatibility. |
 | Spreading factor | SF7 | Increase SF only after reducing traffic rate. |
 | Coding rate | CR 4/5 | Higher CR increases airtime. |
@@ -73,62 +75,28 @@ Recommended flight RF profile:
 | EIRP | Must not exceed applicable limit | Include antenna gain and cable loss. |
 
 `frequency`, bandwidth, spreading factor, coding rate, preamble, sync word,
-header mode, and PHY CRC are an interoperability contract: the flight SX1262
-and ground SX1276 must use the same values. Transmit power is local to each
-radio and is not required to match.
+header mode, and PHY CRC are an interoperability contract: both SX1276
+breakouts must use the same values. Transmit power is local to each radio and
+is not required to match.
 
-Flight SX1262 HAL wiring is SPI1 at 2 MHz (MISO D1, MOSI D26, SCK D27),
-NSS D9, DIO1 D31, and BUSY D32. The 2 MHz host SPI clock was verified by the
-2026-06-22 avionics radio bench test. The currently
-recorded PCB data has no Teensy-controlled `NRESET`, so the driver uses
-no-reset mode. Its `TCXO` setting is `0 V`, which assumes a crystal rather than
-a DIO3-controlled TCXO. Current PCB bench behavior requires `RXE` D30 to be
-driven LOW before SX1262 init/probe and transmit. The HAL therefore holds RXE
-LOW for the current downlink test path. RXE polarity and its effect on uplink RF
-receive are still unaccepted until the schematic and a two-way range test
-confirm the RF switch behavior. SX1262 initialization and two-way packet
-exchange are mandatory hardware acceptance tests before this profile is used
-outside the bench.
-Because the current PCB occasionally returns an all-`0xFF` version probe during
-boot, telemetry initialization attempts SX1262 bring-up up to five times with a
-100 ms delay between attempts before declaring LoRa unavailable.
+The current SparkFun SX1276 1W breakout wiring is SPI1 MISO D1, MOSI D26,
+SCK D27, NSS D9, RST D24, DIO0 D32, RXE D30, and TXE D31. RXE/TXE are the
+module's external RF-switch enables and are active-high for this E19 module.
+The module's RF power rail is 5 V; the Teensy control signals remain 3.3 V.
+`main` and `debug` select this radio path, while
+`main_no_lora` and `debug_no_lora` leave the radio disabled. Telemetry retries
+radio initialization up to the configured limit (currently ten attempts) with
+the configured retry delay before declaring LoRa unavailable.
 
-The experimental `debug_radio_bench` environment runs the real sensor and FSM
-tasks with the same HAL-owned RXE control, while retaining the historical
-`NURA_BENCH_SX1262_RXE_LOW` boot default for comparison. Its purpose is
-downlink telemetry integration on the bench; it also limits output to the
-ground-tested 2 dBm through `NURA_BENCH_RADIO_TX_POWER_DBM`. It is forbidden
-for flight and does not enable physical pyro outputs. It also defines
-`NURA_BENCH_RADIO_DOWNLINK_ONLY`, so the HAL does not enter receive mode while
-leaving the TX path selected. The RXE LOW, 2 dBm, and downlink-only settings
-come from the successful 2026-06-22 SX1262-to-SX1276 bench test.
-Acceptance requires SX1262 initialization, authenticated FAST/GPS reception,
-increasing sequence numbers, and zero decode failures. RXE polarity and
-bidirectional switching must still be confirmed from the PCB schematic before
-the flight build may drive this pin.
+The firmware's current `17 dBm` setting is the SX1276 core drive level; it is
+not a promise of a measured 1 W EIRP. The external PA can draw roughly 630 mA
+in transmit, so antenna connection, 5 V rail margin, thermal behavior, and
+local EIRP/duty-cycle limits must be verified before enabling full-power tests.
 
-The experimental `debug_radio_flow` environment is a diagnosis-only variant for
-the same SX1262 PCB. It keeps the real sensor tasks and LoRa RX/TX path enabled,
-forces the bench FSM auto-flow with `NURA_BENCH_FSM_AUTOFLOW`, skips the flight
-log task, and prints direct Serial traces around the scheduler, FSM, and
-SX1262 calls. It may continue the FSM even when radio init fails so init
-failures do not hide unrelated state-machine behavior. It is forbidden for
-flight and exists only to localize whether a stall occurs in radio init,
-receive polling, transmit, or ordinary FSM execution.
-
-The flight SX1262 HAL uses interrupt-style nonblocking TX. `send()` starts a
-packet with RadioLib `startTransmit()` and returns after the FIFO/command setup;
-`TelemetryTask::tick()` calls the HAL service routine to finish TX on DIO1,
-clear the radio state, and restart receive mode. This keeps LoRa airtime out of
-the cooperative scheduler. ACK frames remain highest priority. FAST and GPS
-telemetry are not queued indefinitely: if TX cannot start, that telemetry sample
-is skipped until the next configured period. If TX completion service is delayed
-by another long-running task, the HAL times out and attempts to return to RX.
-If SX1262 SPI commands report a transient chip/command failure during TX start
-or TX completion, the HAL performs one bounded radio reinitialization attempt
-using the stored PHY configuration and leaves the current telemetry sample
-dropped rather than blocking the scheduler.
-Bench logs must therefore check both scheduler timing and SX1262 state codes.
+The SX1276 HAL uses synchronous packet transmission. It selects TXE before
+`endPacket()`, then returns to RXE and receive mode after the packet completes;
+`TelemetryTask::tick()` keeps ACK frames ahead of FAST/GPS telemetry. If TX
+cannot start, that telemetry sample is skipped until the next configured period.
 
 At SF7/BW125/CR4/5/preamble 8/CRC on/explicit header, approximate airtime is:
 
@@ -318,7 +286,7 @@ reading is stale or outside the sanity range, avionics sends `0`.
 Implementation notes for V1 Lite:
 
 - Purpose: ground visibility of the avionics battery pack voltage.
-- Source: D21 analog voltage divider. The final Pyro 1 outputs are D28/D29,
+- Source: D22 analog voltage divider. The final Pyro 1 outputs are D28/D29,
   so the voltage input does not share a pyro output pin.
 - Calibration source: team board measurement/calculation: divider ratio 5.545;
   12.6 V maps to 2.2723 V (about raw ADC 704) and 11.1 V maps to 2.0018 V

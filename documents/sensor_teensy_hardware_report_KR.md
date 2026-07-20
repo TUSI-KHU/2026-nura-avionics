@@ -15,14 +15,14 @@
 | 자기계 | LIS3MDL | 자기장/방위 후보 | I2C1 | SDA1 D17, SCL1 D16, 주소 `0x1C` |
 | 기압계 | MPL3115A2 | 고도/압력 | I2C0 | SDA0 D18, SCL0 D19, 주소 `0x60` |
 | GNSS | u-blox M6 / NEO-6M 계열 | 위치/시간/회수 지원 | UART Serial3 | GPS TX -> D15/RX3, GPS RX -> D14/TX3, 9600 baud |
-| 비행 LoRa | SX1262 | 비행체 텔레메트리 | SPI1 + IRQ/BUSY | MISO1 D1, MOSI1 D26, SCK1 D27, NSS D9, DIO1 D31, BUSY D32 |
-| 지상/개발 LoRa | SX1276/SX127x, RA-01 계열 | 지상 수신/개발 테스트 | SPI0 + DIO0 | SS D9, RST/RXE D30, DIO0 D31 |
-| 전압 센스 | 3S 배터리 분압 | 배터리 전압 텔레메트리 | ADC | D21, 분압비 5.545 |
+| 비행 LoRa | SparkFun SPX-18572 / E19-915M30S SX1276 1W | 비행체 텔레메트리 | SPI1 + DIO0/RXE/TXE | MISO1 D1, MOSI1 D26, SCK1 D27, NSS D9, RST D24, DIO0 D32, RXE D30, TXE D31 |
+| 지상/개발 LoRa | SparkFun SPX-18572 / E19-915M30S SX1276 1W | 지상 수신/개발 테스트 | SPI1 + DIO0/RXE/TXE | 동일 920.9 MHz 핀맵 |
+| 전압 센스 | 3S 배터리 분압 | 배터리 전압 텔레메트리 | ADC | D22, 분압비 5.545 |
 | 저장장치 | Teensy 내장 microSD | 비행 로그 미러 | SDIO | `BUILTIN_SDCARD` |
 | 저장장치 | W25Q128 QSPI NOR flash 후보 | 온보드 로그/검증 저장 | Teensy 4.1 하단 QSPI pads | 16 MB / 128 Mbit 후보 |
 | 알림 | Buzzer, LED | 상태/오류 피드백 | GPIO/PWM | Buzzer D2, LED2 D33 |
 
-중요: `test/sensor_test/README.md`에는 Pyro 1이 D20/D21로 적힌 오래된 기록이 남아 있다. 현재 소스의 기준은 `include/board_pinmap.h`와 `documents/pinmap_summary.txt`이며, 현재 Pyro 1은 D28/D29, 배터리 전압 센스는 D21로 충돌하지 않는다.
+중요: 현재 소스의 기준은 `include/board_pinmap.h`와 `documents/pinmap_summary.txt`이다. 현재 Pyro 1은 gpio1 D28/gpio2 D29/sense D25, Pyro 2는 gpio1 D38/gpio2 D35/sense D41, 배터리 전압 센스는 D22로 서로 충돌하지 않는다.
 
 ## 2. Teensy 4.1
 
@@ -39,11 +39,11 @@
 | 버스 | Teensy 핀 | 프로젝트 사용 |
 | --- | --- | --- |
 | SPI0 | MOSI D11, MISO D12, SCK D13 | LSM6DSO32/LSM6DSOX, H3LIS331DL, 일부 SX127x 개발 테스트 |
-| SPI1 | MISO D1, MOSI D26, SCK D27 | 비행 SX1262 |
+| SPI1 | MISO D1, MOSI D26, SCK D27 | SparkFun SX1276 1W |
 | I2C0 / Wire | SDA D18, SCL D19 | MPL3115A2 |
 | I2C1 / Wire1 | SDA D17, SCL D16 | LIS3MDL |
 | UART3 / Serial3 | RX3 D15, TX3 D14 | u-blox M6 GNSS |
-| ADC | D21 | 3S 배터리 전압 분압 |
+| ADC | D22 | 3S 배터리 전압 분압 |
 | SDIO | `BUILTIN_SDCARD` | microSD 비행 로그 |
 
 ### 전원 관련 주의사항
@@ -229,14 +229,14 @@
 - LED blinking은 보통 fix indication이지만 모듈마다 의미가 다를 수 있다. 펌웨어에서는 NMEA checksum/fix age/satellites/HDOP를 보고 판단해야 한다.
 - 비행 중 GNSS altitude는 barometer보다 느리고 지연/점프가 있으므로 apogee 같은 빠른 상태 전이에 직접 쓰면 안 된다.
 
-## 8. SX1262 비행 LoRa
+## 8. SparkFun SPX-18572 / E19-915M30S SX1276 1W LoRa
 
 ### 부품 특징
 
-- Semtech SX1262는 sub-GHz LoRa/(G)FSK transceiver.
-- SX1261/2 계열은 150~960 MHz ISM band에서 동작하며, SX1262는 최대 +22 dBm class PA를 가진다.
-- SPI command interface를 사용하고, BUSY pin이 LOW일 때 새 명령을 받을 수 있다.
-- DIO1/DIO2/DIO3는 interrupt, RF switch, TCXO control 등으로 설정될 수 있다.
+- SparkFun SPX-18572는 E19-915M30S 기반 SX1276 1W LoRa breakout이다.
+- 모듈 RF 전원은 5 V(권장 4.75~5.5 V), SPI/GPIO 제어 신호는 3.3 V다.
+- SX1276 레지스터 인터페이스와 외부 RXE/TXE RF switch를 사용한다.
+- 모듈 데이터시트 기준 송신 전류는 약 630 mA이며, 안테나 없이 송신하면 안 된다.
 
 ### 프로젝트 연결
 
@@ -246,38 +246,35 @@
 | 현재 통신 | SPI1 |
 | SPI 핀 | MISO1 D1, MOSI1 D26, SCK1 D27 |
 | NSS | D9 |
-| DIO1 | D31 |
-| BUSY | D32 |
-| RXE | 현재 `kUnassignedPin`; 과거/bench 문서에는 D30 검증 메모 |
-| reset | `-1`, MCU-controlled NRESET 없음 |
+| RST | D24 |
+| DIO0 | D32 |
+| RXE | D30, active-high |
+| TXE | D31, active-high |
 | 주파수 | 920.9 MHz |
-| SPI clock | 현재 상수 250 kHz, pinmap summary에는 bench 2 MHz 검증 기록 존재 |
+| SPI clock | 현재 상수 250 kHz bring-up setting |
 | LoRa 설정 | SF7, BW 125 kHz, CR 4/5, preamble 8, sync word `0x12`, TX power 17 dBm |
-| TCXO | `0.0 V`, XTAL 가정 |
+| RF path idle | RXE=0, TXE=0 |
 
 ### 펌웨어 설정/동작
 
-- `src/hal/sx1262_lora_hal.cpp`는 BUSY LOW를 기다린 뒤 RadioLib `begin()`을 호출한다.
-- PCB에 MCU-controlled NRESET net이 기록되어 있지 않아 no-reset mode가 의도적으로 사용된다.
-- DIO1이 HIGH가 되면 TX complete/IRQ 처리 경로로 들어간다.
-- 현재 `downlinkOnly = true`가 기본이라 RX/uplink 안정화는 후속 단계로 남아 있다.
+- `src/hal/sx127x_lora_hal.cpp`가 SPI1, RST, DIO0, RXE/TXE를 직접 제어한다.
+- 수신은 RXE=1/TXE=0, 송신은 RXE=0/TXE=1이며 패킷 완료 후 수신으로 돌아온다.
+- 현재 `downlinkOnly = true`가 기본이라 uplink 안정화는 후속 단계로 남아 있다.
 
 ### 실무 주의사항
 
-- SX1262는 SX1276보다 BUSY pin 의존성이 강하다. BUSY가 연결되지 않거나 floating이면 SPI 명령 타이밍이 깨진다.
-- DIO2로 RF switch를 자동 제어하는 모듈도 있고, 별도 RXEN/TXEN 핀이 필요한 모듈도 있다. 현재 PCB의 RXE/D30 의미는 schematic으로 확정해야 한다.
-- TCXO가 있는 모듈이면 DIO3 TCXO voltage/startup delay 설정이 필요할 수 있다. 현재 코드는 `tcxoVoltage = 0.0 V`라 XTAL 보드 가정이다.
-- NRESET이 없으면 radio가 이상 상태에 빠졌을 때 MCU가 하드 리셋을 못 한다. 전원 cycle 또는 sleep/standby command만으로 복구되는지 bench에서 확인해야 한다.
+- RXE/TXE polarity는 SparkFun/E19 module definition에 맞춰 active-high로 구현되어 있다.
+- 5 V RF rail은 Teensy 3.3 V rail과 분리하고, 전류 제한과 충분한 디커플링을 확보해야 한다.
+- 17 dBm은 SX1276 core drive setting이며, 1 W EIRP/출력은 안테나·PA·규정까지 포함해 별도 측정해야 한다.
 - 920.9 MHz 운용은 지역 규정/대회 규정/안테나 대역과 일치해야 한다. 915 MHz 안테나가 920.9 MHz에서 충분히 맞는지도 VNA 또는 range test로 확인해야 한다.
 - RF 송신 중 전류 피크가 생긴다. 센서 3.3 V rail과 RF PA 전원이 같은 경로면 IMU/baro 노이즈와 brownout을 확인해야 한다.
 
-## 9. SX1276 / SX127x 지상 및 개발 LoRa
+## 9. SX1276 지상 및 개발 LoRa
 
 ### 부품 특징
 
-- Semtech SX1276/77/78/79 계열은 137~1020 MHz LoRa transceiver.
-- 데이터시트는 LoRa 장거리/고감도, +20 dBm class PA, 최대 link budget 168 dB급 특징을 설명한다.
-- SX127x 계열은 SPI + reset + DIO0 interrupt 형태 예제가 많다.
+- SparkFun SPX-18572 / E19-915M30S는 915 MHz 대역 SX1276과 1 W 외부 PA/LNA를 사용한다.
+- SX1276 계열은 SPI + reset + DIO0 interrupt와 외부 RXE/TXE switch를 사용한다.
 
 ### 프로젝트 연결
 
@@ -285,7 +282,7 @@
 | --- | --- |
 | 프로젝트 역할 | 지상 수신기 / 개발 테스트 |
 | receiver env | `sx1276_ground`에서 920.9 MHz ground radio |
-| 개발 RA-01 계열 핀 | SS D9, reset/RXE D30, DIO0 D31, BUSY/reserved D32 |
+| SparkFun 핀 | NSS D9, RST D24, DIO0 D32, RXE D30, TXE D31 |
 | 라이브러리 | sender/receiver 일부는 Sandeep Mistry LoRa, 메인은 RadioLib |
 
 ### 실무 주의사항
@@ -302,7 +299,7 @@
 | 항목 | 값 |
 | --- | --- |
 | 역할 | 3S pack voltage telemetry |
-| 핀 | D21 analog input |
+| 핀 | D22 analog input |
 | ADC 기준 | 3.3 V |
 | ADC resolution | 10 bit |
 | 분압비 | pack voltage / 5.545 |
@@ -347,16 +344,16 @@
 | 항목 | 현재 핀 / 상태 |
 | --- | --- |
 | Buzzer | D2 |
-| LED2 / status | D33 |
+| LED1 / LED2 / status | D34 / D33 / D33 |
 | Pyro 1 / Drogue | D28, D29, sense D25 |
-| Pyro 2 / Main | D37, D36, sense D40 |
+| Pyro 2 / Main | gpio1 D38, gpio2 D35, sense D41 |
 | Pyro real output | `NURA_ENABLE_PYRO_OUTPUTS` 없으면 dry-run |
 
 주의:
 
 - Pyro 출력은 패킷 수신, 디버그 명령, raw state assignment에서 직접 energize하면 안 된다.
 - MOSFET/TC4452 driver 주변은 bench에서 LED/저항 dummy load/scope로 먼저 확인하고, e-match는 최후 단계에 연결해야 한다.
-- D37/D36/D40 같은 Teensy 하단/특수 핀은 soldering 접근성과 SDIO/QSPI/보드 리비전 영향을 반드시 확인해야 한다.
+- D35/D38/D41 같은 Teensy 하단/특수 핀은 soldering 접근성과 SDIO/QSPI/보드 리비전 영향을 반드시 확인해야 한다.
 
 ## 13. 통합 bring-up 체크리스트
 

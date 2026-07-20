@@ -7,16 +7,18 @@
 #include "core/recoverable_task/recoverable_task.h"
 #include "hal/lis3mdl_hal.h"
 #include "state/magnetometer_state.h"
-#include "state/telemetry_state.h"
+#include "state/system_health_state.h"
 
 class MagnetometerTask : public RecoverableTask
 {
 public:
-    MagnetometerTask(LIS3MDLHAL &magnetometer,
+    MagnetometerTask(IMagnetometer &magnetometer,
                      MagnetometerState &magnetometerState,
-                     TelemetryState &telemetryState,
+                     SystemHealthState &healthState,
                      Logger &logger,
-                     const IAppConfig &config);
+                     const IAppConfig &config,
+                     uint8_t i2cAddress,
+                     TwoWire &wire);
 
     const char *name() const override;
     bool init() override;
@@ -30,9 +32,11 @@ private:
     void resetState(uint32_t nowMs);
     void updateState(const Lis3mdlReading &sample);
 
-    LIS3MDLHAL &magnetometer_;
+    IMagnetometer &magnetometer_;
     MagnetometerState &magnetometerState_;
-    TelemetryState &telemetryState_;
+    SystemHealthState &healthState_;
     Logger &logger_;
     const IAppConfig &config_;
+    uint8_t i2cAddress_;
+    TwoWire &wire_;
 };

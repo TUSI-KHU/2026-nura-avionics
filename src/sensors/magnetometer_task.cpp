@@ -5,20 +5,24 @@
 #include "board_pinmap.h"
 #include "nura_constants.h"
 
-MagnetometerTask::MagnetometerTask(LIS3MDLHAL &magnetometer,
+MagnetometerTask::MagnetometerTask(IMagnetometer &magnetometer,
                                    MagnetometerState &magnetometerState,
-                                   TelemetryState &telemetryState,
+                                   SystemHealthState &healthState,
                                    Logger &logger,
-                                   const IAppConfig &config)
+                                   const IAppConfig &config,
+                                   uint8_t i2cAddress,
+                                   TwoWire &wire)
     : RecoverableTask(TaskCriticality::NON_CRITICAL,
                       config.imuReadFailureThreshold(),
                       config.imuMaxRecoveryAttempts(),
                       config.imuRecoveryIntervalMs()),
       magnetometer_(magnetometer),
       magnetometerState_(magnetometerState),
-      telemetryState_(telemetryState),
+      healthState_(healthState),
       logger_(logger),
-      config_(config)
+      config_(config),
+      i2cAddress_(i2cAddress),
+      wire_(wire)
 {
 }
 
@@ -51,13 +55,13 @@ bool MagnetometerTask::tick(uint32_t nowMs)
     {
         magnetometerState_.connected = false;
         magnetometerState_.hasNewData = false;
-        telemetryState_.health.magOk = false;
+        healthState_.magOk = false;
         markReadFailure();
         return true;
     }
 
     updateState(sample);
-    telemetryState_.health.magOk = true;
+    healthState_.magOk = true;
     markReadSuccess();
     return true;
 }
@@ -70,11 +74,10 @@ uint32_t MagnetometerTask::periodMs() const
 bool MagnetometerTask::recover(uint32_t nowMs)
 {
     (void)nowMs;
-    const bool ok = magnetometer_.begin(BoardPinMap::LIS3MDL::i2cAddress,
-                                        BoardPinMap::LIS3MDL::wire());
+    const bool ok = magnetometer_.beginDefault(i2cAddress_, wire_);
     magnetometerState_.connected = ok;
     magnetometerState_.hasNewData = false;
-    telemetryState_.health.magOk = false;
+    healthState_.magOk = false;
     return ok;
 }
 
@@ -84,8 +87,7 @@ bool MagnetometerTask::initialize(uint32_t nowMs)
     bool ok = false;
     for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
     {
-        ok = magnetometer_.begin(BoardPinMap::LIS3MDL::i2cAddress,
-                                 BoardPinMap::LIS3MDL::wire());
+        ok = magnetometer_.beginDefault(i2cAddress_, wire_);
         if (ok)
         {
             break;
@@ -98,7 +100,7 @@ bool MagnetometerTask::initialize(uint32_t nowMs)
 
     magnetometerState_.connected = ok;
     magnetometerState_.hasNewData = false;
-    telemetryState_.health.magOk = false;
+    healthState_.magOk = false;
     return ok;
 }
 
@@ -106,7 +108,7 @@ void MagnetometerTask::resetState(uint32_t nowMs)
 {
     magnetometerState_ = MagnetometerState{};
     magnetometerState_.lastUpdatedMs = nowMs;
-    telemetryState_.health.magOk = false;
+    healthState_.magOk = false;
 }
 
 void MagnetometerTask::updateState(const Lis3mdlReading &sample)

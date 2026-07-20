@@ -22,10 +22,19 @@ bool FlightControllerApp::setup(uint32_t nowMs)
 
     pinMode(BoardPinMap::LSM6DSO32::csPin, OUTPUT);
     pinMode(BoardPinMap::H3LIS331DL::csPin, OUTPUT);
-    pinMode(BoardPinMap::Sx1262LoRa::ssPin, OUTPUT);
     digitalWrite(BoardPinMap::LSM6DSO32::csPin, HIGH);
     digitalWrite(BoardPinMap::H3LIS331DL::csPin, HIGH);
+#if defined(NURA_USE_SX127X_LORA)
+    pinMode(BoardPinMap::SparkFunSx1276_1W::ssPin, OUTPUT);
+    pinMode(BoardPinMap::SparkFunSx1276_1W::rxEnablePin, OUTPUT);
+    pinMode(BoardPinMap::SparkFunSx1276_1W::txEnablePin, OUTPUT);
+    digitalWrite(BoardPinMap::SparkFunSx1276_1W::ssPin, HIGH);
+    digitalWrite(BoardPinMap::SparkFunSx1276_1W::rxEnablePin, LOW);
+    digitalWrite(BoardPinMap::SparkFunSx1276_1W::txEnablePin, LOW);
+#else
+    pinMode(BoardPinMap::Sx1262LoRa::ssPin, OUTPUT);
     digitalWrite(BoardPinMap::Sx1262LoRa::ssPin, HIGH);
+#endif
     SPI.setMOSI(BoardPinMap::SpiBus::mosiPin);
     SPI.setMISO(BoardPinMap::SpiBus::misoPin);
     SPI.setSCK(BoardPinMap::SpiBus::sckPin);
@@ -35,15 +44,12 @@ bool FlightControllerApp::setup(uint32_t nowMs)
     SPI1.setMOSI(BoardPinMap::Spi1Bus::mosiPin);
     SPI1.setSCK(BoardPinMap::Spi1Bus::sckPin);
     SPI1.begin();
-#if defined(NURA_BENCH_SX1262_RXE_LOW)
-    if (BoardPinMap::Sx1262LoRa::rxEnablePin != BoardPinMap::kUnassignedPin)
-    {
-        pinMode(BoardPinMap::Sx1262LoRa::rxEnablePin, OUTPUT);
-        digitalWrite(BoardPinMap::Sx1262LoRa::rxEnablePin, LOW);
-    }
-#endif
 #endif
 #if !defined(NURA_MOCK_TELEMETRY)
+    auto &gnssSerial = BoardPinMap::UbloxM6::serial();
+    gnssSerial.setRX(BoardPinMap::UbloxM6::rxPin);
+    gnssSerial.setTX(BoardPinMap::UbloxM6::txPin);
+
     TwoWire &i2c0 = BoardPinMap::I2c0Bus::wire();
     i2c0.setSDA(BoardPinMap::I2c0Bus::sdaPin);
     i2c0.setSCL(BoardPinMap::I2c0Bus::sclPin);

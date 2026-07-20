@@ -1,7 +1,8 @@
 # NURA Log Parser
 
-`parse_nlg.py` converts NURA binary `.NLG` flight logs into readable CSV and
-JSON files.
+`parse_nlg.py` converts NURA binary flight logs into readable CSV and JSON
+files. It auto-detects the preallocated microSD block journal, a raw W25Q128
+flash dump, or a plain legacy `.NLG` frame stream.
 
 ## Usage
 
@@ -27,4 +28,7 @@ python3 log_parser/parse_nlg.py input.NLG --out-dir analysis/parsed_log
 - `summary.json`: frame count, sequence range, timestamp range, and output paths.
 
 The parser verifies frame magic, version, payload length, maximum frame size, and
-CRC16-CCITT before writing decoded output.
+CRC16-CCITT before writing decoded output. For current SD logs it first verifies
+the 512-byte block session, sequence and CRC fields. For QSPI dumps it verifies
+the 4 KiB sector and 256-byte page headers before reconstructing the logical
+frame stream.

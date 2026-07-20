@@ -9,9 +9,11 @@ constexpr uint8_t kUnassignedPin = 255U;
 
 struct StatusIndicator final
 {
-    static constexpr uint8_t pin = 33U;
-    static constexpr uint8_t led1Pin = kUnassignedPin;
+    static constexpr uint8_t led1Pin = 34U;
     static constexpr uint8_t led2Pin = 33U;
+    // Existing status-indicator users drive LED2; keep that API while both
+    // physical LED pins remain available in the final map.
+    static constexpr uint8_t pin = led2Pin;
 };
 
 struct Buzzer final
@@ -142,19 +144,35 @@ struct MicroSD final
 {
 #if defined(BUILTIN_SDCARD)
     static constexpr uint8_t csPin = BUILTIN_SDCARD;
+#elif defined(ARDUINO_TEENSY41)
+    // Teensy's SD library defines BUILTIN_SDCARD as 254, but this board map
+    // is included by the app before <SD.h>. Keep the Teensy 4.x SDIO sentinel
+    // here so include order cannot silently select SPI CS D10 instead.
+    static constexpr uint8_t csPin = 254U;
 #else
     static constexpr uint8_t csPin = 10U;
 #endif
 };
 
-struct Ra01DevelopmentLoRa final
+// SparkFun LoRa 1W Breakout SPX-18572, using the E19-915M30S (SX1276) radio.
+// The module power input is a separate 5 V rail (4.75-5.5 V recommended);
+// its SPI/GPIO control signals are 3.3 V logic. RXE/TXE are the module's
+// external RF-switch enables, not UART pins.
+struct SparkFunSx1276_1W final
 {
     static constexpr uint8_t ssPin = 9U;
-    static constexpr uint8_t resetPin = 30U;
+    static constexpr uint8_t rxEnablePin = 30U;
+    static constexpr uint8_t txEnablePin = 31U;
+    static constexpr uint8_t dio0Pin = 32U;
+    static constexpr uint8_t resetPin = 24U;
     static constexpr int8_t libraryResetPin = -1;
-    static constexpr uint8_t dio0Pin = 31U;
-    static constexpr uint8_t busyPin = 32U;
+    static constexpr uint8_t busyPin = kUnassignedPin;
 };
+
+// Keep the generic and legacy sketch names as aliases so existing SX127x tests
+// use this final SparkFun 1W wiring instead of the former wiring.
+using Sx1276BreakoutLoRa = SparkFunSx1276_1W;
+using Ra01DevelopmentLoRa = SparkFunSx1276_1W;
 
 struct Sx1262LoRa final
 {
@@ -174,9 +192,9 @@ struct Pyro1 final
 
 struct Pyro2 final
 {
-    static constexpr uint8_t gpio1Pin = 35U;
-    static constexpr uint8_t gpio2Pin = 38U;
-    static constexpr uint8_t sensePin = 40U;
+    static constexpr uint8_t gpio1Pin = 38U;
+    static constexpr uint8_t gpio2Pin = 35U;
+    static constexpr uint8_t sensePin = 41U;
 };
 
 using DroguePyro = Pyro1;
@@ -184,7 +202,7 @@ using MainPyro = Pyro2;
 
 struct PowerSense final
 {
-    static constexpr uint8_t voltagePin = 21U;
+    static constexpr uint8_t voltagePin = 22U;
     static constexpr bool conflictsWithPyroOutput =
         voltagePin == Pyro1::gpio1Pin ||
         voltagePin == Pyro1::gpio2Pin ||

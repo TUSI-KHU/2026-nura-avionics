@@ -23,13 +23,19 @@ def main() -> int:
         "-Isrc",
         "-Iinclude",
         "src/logging/flight_log_ram_buffer.cpp",
+        "src/logging/flight_log_byte_queue.cpp",
+        "src/logging/flight_log_mirror_storage.cpp",
         "src/logging/flight_log_record.cpp",
+        "src/missions/flight/flight_trace.cpp",
+        "src/core/logger/logger.cpp",
+        "src/missions/logging/flight_log_task.cpp",
         "test/logging/logging_tests.cpp",
         "-o",
         str(BINARY),
     ]
     subprocess.run(cmd, cwd=ROOT, check=True)
     subprocess.run([str(BINARY)], cwd=ROOT, check=True)
+    subprocess.run(["python3", "test/logging/test_decode_flight_log.py"], cwd=ROOT, check=True)
     return 0
 
 

@@ -3,12 +3,14 @@
 #include "board_pinmap.h"
 #include "nura_constants.h"
 
-PowerSenseTask::PowerSenseTask(BatteryVoltageHAL &batteryVoltage,
-                               TelemetryState &telemetryState,
-                               Logger &logger)
+PowerSenseTask::PowerSenseTask(IBatteryVoltage &batteryVoltage,
+                               PowerState &powerState,
+                               Logger &logger,
+                               uint8_t sensePin)
     : batteryVoltage_(batteryVoltage),
-      telemetryState_(telemetryState),
-      logger_(logger)
+      powerState_(powerState),
+      logger_(logger),
+      sensePin_(sensePin)
 {
 }
 
@@ -20,13 +22,25 @@ const char *PowerSenseTask::name() const
 bool PowerSenseTask::init()
 {
     publishInvalid(0UL);
-    initialized_ = batteryVoltage_.begin(BoardPinMap::PowerSense::voltagePin,
-                                         NuraConstants::Sensors::kPowerSenseAdcReferenceMv,
-                                         NuraConstants::Sensors::kPowerSenseAdcResolutionBits,
-                                         NuraConstants::Sensors::kPowerSenseDividerRatioNumerator,
-                                         NuraConstants::Sensors::kPowerSenseDividerRatioDenominator,
-                                         NuraConstants::Sensors::kPowerSenseMinValidBatteryMv,
-                                         NuraConstants::Sensors::kPowerSenseMaxValidBatteryMv);
+    initialized_ = false;
+    for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
+    {
+        initialized_ = batteryVoltage_.begin(sensePin_,
+                                              NuraConstants::Sensors::kPowerSenseAdcReferenceMv,
+                                              NuraConstants::Sensors::kPowerSenseAdcResolutionBits,
+                                              NuraConstants::Sensors::kPowerSenseDividerRatioNumerator,
+                                              NuraConstants::Sensors::kPowerSenseDividerRatioDenominator,
+                                              NuraConstants::Sensors::kPowerSenseMinValidBatteryMv,
+                                              NuraConstants::Sensors::kPowerSenseMaxValidBatteryMv);
+        if (initialized_)
+        {
+            break;
+        }
+        if ((attempt + 1U) < NuraConstants::Sensors::kSensorInitRetryAttempts)
+        {
+            delay(NuraConstants::Sensors::kSensorInitRetryDelayMs);
+        }
+    }
 
     if (initialized_)
     {
@@ -58,7 +72,7 @@ bool PowerSenseTask::tick(uint32_t nowMs)
         return true;
     }
 
-    PowerTelemetryData &power = telemetryState_.power;
+    PowerState &power = powerState_;
     power.valid = true;
     power.batteryMv = reading.batteryMv;
     power.lastUpdatedMs = reading.sampleMs;
@@ -73,8 +87,8 @@ uint32_t PowerSenseTask::periodMs() const
 
 void PowerSenseTask::publishInvalid(uint32_t nowMs)
 {
-    telemetryState_.power.valid = false;
-    telemetryState_.power.batteryMv = 0U;
-    telemetryState_.power.lastUpdatedMs = nowMs;
+    powerState_.valid = false;
+    powerState_.batteryMv = 0U;
+    powerState_.lastUpdatedMs = nowMs;
     lastValid_ = false;
 }
