@@ -19,6 +19,7 @@ constexpr uint8_t kSpreadingFactor = 7U;
 constexpr uint8_t kCodingRate = 5U;
 constexpr uint8_t kSyncWord = 0x12U;
 constexpr int8_t kTxPowerDbm = 2;
+constexpr bool kRawSpiProbeOnly = false;
 
 Module radioModule(kNss,
                    kDio0,
@@ -30,8 +31,204 @@ SX1276 radio(&radioModule);
 
 volatile bool receivedFlag = false;
 bool radioReady = false;
+int16_t initState = RADIOLIB_ERR_UNKNOWN;
 uint32_t txCount = 0UL;
 uint32_t rxCount = 0UL;
+uint32_t lastDiagnosticMs = 0UL;
+
+uint16_t countValidVersionReads(uint32_t spiFrequency, uint8_t spiMode, uint16_t samples);
+
+void setRfPath(bool receivePath, bool transmitPath)
+{
+    digitalWrite(kRxe, receivePath ? HIGH : LOW);
+    digitalWrite(kTxe, transmitPath ? HIGH : LOW);
+}
+
+uint8_t outputLatch(uint8_t pin)
+{
+    return ((*portOutputRegister(pin) & digitalPinToBitMask(pin)) != 0U) ? 1U : 0U;
+}
+
+uint8_t outputEnabled(uint8_t pin)
+{
+    return ((*(portOutputRegister(pin) + 1) & digitalPinToBitMask(pin)) != 0U) ? 1U : 0U;
+}
+
+void probeRfPath(const char *name, bool receivePath, bool transmitPath)
+{
+    setRfPath(receivePath, transmitPath);
+    delay(50);
+    const uint16_t passed = countValidVersionReads(250000UL, SPI_MODE0, 100U);
+    Serial.print("RF_PATH_TEST name=");
+    Serial.print(name);
+    Serial.print(" commanded=");
+    Serial.print(receivePath ? 1 : 0);
+    Serial.print(',');
+    Serial.print(transmitPath ? 1 : 0);
+    Serial.print(" read=");
+    Serial.print(digitalRead(kRxe));
+    Serial.print(',');
+    Serial.print(digitalRead(kTxe));
+    Serial.print(" latch=");
+    Serial.print(outputLatch(kRxe));
+    Serial.print(',');
+    Serial.print(outputLatch(kTxe));
+    Serial.print(" output=");
+    Serial.print(outputEnabled(kRxe));
+    Serial.print(',');
+    Serial.print(outputEnabled(kTxe));
+    Serial.print(" nss=");
+    Serial.print(digitalRead(kNss));
+    Serial.print(" rst=");
+    Serial.print(digitalRead(kRst));
+    Serial.print(" dio0=");
+    Serial.print(digitalRead(kDio0));
+    Serial.print(" spi=");
+    Serial.print(passed);
+    Serial.println("/100");
+}
+
+void runRfPathProbe()
+{
+    probeRfPath("idle", false, false);
+    probeRfPath("rx", true, false);
+    probeRfPath("tx", false, true);
+    probeRfPath("idle", false, false);
+}
+
+void printRfCouplingState(const char *name)
+{
+    delay(20);
+    Serial.print("RF_COUPLING_TEST name=");
+    Serial.print(name);
+    Serial.print(" read=");
+    Serial.print(digitalRead(kRxe));
+    Serial.print(',');
+    Serial.println(digitalRead(kTxe));
+}
+
+void runRfCouplingProbe()
+{
+    pinMode(kRxe, INPUT);
+    pinMode(kTxe, INPUT);
+    printRfCouplingState("both_hiz");
+
+    pinMode(kRxe, OUTPUT);
+    digitalWrite(kRxe, HIGH);
+    printRfCouplingState("rxe_high_txe_hiz");
+    digitalWrite(kRxe, LOW);
+
+    pinMode(kRxe, INPUT);
+    pinMode(kTxe, OUTPUT);
+    digitalWrite(kTxe, HIGH);
+    printRfCouplingState("rxe_hiz_txe_high");
+
+    pinMode(kRxe, OUTPUT);
+    pinMode(kTxe, OUTPUT);
+    setRfPath(false, false);
+    printRfCouplingState("restored_idle");
+}
+
+uint8_t readVersionRegister(uint32_t spiFrequency = 250000UL, uint8_t spiMode = SPI_MODE0)
+{
+    SPI1.beginTransaction(SPISettings(spiFrequency, MSBFIRST, spiMode));
+    digitalWrite(kNss, LOW);
+    delayMicroseconds(20);
+    (void)SPI1.transfer(0x42U);
+    const uint8_t version = SPI1.transfer(0x00U);
+    delayMicroseconds(20);
+    digitalWrite(kNss, HIGH);
+    SPI1.endTransaction();
+    return version;
+}
+
+void printDiagnosticStatus()
+{
+    Serial.print("DIAG init_state=");
+    Serial.print(initState);
+    Serial.print(" reg_version=0x");
+    const uint8_t version = readVersionRegister();
+    if (version < 0x10U)
+    {
+        Serial.print('0');
+    }
+    Serial.print(version, HEX);
+    Serial.print(" rst=");
+    Serial.print(digitalRead(kRst));
+    Serial.print(" nss=");
+    Serial.print(digitalRead(kNss));
+    Serial.print(" dio0=");
+    Serial.print(digitalRead(kDio0));
+    Serial.print(" rxe=");
+    Serial.print(digitalRead(kRxe));
+    Serial.print(" txe=");
+    Serial.println(digitalRead(kTxe));
+}
+
+uint16_t countValidVersionReads(uint32_t spiFrequency, uint8_t spiMode, uint16_t samples)
+{
+    uint16_t passed = 0U;
+    for (uint16_t sample = 0U; sample < samples; ++sample)
+    {
+        if (readVersionRegister(spiFrequency, spiMode) == 0x12U)
+        {
+            ++passed;
+        }
+        delay(1);
+    }
+    return passed;
+}
+
+bool runSpiStabilityMatrix(bool includeModeMatrix)
+{
+    constexpr uint16_t kSamples = 200U;
+    constexpr uint32_t kFrequencies[] = {
+        25000UL,
+        50000UL,
+        100000UL,
+        250000UL,
+        500000UL,
+        1000000UL,
+    };
+    constexpr uint8_t kModes[] = {SPI_MODE0, SPI_MODE1, SPI_MODE2, SPI_MODE3};
+
+    setRfPath(false, false);
+    Serial.println("RAW_SPI_FREQUENCY_MATRIX mode=0");
+    bool stable = true;
+    for (const uint32_t frequency : kFrequencies)
+    {
+        const uint16_t passed = countValidVersionReads(frequency, SPI_MODE0, kSamples);
+        Serial.print("SPI_TEST hz=");
+        Serial.print(frequency);
+        Serial.print(" passed=");
+        Serial.print(passed);
+        Serial.print('/');
+        Serial.println(kSamples);
+        if (passed != kSamples)
+        {
+            stable = false;
+        }
+    }
+
+    if (includeModeMatrix)
+    {
+        Serial.println("RAW_SPI_MODE_MATRIX hz=250000");
+        for (uint8_t index = 0U; index < 4U; ++index)
+        {
+            const uint8_t mode = kModes[index];
+            const uint16_t passed = countValidVersionReads(250000UL, mode, kSamples);
+            Serial.print("SPI_TEST mode=");
+            Serial.print(index);
+            Serial.print(" passed=");
+            Serial.print(passed);
+            Serial.print('/');
+            Serial.println(kSamples);
+        }
+    }
+
+    Serial.println(stable ? "RAW_SPI_STABILITY_PASS" : "RAW_SPI_STABILITY_FAIL");
+    return stable;
+}
 
 void onPacketReceived()
 {
@@ -52,6 +249,7 @@ bool startReceive()
     const int16_t state = radio.startReceive();
     if (state != RADIOLIB_ERR_NONE)
     {
+        setRfPath(false, false);
         Serial.print("FAIL: startReceive state=");
         Serial.println(state);
         return false;
@@ -79,7 +277,7 @@ void sendOne()
     if (state == RADIOLIB_ERR_NONE)
     {
         ++txCount;
-        Serial.println("PASS: TX complete (RXE=0 TXE=1 during TX)");
+        Serial.println("PASS: TX complete");
     }
     else
     {
@@ -125,7 +323,7 @@ void serviceReceive()
 
 void printHelp()
 {
-    Serial.println("commands: t=one TX, s=status, h=help");
+    Serial.println("commands: m=raw SPI matrix, g=RF-path GPIO probe, c=RF coupling probe, s=status, h=help");
 }
 
 void serviceSerial()
@@ -136,6 +334,19 @@ void serviceSerial()
         if (command == 't' || command == 'T')
         {
             sendOne();
+        }
+        else if (command == 'm' || command == 'M')
+        {
+            const bool stable = runSpiStabilityMatrix(kRawSpiProbeOnly);
+            initState = stable ? RADIOLIB_ERR_NONE : RADIOLIB_ERR_CHIP_NOT_FOUND;
+        }
+        else if (command == 'g' || command == 'G')
+        {
+            runRfPathProbe();
+        }
+        else if (command == 'c' || command == 'C')
+        {
+            runRfCouplingProbe();
         }
         else if (command == 's' || command == 'S')
         {
@@ -167,7 +378,7 @@ void setup()
 
     Serial.println("SparkFun SPX-18572 / E19-915M30S SX1276 1W test / Teensy 4.1");
     Serial.println("SPI1: MISO=1 MOSI=26 SCK=27; NSS=9 RST=24 DIO0=32 RXE=30 TXE=31");
-    Serial.println("RF power rail: 5 V; Teensy SPI/GPIO logic: 3.3 V; bench TX drive: 2 dBm");
+    Serial.println("Power: radio=5 V, CS/RST pull-ups=3.3 V; SPI/GPIO logic=3.3 V");
     Serial.println("RXE/TXE are RF-switch enables, not UART pins.");
     Serial.println("Antenna and active-high RXE/TXE polarity must match the breakout schematic.");
 
@@ -180,6 +391,31 @@ void setup()
     SPI1.setMOSI(kMosi);
     SPI1.setSCK(kSck);
     SPI1.begin();
+    pinMode(kNss, OUTPUT);
+    digitalWrite(kNss, HIGH);
+    pinMode(kRst, OUTPUT);
+    digitalWrite(kRst, LOW);
+    delay(50);
+    digitalWrite(kRst, HIGH);
+    delay(500);
+
+    Serial.print("PRE_INIT_REG_VERSION=0x");
+    Serial.println(readVersionRegister(), HEX);
+    const bool rawSpiStable = runSpiStabilityMatrix(kRawSpiProbeOnly);
+    if (kRawSpiProbeOnly)
+    {
+        initState = rawSpiStable ? RADIOLIB_ERR_NONE : RADIOLIB_ERR_CHIP_NOT_FOUND;
+        Serial.println("RAW_SPI_PROBE_ONLY: RadioLib and RF modes skipped");
+        printHelp();
+        return;
+    }
+    if (!rawSpiStable)
+    {
+        initState = RADIOLIB_ERR_CHIP_NOT_FOUND;
+        Serial.println("FAIL: raw SPI is unstable; RadioLib initialization skipped");
+        printHelp();
+        return;
+    }
 
     ConfigLoRa_t config;
     config.frequency = kFrequencyMHz;
@@ -190,20 +426,20 @@ void setup()
     config.power = kTxPowerDbm;
     config.preambleLength = 8U;
 
-    const int16_t state = radio.begin(config);
-    if (state != RADIOLIB_ERR_NONE)
+    initState = radio.begin(config);
+    if (initState != RADIOLIB_ERR_NONE)
     {
         Serial.print("FAIL: SX1276 init state=");
-        Serial.println(state);
-        if (state == RADIOLIB_ERR_CHIP_NOT_FOUND)
+        Serial.println(initState);
+        if (initState == RADIOLIB_ERR_CHIP_NOT_FOUND)
         {
-            Serial.println("CHECK: 3.3V/GND and SPI1/NSS/RST wiring");
+            Serial.println("CHECK: stable 5 V/3.3 V/GND, then SPI1/NSS/RST");
         }
+        printDiagnosticStatus();
         printHelp();
         return;
     }
 
-    // RadioLib assumes active-high RXE/TXE: RX=(1,0), TX=(0,1), idle=(0,0).
     radio.setRfSwitchPins(kRxe, kTxe);
     radioReady = startReceive();
     Serial.println("RF: 920.9 MHz BW125 SF7 CR4/5 sync=0x12 CRC on TX=2 dBm");
@@ -214,4 +450,10 @@ void loop()
 {
     serviceReceive();
     serviceSerial();
+    const uint32_t nowMs = millis();
+    if ((nowMs - lastDiagnosticMs) >= 1000UL)
+    {
+        lastDiagnosticMs = nowMs;
+        printDiagnosticStatus();
+    }
 }

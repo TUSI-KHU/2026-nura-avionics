@@ -154,10 +154,10 @@ struct MicroSD final
 #endif
 };
 
-// SparkFun LoRa 1W Breakout SPX-18572, using the E19-915M30S (SX1276) radio.
-// The module power input is a separate 5 V rail (4.75-5.5 V recommended);
-// its SPI/GPIO control signals are 3.3 V logic. RXE/TXE are the module's
-// external RF-switch enables, not UART pins.
+// SparkFun LoRa 1W Breakout SPX-18572, using the E19-915M30S (SX1276).
+// The 5 V input powers the radio; the 3.3 V input powers the breakout's
+// CS/RST pull-ups. SPI/GPIO are 3.3 V logic, and RXE/TXE control the
+// external RF switch.
 struct SparkFunSx1276_1W final
 {
     static constexpr uint8_t ssPin = 9U;
