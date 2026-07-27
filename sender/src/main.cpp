@@ -12,9 +12,15 @@
 namespace
 {
 constexpr unsigned long kSerialBaud = 115200UL;
+#if defined(NURA_SENDER_SPARKFUN_SX1276_BENCH)
+constexpr long kLoraFrequencyHz = 920900000L;
+constexpr uint32_t kLoraSpiFrequencyHz = 250000UL;
+constexpr int kLoraTxPowerDbm = 2;
+#else
 constexpr long kLoraFrequencyHz = 433000000L;
 constexpr uint32_t kLoraSpiFrequencyHz = 125000UL;
 constexpr int kLoraTxPowerDbm = 10;
+#endif
 constexpr int kLoraSpreadingFactor = 7;
 constexpr long kLoraSignalBandwidthHz = 125000L;
 constexpr int kLoraCodingRateDenominator = 5;
@@ -33,6 +39,53 @@ uint16_t downlinkSeq = 0U;
 uint32_t lastFastMs = 0UL;
 uint32_t lastGpsMs = 0UL;
 bool deployFired = false;
+
+SPIClass &loraSpi()
+{
+#if defined(NURA_SENDER_SPARKFUN_SX1276_BENCH)
+    return SPI1;
+#else
+    return SPI;
+#endif
+}
+
+uint8_t loraMosiPin()
+{
+#if defined(NURA_SENDER_SPARKFUN_SX1276_BENCH)
+    return BoardPinMap::Spi1Bus::mosiPin;
+#else
+    return BoardPinMap::SpiBus::mosiPin;
+#endif
+}
+
+uint8_t loraMisoPin()
+{
+#if defined(NURA_SENDER_SPARKFUN_SX1276_BENCH)
+    return BoardPinMap::Spi1Bus::misoPin;
+#else
+    return BoardPinMap::SpiBus::misoPin;
+#endif
+}
+
+uint8_t loraSckPin()
+{
+#if defined(NURA_SENDER_SPARKFUN_SX1276_BENCH)
+    return BoardPinMap::Spi1Bus::sckPin;
+#else
+    return BoardPinMap::SpiBus::sckPin;
+#endif
+}
+
+void setRfPath(bool receivePath, bool transmitPath)
+{
+#if defined(NURA_SENDER_SPARKFUN_SX1276_BENCH)
+    digitalWrite(BoardPinMap::Sx1276BreakoutLoRa::rxEnablePin, receivePath ? HIGH : LOW);
+    digitalWrite(BoardPinMap::Sx1276BreakoutLoRa::txEnablePin, transmitPath ? HIGH : LOW);
+#else
+    (void)receivePath;
+    (void)transmitPath;
+#endif
+}
 
 struct AckQueue
 {
@@ -81,11 +134,11 @@ uint8_t recentCommandWriteIndex = 0U;
 void beginSpi()
 {
 #if defined(CORE_TEENSY)
-    SPI.setMOSI(BoardPinMap::SpiBus::mosiPin);
-    SPI.setMISO(BoardPinMap::SpiBus::misoPin);
-    SPI.setSCK(BoardPinMap::SpiBus::sckPin);
+    loraSpi().setMOSI(loraMosiPin());
+    loraSpi().setMISO(loraMisoPin());
+    loraSpi().setSCK(loraSckPin());
 #endif
-    SPI.begin();
+    loraSpi().begin();
 }
 
 void printHexByte(uint8_t value)
@@ -103,14 +156,14 @@ uint8_t readLoraRegisterRaw(uint8_t address, uint8_t spiMode)
     SPISettings settings(kLoraSpiFrequencyHz, MSBFIRST, spiMode);
     pinMode(BoardPinMap::Ra01DevelopmentLoRa::ssPin, OUTPUT);
     digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, HIGH);
-    SPI.beginTransaction(settings);
+    loraSpi().beginTransaction(settings);
     digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, LOW);
     delayMicroseconds(20);
-    SPI.transfer(address & 0x7FU);
-    const uint8_t value = SPI.transfer(0x00U);
+    loraSpi().transfer(address & 0x7FU);
+    const uint8_t value = loraSpi().transfer(0x00U);
     delayMicroseconds(20);
     digitalWrite(BoardPinMap::Ra01DevelopmentLoRa::ssPin, HIGH);
-    SPI.endTransaction();
+    loraSpi().endTransaction();
     return value;
 }
 
@@ -130,7 +183,13 @@ bool beginRadio()
     LoRa.setPins(BoardPinMap::Ra01DevelopmentLoRa::ssPin,
                  BoardPinMap::Ra01DevelopmentLoRa::libraryResetPin,
                  BoardPinMap::Ra01DevelopmentLoRa::dio0Pin);
+    LoRa.setSPI(loraSpi());
     LoRa.setSPIFrequency(kLoraSpiFrequencyHz);
+#if defined(NURA_SENDER_SPARKFUN_SX1276_BENCH)
+    pinMode(BoardPinMap::Sx1276BreakoutLoRa::rxEnablePin, OUTPUT);
+    pinMode(BoardPinMap::Sx1276BreakoutLoRa::txEnablePin, OUTPUT);
+    setRfPath(false, false);
+#endif
 
     for (uint8_t attempt = 1U; attempt <= kLoraInitAttempts; ++attempt)
     {
@@ -196,6 +255,7 @@ bool beginRadio()
             LoRa.setCodingRate4(kLoraCodingRateDenominator);
             LoRa.setSyncWord(kLoraSyncWord);
             LoRa.enableCrc();
+            setRfPath(true, false);
             LoRa.receive();
             return true;
         }
@@ -357,10 +417,12 @@ bool sendRawFrame(uint8_t type, const uint8_t *payload, uint8_t payloadLen, cons
     }
 
     LoRa._spiSettings = SPISettings(kLoraSpiFrequencyHz, MSBFIRST, selectedSpiMode);
+    setRfPath(false, true);
     LoRa.idle();
     delay(2);
     if (!LoRa.beginPacket())
     {
+        setRfPath(true, false);
         LoRa.receive();
         Serial.print("FAIL: beginPacket type=");
         Serial.println(label);
@@ -368,6 +430,7 @@ bool sendRawFrame(uint8_t type, const uint8_t *payload, uint8_t payloadLen, cons
     }
     const size_t written = LoRa.write(frame, frameLen);
     const bool ok = written == frameLen && LoRa.endPacket() == 1;
+    setRfPath(true, false);
     LoRa.receive();
 
     if (ok)
@@ -585,7 +648,11 @@ void setup()
     Serial.println("NURA V2 Lite authenticated sender avionics emulator");
     Serial.println("role=sender board=teensy41 protocol=v2_lite_auth");
     Serial.println("packet_set=FAST,GPS,CONTROL");
+#if defined(NURA_SENDER_SPARKFUN_SX1276_BENCH)
+    Serial.println("rf=freq9209_sf7_bw125_cr45_sparkfun_sx1276_bench");
+#else
     Serial.println("rf=freq433_sf7_bw125_cr45_dev");
+#endif
     Serial.print("identity=");
     Serial.println(NuraConstants::Telemetry::kRadioIdentityProvisioned ? "provisioned" : "public_bench_unsafe_for_flight");
 
