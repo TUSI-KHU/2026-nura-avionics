@@ -40,8 +40,15 @@ bool Sx127xLoRaHAL::begin(const Sx127xLoRaConfig &config, SPIClass &spi)
                 return false;
             }
 
-            setRfPath(config, true, false);
-            LoRa.receive();
+            if (config.downlinkOnly)
+            {
+                setRfPath(config, false, false);
+            }
+            else
+            {
+                setRfPath(config, true, false);
+                LoRa.receive();
+            }
             initialized_ = true;
             return true;
         }
@@ -80,8 +87,15 @@ bool Sx127xLoRaHAL::send(const uint8_t *data, size_t length, bool async)
     delay(2);
     if (!LoRa.beginPacket())
     {
-        setRfPath(activeConfig_, true, false);
-        LoRa.receive();
+        if (activeConfig_.downlinkOnly)
+        {
+            setRfPath(activeConfig_, false, false);
+        }
+        else
+        {
+            setRfPath(activeConfig_, true, false);
+            LoRa.receive();
+        }
         txBusy_ = false;
         return false;
     }
@@ -89,8 +103,15 @@ bool Sx127xLoRaHAL::send(const uint8_t *data, size_t length, bool async)
     const size_t written = LoRa.write(data, length);
     if (written != length)
     {
-        setRfPath(activeConfig_, true, false);
-        LoRa.receive();
+        if (activeConfig_.downlinkOnly)
+        {
+            setRfPath(activeConfig_, false, false);
+        }
+        else
+        {
+            setRfPath(activeConfig_, true, false);
+            LoRa.receive();
+        }
         txBusy_ = false;
         return false;
     }
@@ -98,8 +119,15 @@ bool Sx127xLoRaHAL::send(const uint8_t *data, size_t length, bool async)
     const bool ok = LoRa.endPacket(async) == 1;
     if (!async)
     {
-        setRfPath(activeConfig_, true, false);
-        LoRa.receive();
+        if (activeConfig_.downlinkOnly)
+        {
+            setRfPath(activeConfig_, false, false);
+        }
+        else
+        {
+            setRfPath(activeConfig_, true, false);
+            LoRa.receive();
+        }
     }
     txBusy_ = false;
     return ok;
@@ -117,7 +145,7 @@ void Sx127xLoRaHAL::service(uint32_t nowMs)
 
 bool Sx127xLoRaHAL::receive(uint8_t *buffer, size_t capacity, Sx127xLoRaPacket &packet)
 {
-    if (!initialized_ || buffer == nullptr || capacity == 0U)
+    if (!initialized_ || activeConfig_.downlinkOnly || buffer == nullptr || capacity == 0U)
     {
         return false;
     }
