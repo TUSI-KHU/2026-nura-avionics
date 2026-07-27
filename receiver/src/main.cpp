@@ -24,7 +24,7 @@ constexpr int8_t kLoraLibraryResetPin = -1;
 constexpr uint8_t kLoraDio0Pin = 2U;
 constexpr uint8_t kLoraRxEnablePin = 4U;
 constexpr uint8_t kLoraTxEnablePin = 3U;
-constexpr int kLoraTxPowerDbm = 10;
+constexpr int kLoraTxPowerDbm = 2;
 constexpr int kLoraSpreadingFactor = 7;
 constexpr long kLoraSignalBandwidthHz = 125000L;
 constexpr int kLoraCodingRateDenominator = 5;
@@ -754,7 +754,7 @@ void setup()
     Serial.println("role=receiver board=teensy41 protocol=v2_lite_auth");
     Serial.println("packet_set=FAST,GPS,CONTROL");
 #if defined(NURA_GROUND_SX1276)
-    Serial.println("rf=freq920900000_sf7_bw125_cr45_sx1276_ground");
+    Serial.println("rf=freq922300000_sf7_bw125_cr45_sx1276_ground");
 #else
     Serial.println("rf=freq433_sf7_bw125_cr45_dev");
 #endif

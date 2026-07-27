@@ -13,13 +13,13 @@ namespace
 {
 constexpr unsigned long kSerialBaud = 115200UL;
 #if defined(NURA_SENDER_SPARKFUN_SX1276_BENCH)
-constexpr long kLoraFrequencyHz = 920900000L;
+constexpr long kLoraFrequencyHz = 922300000L;
 constexpr uint32_t kLoraSpiFrequencyHz = 250000UL;
 constexpr int kLoraTxPowerDbm = 2;
 #else
 constexpr long kLoraFrequencyHz = 433000000L;
 constexpr uint32_t kLoraSpiFrequencyHz = 125000UL;
-constexpr int kLoraTxPowerDbm = 10;
+constexpr int kLoraTxPowerDbm = 2;
 #endif
 constexpr int kLoraSpreadingFactor = 7;
 constexpr long kLoraSignalBandwidthHz = 125000L;
@@ -649,7 +649,7 @@ void setup()
     Serial.println("role=sender board=teensy41 protocol=v2_lite_auth");
     Serial.println("packet_set=FAST,GPS,CONTROL");
 #if defined(NURA_SENDER_SPARKFUN_SX1276_BENCH)
-    Serial.println("rf=freq9209_sf7_bw125_cr45_sparkfun_sx1276_bench");
+    Serial.println("rf=freq9223_sf7_bw125_cr45_sparkfun_sx1276_bench");
 #else
     Serial.println("rf=freq433_sf7_bw125_cr45_dev");
 #endif

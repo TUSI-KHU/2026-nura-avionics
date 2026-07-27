@@ -44,7 +44,7 @@ implemented.
 - Allowed `LAUNCH` and `COAST` states: team requirement that uplink deployment
   is inhibited before launch, implemented conservatively to avoid retriggering
   an active recovery sequence.
-- RF frequency 920.9 MHz for the default flight build: current team firmware
+- RF frequency 922.3 MHz for the default flight build: current team firmware
   configuration. Legal frequency, power, antenna, and range remain subject to
   ground and integration test approval.
 

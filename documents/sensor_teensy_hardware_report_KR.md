@@ -16,7 +16,7 @@
 | 기압계 | MPL3115A2 | 고도/압력 | I2C0 | SDA0 D18, SCL0 D19, 주소 `0x60` |
 | GNSS | u-blox M6 / NEO-6M 계열 | 위치/시간/회수 지원 | UART Serial3 | GPS TX -> D15/RX3, GPS RX -> D14/TX3, 9600 baud |
 | 비행 LoRa | SparkFun SPX-18572 / E19-915M30S SX1276 1W | 비행체 텔레메트리 | SPI1 + DIO0/RXE/TXE | MISO1 D1, MOSI1 D26, SCK1 D27, NSS D9, RST D24, DIO0 D32, RXE D30, TXE D31 |
-| 지상/개발 LoRa | SparkFun SPX-18572 / E19-915M30S SX1276 1W | 지상 수신/개발 테스트 | SPI1 + DIO0/RXE/TXE | 동일 920.9 MHz 핀맵 |
+| 지상/개발 LoRa | SparkFun SPX-18572 / E19-915M30S SX1276 1W | 지상 수신/개발 테스트 | SPI1 + DIO0/RXE/TXE | 동일 922.3 MHz 핀맵 |
 | 전압 센스 | 3S 배터리 분압 | 배터리 전압 텔레메트리 | ADC | D22, 분압비 5.545 |
 | 저장장치 | Teensy 내장 microSD | 비행 로그 미러 | SDIO | `BUILTIN_SDCARD` |
 | 저장장치 | W25Q128 QSPI NOR flash 후보 | 온보드 로그/검증 저장 | Teensy 4.1 하단 QSPI pads | 16 MB / 128 Mbit 후보 |
@@ -250,9 +250,9 @@
 | DIO0 | D32 |
 | RXE | D30, active-high |
 | TXE | D31, active-high |
-| 주파수 | 920.9 MHz |
+| 주파수 | 922.3 MHz |
 | SPI clock | 현재 상수 250 kHz bring-up setting |
-| LoRa 설정 | SF7, BW 125 kHz, CR 4/5, preamble 8, sync word `0x12`, TX power 17 dBm |
+| LoRa 설정 | SF7, BW 125 kHz, CR 4/5, preamble 8, sync word `0x12`, TX power 2 dBm |
 | RF path idle | RXE=0, TXE=0 |
 
 ### 펌웨어 설정/동작
@@ -265,8 +265,8 @@
 
 - RXE/TXE polarity는 SparkFun/E19 module definition에 맞춰 active-high로 구현되어 있다.
 - 5 V RF rail은 Teensy 3.3 V rail과 분리하고, 전류 제한과 충분한 디커플링을 확보해야 한다.
-- 17 dBm은 SX1276 core drive setting이며, 1 W EIRP/출력은 안테나·PA·규정까지 포함해 별도 측정해야 한다.
-- 920.9 MHz 운용은 지역 규정/대회 규정/안테나 대역과 일치해야 한다. 915 MHz 안테나가 920.9 MHz에서 충분히 맞는지도 VNA 또는 range test로 확인해야 한다.
+- 2 dBm은 SX1276 core drive setting이며, EIRP/출력은 안테나·PA·규정까지 포함해 별도 측정해야 한다.
+- 922.3 MHz 운용은 지역 규정/대회 규정/안테나 대역과 일치해야 한다. 915 MHz 안테나가 922.3 MHz에서 충분히 맞는지도 VNA 또는 range test로 확인해야 한다.
 - RF 송신 중 전류 피크가 생긴다. 센서 3.3 V rail과 RF PA 전원이 같은 경로면 IMU/baro 노이즈와 brownout을 확인해야 한다.
 
 ## 9. SX1276 지상 및 개발 LoRa
@@ -281,7 +281,7 @@
 | 항목 | 값 |
 | --- | --- |
 | 프로젝트 역할 | 지상 수신기 / 개발 테스트 |
-| receiver env | `sx1276_ground`에서 920.9 MHz ground radio |
+| receiver env | `sx1276_ground`에서 922.3 MHz ground radio |
 | SparkFun 핀 | NSS D9, RST D24, DIO0 D32, RXE D30, TXE D31 |
 | 라이브러리 | sender/receiver 일부는 Sandeep Mistry LoRa, 메인은 RadioLib |
 
@@ -397,7 +397,7 @@
 4. MPL3115A2 discontinued 이슈 때문에 MPL3115A2S 또는 다른 기압계 후보를 부품 수급 관점에서 검토한다.
 5. LIS3MDL hard/soft iron calibration 절차와 저장 위치를 정한다.
 6. VIN-VUSB cut 적용 여부를 avionics assembly 절차서에 넣는다.
-7. LoRa 920.9 MHz 안테나 matching/range test 결과를 별도 RF 검증 문서로 남긴다.
+7. LoRa 922.3 MHz 안테나 matching/range test 결과를 별도 RF 검증 문서로 남긴다.
 
 ## 15. 주요 웹 출처
 

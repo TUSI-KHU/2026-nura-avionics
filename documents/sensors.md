@@ -45,8 +45,8 @@ Target controller: **Teensy 4.1**
 | Magnetometer | LIS3MDL | Breakout | Magnetic heading source, subject to hard-iron and soft-iron calibration. |
 | Pressure / barometer | MPL3115A2 | Breakout on I2C0 | Active pressure/altitude sensor. |
 | GNSS | u-blox M6 / NEO-6M | Breakout | Position/time source for development and recovery. |
-| LoRa radio | SparkFun SPX-18572 / E19-915M30S SX1276 1W | Breakout | Flight transmitter at 920.9 MHz; shares the LoRa PHY profile with the matching SX1276 ground radio. |
-| LoRa radio, ground | SparkFun SPX-18572 / E19-915M30S SX1276 1W | Breakout | Ground receiver at 920.9 MHz. |
+| LoRa radio | SparkFun SPX-18572 / E19-915M30S SX1276 1W | Breakout | Flight transmitter at 922.3 MHz; shares the LoRa PHY profile with the matching SX1276 ground radio. |
+| LoRa radio, ground | SparkFun SPX-18572 / E19-915M30S SX1276 1W | Breakout | Ground receiver at 922.3 MHz. |
 | Battery voltage sense | 3S pack divider | PCB analog input | Telemetry-only pack voltage monitor on D22. Divider ratio is 5.545: 12.6 V maps to 2.2723 V and 11.1 V maps to 2.0018 V at the ADC input. |
 
 ## RF and Cabling
@@ -77,7 +77,7 @@ Target controller: **Teensy 4.1**
 | MPL3115A2 pressure sensor | I2C0 (SDA18/SCL19) | HAL checks WHO_AM_I `0xC4` and uses non-blocking pressure conversions with a bounded timeout for scheduler-safe sampling. |
 | u-blox M6 / NEO-6M GNSS | UART | HAL/parser scaffold present. Flight task and message configuration still needed. |
 | SparkFun SX1276 1W LoRa | SPI1 + DIO0/RXE/TXE/RST | HAL uses the SPX-18572/E19-915M30S register interface. RXE D30, TXE D31, DIO0 D32, RST D24, and 5 V module power require bench verification. |
-| SX1276 ground LoRa | SPI1 + DIO0/RXE/TXE/RST | Receiver uses the matching 920.9 MHz LoRa PHY profile and RF-switch path. |
+| SX1276 ground LoRa | SPI1 + DIO0/RXE/TXE/RST | Receiver uses the matching 922.3 MHz LoRa PHY profile and RF-switch path. |
 | TC4452 MOSFET driver | GPIO output | MOSFET pyro HAL present; physical output is build-gated by `NURA_ENABLE_PYRO_OUTPUTS`. Drogue/Pyro 1 is gpio1 D28/gpio2 D29 with sense D25. Main/Pyro 2 is gpio1 D38/gpio2 D35 with sense D41; confirm continuity before enabling main pyro output. |
 | Battery voltage divider | Analog input | HAL and sensor task present. Publishes `TelemetryState.power.batteryMv` and FAST `batt_mv`; invalid/stale samples downlink as `0`. D22 uses a 10-bit, 3.3 V ADC and a divider ratio of 5.545. |
 

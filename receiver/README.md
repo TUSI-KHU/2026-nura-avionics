@@ -2,7 +2,7 @@
 
 Ground-side Teensy 4.1 receiver for authenticated NURA V2 Lite telemetry.
 
-Use the `sx1276_ground` environment for the 920.9 MHz SX1276 ground radio.
+Use the `sx1276_ground` environment for the 922.3 MHz SX1276 ground radio.
 The default `teensy41` environment remains the 433 MHz development setup.
 The SX1276 ground environment fixes the SPI bus to MODE0; automatic mode
 probing remains limited to the development environment.

@@ -62,4 +62,4 @@ Files:
 - `ublox_m6_gnss_test.ino`
 - `sx127x_lora_test.ino` - legacy RA-01/SX1278 433 MHz sketch; use
   `test/sx1276_breakout/` for the current SparkFun SPX-18572 1 W wiring and
-  920.9 MHz bench profile.
+  922.3 MHz bench profile.

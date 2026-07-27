@@ -14,7 +14,7 @@ constexpr uint8_t kTxe = 31U;
 constexpr uint8_t kDio0 = 32U;
 
 // Match these settings on the second radio used for the RF test.
-constexpr float kFrequencyMHz = 920.9F;
+constexpr float kFrequencyMHz = 922.3F;
 constexpr uint8_t kSpreadingFactor = 7U;
 constexpr uint8_t kCodingRate = 5U;
 constexpr uint8_t kSyncWord = 0x12U;
@@ -442,7 +442,7 @@ void setup()
 
     radio.setRfSwitchPins(kRxe, kTxe);
     radioReady = startReceive();
-    Serial.println("RF: 920.9 MHz BW125 SF7 CR4/5 sync=0x12 CRC on TX=2 dBm");
+    Serial.println("RF: 922.3 MHz BW125 SF7 CR4/5 sync=0x12 CRC on TX=2 dBm");
     printHelp();
 }
 

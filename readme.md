@@ -68,7 +68,7 @@ CONTROL: on demand, ACK has priority over telemetry
 ```
 
 Flight radio defaults currently target the SparkFun SX1276 1 W breakout at
-920.9 MHz. `NURA_DEV_SX1278` switches development builds toward the legacy
+922.3 MHz. `NURA_DEV_SX1278` switches development builds toward the legacy
 SX1278/Ra-01 433 MHz bench setup.
 
 ## Repository Layout

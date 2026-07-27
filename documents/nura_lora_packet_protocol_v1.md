@@ -4,7 +4,7 @@ Status: Draft for implementation
 Target vehicle: 2026 NURA avionics, sub-1 km class university rocket  
 Target radios: SparkFun LoRa 1W Breakout SPX-18572 (E19-915M30S/SX1276)
 on the flight and ground Teensy 4.1 test rigs, both using the same proprietary
-LoRa PHY profile at 920.9 MHz
+LoRa PHY profile at 922.3 MHz
 Target controller: Teensy 4.1  
 
 This document defines the authenticated NURA V2 Lite application-layer packet format carried inside a LoRa PHY packet. The filename is retained to avoid breaking existing repository links. V2 intentionally removes nonessential packet classes so the radio spends less time transmitting and more time available for uplink commands.
@@ -64,7 +64,7 @@ Recommended flight RF profile:
 
 | Parameter | Flight default | Notes |
 | --- | --- | --- |
-| Frequency | 920.9 MHz | Must be identical on both SX1276 breakouts. |
+| Frequency | 922.3 MHz | Must be identical on both SX1276 breakouts. |
 | Bandwidth | 125 kHz | Preferred for link margin and regional channel compatibility. |
 | Spreading factor | SF7 | Increase SF only after reducing traffic rate. |
 | Coding rate | CR 4/5 | Higher CR increases airtime. |
@@ -88,7 +88,7 @@ The module's RF power rail is 5 V; the Teensy control signals remain 3.3 V.
 radio initialization up to the configured limit (currently ten attempts) with
 the configured retry delay before declaring LoRa unavailable.
 
-The firmware's current `17 dBm` setting is the SX1276 core drive level; it is
+The firmware's current `2 dBm` setting is the SX1276 core drive level; it is
 not a promise of a measured 1 W EIRP. The external PA can draw roughly 630 mA
 in transmit, so antenna connection, 5 V rail margin, thermal behavior, and
 local EIRP/duty-cycle limits must be verified before enabling full-power tests.

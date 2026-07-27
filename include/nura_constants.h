@@ -164,9 +164,9 @@ constexpr uint8_t kStorageFailureBeeps = 4U;
 
 namespace LoRa
 {
-constexpr long kFlightFrequencyHz = 920900000L;
+constexpr long kFlightFrequencyHz = 922300000L;
 constexpr uint32_t kFlightSpiFrequencyHz = 250000UL;
-constexpr int kFlightTxPowerDbm = 17;
+constexpr int kFlightTxPowerDbm = 2;
 constexpr uint8_t kFlightInitAttempts = 10U;
 constexpr uint32_t kFlightInitRetryDelayMs = 250UL;
 constexpr uint32_t kFlightInitPreBeginSettleMs = 150UL;

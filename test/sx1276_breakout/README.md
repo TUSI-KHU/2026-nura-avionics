@@ -26,7 +26,7 @@ the exact breakout schematic before transmitting.
 The SparkFun/E19 module uses 5 V on its power input while its SPI/GPIO control
 signals are 3.3 V logic. Keep the antenna connected and current-limit the
 module rail during bring-up. The default RF profile is the repository
-ground-radio profile: 920.9 MHz,
+ground-radio profile: 922.3 MHz,
 BW 125 kHz, SF7, CR 4/5, sync word `0x12`, CRC enabled, explicit header, and
 2 dBm bench transmit power. Use a breakout and antenna matched to that band.
 

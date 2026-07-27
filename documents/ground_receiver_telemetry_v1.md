@@ -6,7 +6,7 @@ The ground-side Teensy receiver decodes authenticated NURA V2 Lite LoRa frames f
 
 The default receiver firmware is receive-only. It must not transmit recovery/control commands when connected to real avionics hardware.
 
-The ground SX1276 uses the flight link profile: 920.9 MHz, BW 125 kHz, SF7,
+The ground SX1276 uses the flight link profile: 922.3 MHz, BW 125 kHz, SF7,
 CR 4/5, preamble 8, sync word `0x12`, explicit header, and LoRa PHY CRC
 enabled. These settings must match the avionics SX1262 exactly.
 
