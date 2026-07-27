@@ -368,6 +368,12 @@ void TelemetryTask::handleCommand(const nura::ParsedFrame &frame, const nura::Co
         return;
     }
 
+    if (command.param1 != NuraConstants::Telemetry::kControlPairingMagic)
+    {
+        enqueueAck(command, nura::ACK_REJECTED, nura::RESULT_AUTH_FAILED, nura::REJECT_PROFILE_REJECTED);
+        return;
+    }
+
     if (wasRecentlyProcessed(command))
     {
         enqueueAck(command, nura::ACK_DUPLICATE, nura::RESULT_ALREADY_DONE, nura::REJECT_NONE);
@@ -432,7 +438,7 @@ void TelemetryTask::handleCommand(const nura::ParsedFrame &frame, const nura::Co
 
 void TelemetryTask::handleBenchResetCommand(const nura::ControlPayload &command, uint32_t nowMs)
 {
-    if (command.param0 != 0 || command.param1 != 0)
+    if (command.param0 != 0)
     {
         enqueueAck(command, nura::ACK_REJECTED, nura::RESULT_BAD_FORMAT, nura::REJECT_STATE_REJECTED);
         return;

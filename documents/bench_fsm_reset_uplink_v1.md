@@ -14,7 +14,8 @@ states.
 - Authenticated NURA V2 Lite CONTROL uplink frame.
 - `COMMAND_BENCH_RESET_FSM` command ID.
 - `command_seq` and `nonce` for duplicate detection.
-- `param0 == 0` and `param1 == 0`.
+- `param0 == 0`.
+- `param1 == 0x4E55`, the authenticated NURA pairing magic.
 - System time in milliseconds.
 
 ## Allowed States
@@ -48,7 +49,7 @@ bench-only build flag and authenticated command framing.
 ## Failure Modes Considered
 
 - Flight build receives reset command: rejected as not supported.
-- Malformed params: rejected as bad format.
+- Malformed params: rejected as bad format or profile rejected.
 - Duplicate command: handled by the existing recent-command cache.
 - Reset from recovery state: pyro outputs are forced off before state is reset.
 - Bench reset firmware accidentally used with pyro connected: the provided bench

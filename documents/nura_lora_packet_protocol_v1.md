@@ -479,6 +479,10 @@ ver_type, seq, subtype, command_id, command_seq,
 nonce, valid_until_ms, param0, param1
 ```
 
+Secure uplink profiles require CONTROL/CMD `param1` to carry the authenticated
+NURA pairing magic `0x4E55`. Commands with a different pairing value are
+rejected before dispatch.
+
 Excluded bytes:
 
 ```text

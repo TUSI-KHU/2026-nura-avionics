@@ -134,6 +134,7 @@ constexpr uint8_t kRecentCommandDepth = 4U;
 constexpr uint32_t kVehicleId = NURA_RADIO_VEHICLE_ID;
 constexpr uint8_t kControlAuthKey[16] = {
     NURA_RADIO_AUTH_KEY_BYTES};
+constexpr int16_t kControlPairingMagic = 0x4E55; // "NU", authenticated in CONTROL param1.
 constexpr bool kRadioIdentityProvisioned = NURA_RADIO_IDENTITY_PROVISIONED != 0;
 } // namespace Telemetry
 
