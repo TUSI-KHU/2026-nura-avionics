@@ -15,6 +15,7 @@ enum class FlightDecisionKind : uint8_t
     APOGEE_TIMER,
     BARO_FAULT_TILT,
     FORCE_DEPLOY,
+    BENCH_RESET,
     MAIN_DEPLOY,
     LANDING,
 };

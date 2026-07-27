@@ -8,13 +8,13 @@ bool MosfetPyroHAL::begin()
     initialized_ = false;
     faulted_ = false;
 
-#if defined(NURA_ENABLE_PYRO_OUTPUTS)
+#if defined(NURA_ENABLE_PYRO_OUTPUTS) && !defined(NURA_DISABLE_PYRO_OUTPUTS)
     outputsEnabled_ = true;
 #else
     outputsEnabled_ = false;
 #endif
 
-#if defined(NURA_ENABLE_PYRO_OUTPUTS) && !defined(NURA_ALLOW_PYRO_POWER_SENSE_PIN_CONFLICT)
+#if defined(NURA_ENABLE_PYRO_OUTPUTS) && !defined(NURA_DISABLE_PYRO_OUTPUTS) && !defined(NURA_ALLOW_PYRO_POWER_SENSE_PIN_CONFLICT)
     if (knownUnsafePinConflict())
     {
         faulted_ = true;

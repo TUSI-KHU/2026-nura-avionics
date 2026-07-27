@@ -236,16 +236,20 @@ bool TelemetryTask::receiveControl(uint32_t nowMs)
 
 void TelemetryTask::enqueueDeferredCommandAcks()
 {
-    if (!pendingForceDeployAckValid_ ||
-        !flightState_.forceRecoveryDeployExecuted ||
-        flightState_.forceRecoveryDeployExecutedSeq != pendingForceDeployAck_.commandSeq)
-    {
-        return;
-    }
-
-    if (enqueueAck(pendingForceDeployAck_, nura::ACK_EXECUTED, nura::RESULT_OK, nura::REJECT_NONE))
+    if (pendingForceDeployAckValid_ &&
+        flightState_.forceRecoveryDeployExecuted &&
+        flightState_.forceRecoveryDeployExecutedSeq == pendingForceDeployAck_.commandSeq &&
+        enqueueAck(pendingForceDeployAck_, nura::ACK_EXECUTED, nura::RESULT_OK, nura::REJECT_NONE))
     {
         pendingForceDeployAckValid_ = false;
+    }
+
+    if (pendingBenchResetAckValid_ &&
+        flightState_.benchResetExecuted &&
+        flightState_.benchResetExecutedSeq == pendingBenchResetAck_.commandSeq &&
+        enqueueAck(pendingBenchResetAck_, nura::ACK_EXECUTED, nura::RESULT_OK, nura::REJECT_NONE))
+    {
+        pendingBenchResetAckValid_ = false;
     }
 }
 
@@ -416,10 +420,37 @@ void TelemetryTask::handleCommand(const nura::ParsedFrame &frame, const nura::Co
         enqueueAck(command, nura::ACK_REJECTED, nura::RESULT_NOT_SUPPORTED, nura::REJECT_DEPRECATED_COMMAND);
         break;
 
+    case nura::COMMAND_BENCH_RESET_FSM:
+        handleBenchResetCommand(command, nowMs);
+        break;
+
     default:
         enqueueAck(command, nura::ACK_REJECTED, nura::RESULT_NOT_SUPPORTED, nura::REJECT_UNKNOWN_COMMAND);
         break;
     }
+}
+
+void TelemetryTask::handleBenchResetCommand(const nura::ControlPayload &command, uint32_t nowMs)
+{
+    if (command.param0 != 0 || command.param1 != 0)
+    {
+        enqueueAck(command, nura::ACK_REJECTED, nura::RESULT_BAD_FORMAT, nura::REJECT_STATE_REJECTED);
+        return;
+    }
+
+#if defined(NURA_ENABLE_BENCH_FSM_RESET_UPLINK)
+    flightState_.benchResetRequested = true;
+    flightState_.benchResetRequestSeq = command.commandSeq;
+    flightState_.benchResetExecuted = false;
+    pendingBenchResetAck_ = command;
+    pendingBenchResetAckValid_ = true;
+    enqueueAck(command, nura::ACK_ACCEPTED, nura::RESULT_OK, nura::REJECT_NONE);
+    rememberCommand(command);
+    LOGW(logger_, nowMs, "telemetry", "bench reset requested");
+#else
+    rememberCommand(command);
+    enqueueAck(command, nura::ACK_REJECTED, nura::RESULT_NOT_SUPPORTED, nura::REJECT_STATE_REJECTED);
+#endif
 }
 
 bool TelemetryTask::enqueueAck(const nura::ControlPayload &command,

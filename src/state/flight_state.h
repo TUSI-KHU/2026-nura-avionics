@@ -18,4 +18,8 @@ struct FlightState
     uint16_t forceRecoveryDeployRequestSeq = 0;
     bool forceRecoveryDeployExecuted = false;
     uint16_t forceRecoveryDeployExecutedSeq = 0;
+    bool benchResetRequested = false;
+    uint16_t benchResetRequestSeq = 0;
+    bool benchResetExecuted = false;
+    uint16_t benchResetExecutedSeq = 0;
 };
