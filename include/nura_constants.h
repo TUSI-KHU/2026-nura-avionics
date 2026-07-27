@@ -176,7 +176,11 @@ constexpr uint8_t kFlightSpiMode = 0x00U; // Teensy SPI_MODE0.
 constexpr bool kFlightProbeSpiMode = false;
 constexpr float kFlightTcxoVoltage = 0.0f; // 0 V assumes an XTAL, not a DIO3-controlled TCXO.
 constexpr bool kFlightUseRegulatorLdo = false;
+#if defined(NURA_BENCH_ENABLE_UPLINK)
+constexpr bool kFlightDownlinkOnly = false;
+#else
 constexpr bool kFlightDownlinkOnly = true; // RX/uplink validation is a later stability phase.
+#endif
 
 constexpr int kSpreadingFactor = 7;
 constexpr long kSignalBandwidthHz = 125000L;
@@ -192,7 +196,11 @@ namespace Flight
 {
 // Pyro GPIO outputs are assigned in BoardPinMap. Continuity policy is still a
 // later hardware-validation item.
+#if defined(NURA_DISABLE_PYRO_OUTPUTS)
+constexpr bool kPyroOutputImplemented = false;
+#else
 constexpr bool kPyroOutputImplemented = true;
+#endif
 constexpr uint32_t kAccelFallbackMaxSampleAgeMs = 50UL;
 
 constexpr float kLaunchAccelThresholdG = 2.0f;

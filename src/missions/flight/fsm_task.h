@@ -90,6 +90,7 @@ private:
     void tickDeploy(uint32_t nowMs);
     bool tickBenchAutoFlow(uint32_t nowMs);
     void transitionTo(State next, uint32_t nowMs);
+    bool consumeBenchResetRequest(uint32_t nowMs);
     bool initializePyroOutput(uint32_t nowMs);
     void initializeBuzzerOutput(uint32_t nowMs);
     void signalBuzzerTransition(State previous, State next, uint32_t nowMs);

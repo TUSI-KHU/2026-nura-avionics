@@ -60,6 +60,11 @@ bool FlightStateMachineTask::tick(uint32_t nowMs)
         return true;
     }
 
+    if (consumeBenchResetRequest(nowMs))
+    {
+        return true;
+    }
+
     if (consumeForceRecoveryDeployRequest(nowMs))
     {
         return true;
@@ -513,6 +518,53 @@ void FlightStateMachineTask::transitionTo(State next, uint32_t nowMs)
     flightState_.stateEnteredMs = nowMs;
     onEnter(next, nowMs);
     signalBuzzerTransition(previous, next, nowMs);
+}
+
+bool FlightStateMachineTask::consumeBenchResetRequest(uint32_t nowMs)
+{
+    if (!flightState_.benchResetRequested)
+    {
+        return false;
+    }
+
+    const uint16_t requestSeq = flightState_.benchResetRequestSeq;
+    flightState_.benchResetRequested = false;
+
+#if defined(NURA_ENABLE_BENCH_FSM_RESET_UPLINK)
+    pyroAllOff(nowMs);
+    flightState_ = FlightState{};
+    flightState_.state = State::INIT;
+    flightState_.stateEnteredMs = nowMs;
+    flightState_.benchResetExecuted = true;
+    flightState_.benchResetExecutedSeq = requestSeq;
+    resetFlightScratch();
+    flightTrace_.clear();
+    recordDecision(FlightDecisionKind::BENCH_RESET,
+                   FlightDecisionResult::ACCEPT,
+                   DECISION_REASON_FORCED,
+                   nowMs,
+                   static_cast<float>(requestSeq),
+                   0.0f,
+                   0.0f,
+                   0.0f,
+                   0U,
+                   0U);
+    LOGW(logger_, nowMs, "fsm", "bench reset");
+    return true;
+#else
+    recordDecision(FlightDecisionKind::BENCH_RESET,
+                   FlightDecisionResult::REJECT,
+                   DECISION_REASON_FORCED,
+                   nowMs,
+                   static_cast<float>(requestSeq),
+                   0.0f,
+                   0.0f,
+                   0.0f,
+                   0U,
+                   0U);
+    LOGW(logger_, nowMs, "fsm", "bench reset disabled");
+    return false;
+#endif
 }
 
 bool FlightStateMachineTask::initializePyroOutput(uint32_t nowMs)

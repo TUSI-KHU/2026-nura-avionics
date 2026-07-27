@@ -79,6 +79,7 @@ private:
     bool forceDeployAlreadyActive() const;
     bool forceDeployRequestAllowed() const;
     uint8_t forceDeployRejectResult() const;
+    void handleBenchResetCommand(const nura::ControlPayload &command, uint32_t nowMs);
     nura::FastTelemetry buildFastTelemetry(uint32_t nowMs) const;
     nura::GpsTelemetry buildGpsTelemetry(uint32_t nowMs) const;
     uint16_t buildStatusWord(uint32_t nowMs) const;
@@ -96,6 +97,7 @@ private:
     AckQueue ackQueue_;
     RecentCommand recentCommands_[NuraConstants::Telemetry::kRecentCommandDepth];
     nura::ControlPayload pendingForceDeployAck_;
+    nura::ControlPayload pendingBenchResetAck_;
     uint8_t recentCommandWriteIndex_ = 0U;
     uint16_t downlinkSeq_ = 0U;
     uint32_t lastFastTxMs_ = 0UL;
@@ -104,4 +106,5 @@ private:
     bool sentFast_ = false;
     bool sentGps_ = false;
     bool pendingForceDeployAckValid_ = false;
+    bool pendingBenchResetAckValid_ = false;
 };
