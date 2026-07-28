@@ -203,11 +203,11 @@ constexpr bool kPyroOutputImplemented = true;
 #endif
 constexpr uint32_t kAccelFallbackMaxSampleAgeMs = 50UL;
 
-constexpr float kLaunchAccelThresholdG = 2.0f;
-constexpr uint8_t kLaunchConfirmSamples = 4U;
+constexpr float kLaunchAccelThresholdG = 3.5f;
+constexpr uint8_t kLaunchConfirmSamples = 5U;
 
-constexpr float kBurnoutAccelThresholdG = 1.0f;
-constexpr uint8_t kBurnoutConfirmSamples = 4U;
+constexpr float kBurnoutAccelThresholdG = 1.5f;
+constexpr uint8_t kBurnoutConfirmSamples = 10U;
 
 constexpr uint8_t kApogeeFitWindowSamples = 9U;
 constexpr uint8_t kApogeePredictionHistorySamples = 5U;
@@ -224,21 +224,23 @@ constexpr float kApogeeMaxPredictionSigmaM = 8.0f;
 constexpr float kApogeeAggregationSigmaMultiplier = 2.0f;
 constexpr uint32_t kApogeeMaxBarometerSampleGapMs = 150UL;
 constexpr float kMinApogeeDetectAltM = 30.0f;
-constexpr float kApogeeDropThresholdM = 4.0f;
-constexpr uint8_t kApogeeDescentConfirmSamples = 4U;
+constexpr float kApogeeDropThresholdM = 5.0f;
+constexpr uint8_t kApogeeDescentConfirmSamples = 3U;
 constexpr uint32_t kBaroFaultAttitudeFallbackMinFlightTimeMs = 8000UL;
 constexpr float kBaroFaultAttitudeFallbackTiltDeg = 70.0f;
 constexpr uint8_t kBaroFaultAttitudeFallbackConfirmSamples = 5U;
 constexpr uint32_t kBaroFaultAttitudeFallbackMaxSampleAgeMs = 150UL;
 
-constexpr uint32_t kApogeeTimeoutMs = 12000UL;
-constexpr uint32_t kMainTimeoutMs = 15000UL;
+constexpr uint32_t kApogeeTimeoutMs = 11000UL;
+constexpr uint32_t kMainTimeoutMs = 30000UL;
 
-constexpr uint32_t kPyroFireDurationMs = 1000UL;
+constexpr uint32_t kPyroFireDurationMs = 4000UL;
 constexpr uint32_t kDrogueBackupDelayMs = 2000UL;
-constexpr float kMainDeployAltitudeM = 200.0f;
-constexpr uint8_t kLandingStableWindowSamples = 20U;
-constexpr float kLandingStableAltitudeRangeM = 0.5f;
+constexpr uint32_t kDrogueMinTimeMs = 3000UL;
+constexpr float kMainDeployAltitudeM = 300.0f;
+constexpr uint8_t kMainDeployConfirmSamples = 3U;
+constexpr uint8_t kLandingStableWindowSamples = 50U;
+constexpr float kLandingStableAltitudeRangeM = 1.0f;
 constexpr uint32_t kLandingMaxBarometerSampleGapMs = 150UL;
 } // namespace Flight
 

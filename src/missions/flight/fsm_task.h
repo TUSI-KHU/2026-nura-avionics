@@ -155,6 +155,7 @@ private:
     uint8_t apogeeConfirmCount_ = 0U;
     uint8_t descentConfirmCount_ = 0U;
     uint8_t attitudeFallbackConfirmCount_ = 0U;
+    uint8_t mainDeployConfirmCount_ = 0U;
     uint32_t lastLaunchAccelSampleMs_ = 0U;
     uint32_t lastBurnoutAccelSampleMs_ = 0U;
     AccelSource lastLaunchAccelSource_ = AccelSource::NONE;

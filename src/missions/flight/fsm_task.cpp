@@ -420,19 +420,6 @@ void FlightStateMachineTask::tickApogee(uint32_t nowMs)
     {
         setDroguePyro(false, nowMs);
         primaryDrogueOff_ = true;
-    }
-
-    if (!backupDrogueOn_ && elapsedMs >= NuraConstants::Flight::kDrogueBackupDelayMs)
-    {
-        setDroguePyro(true, nowMs);
-        backupDrogueOn_ = true;
-    }
-
-    if (backupDrogueOn_ && !backupDrogueOff_ &&
-        elapsedMs >= (NuraConstants::Flight::kDrogueBackupDelayMs + NuraConstants::Flight::kPyroFireDurationMs))
-    {
-        setDroguePyro(false, nowMs);
-        backupDrogueOff_ = true;
         flightState_.drogueSequenceComplete = true;
         transitionTo(State::DROGUE, nowMs);
     }
@@ -441,8 +428,9 @@ void FlightStateMachineTask::tickApogee(uint32_t nowMs)
 void FlightStateMachineTask::tickDrogue(uint32_t nowMs)
 {
     const uint32_t drogueElapsedMs = nowMs - flightState_.drogueMs;
-    if (barometerPrimaryUsable(nowMs) &&
-        telemetryState_.barometer.lastUpdatedMs != lastBarometerSampleMs_)
+    const bool newBarometerSample = barometerPrimaryUsable(nowMs) &&
+                                    telemetryState_.barometer.lastUpdatedMs != lastBarometerSampleMs_;
+    if (newBarometerSample)
     {
         lastBarometerSampleMs_ = telemetryState_.barometer.lastUpdatedMs;
         trackBarometerStuck(telemetryState_.barometer.lastUpdatedMs,
@@ -450,8 +438,19 @@ void FlightStateMachineTask::tickDrogue(uint32_t nowMs)
                             nowMs);
     }
 
-    const bool mainAltitudeReached = barometerPrimaryUsable(nowMs) &&
-                                     telemetryState_.barometer.altitudeM <= NuraConstants::Flight::kMainDeployAltitudeM;
+    if (newBarometerSample &&
+        telemetryState_.barometer.altitudeM <= NuraConstants::Flight::kMainDeployAltitudeM)
+    {
+        ++mainDeployConfirmCount_;
+    }
+    else if (newBarometerSample)
+    {
+        mainDeployConfirmCount_ = 0U;
+    }
+
+    const bool mainMinTimeReached = drogueElapsedMs >= NuraConstants::Flight::kDrogueMinTimeMs;
+    const bool mainAltitudeReached = mainMinTimeReached &&
+                                     mainDeployConfirmCount_ >= NuraConstants::Flight::kMainDeployConfirmSamples;
     const bool mainTimerReached = drogueElapsedMs >= NuraConstants::Flight::kMainTimeoutMs;
     recordDecision(FlightDecisionKind::MAIN_DEPLOY,
                    (mainAltitudeReached || mainTimerReached) ? FlightDecisionResult::ACCEPT : FlightDecisionResult::OBSERVE,
@@ -461,7 +460,7 @@ void FlightStateMachineTask::tickDrogue(uint32_t nowMs)
                    NuraConstants::Flight::kMainDeployAltitudeM,
                    static_cast<float>(drogueElapsedMs),
                    static_cast<float>(NuraConstants::Flight::kMainTimeoutMs),
-                   0U,
+                   mainDeployConfirmCount_,
                    0U);
     if (mainAltitudeReached || mainTimerReached)
     {
@@ -885,6 +884,7 @@ void FlightStateMachineTask::onEnter(State next, uint32_t nowMs)
         break;
     case State::DROGUE:
         flightState_.drogueMs = nowMs;
+        mainDeployConfirmCount_ = 0U;
         resetBarometerStuckScratch();
         break;
     case State::DEPLOY:
@@ -911,6 +911,7 @@ void FlightStateMachineTask::resetFlightScratch()
     lastBurnoutAccelSampleMs_ = 0U;
     lastLaunchAccelSource_ = AccelSource::NONE;
     lastBurnoutAccelSource_ = AccelSource::NONE;
+    mainDeployConfirmCount_ = 0U;
     primaryDrogueOff_ = false;
     backupDrogueOn_ = false;
     backupDrogueOff_ = false;
