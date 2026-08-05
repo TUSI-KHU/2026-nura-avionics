@@ -5,6 +5,8 @@
 #include <Arduino.h>
 #include <TinyGPS++.h>
 
+#include "nura_constants.h"
+
 struct UbloxM6GnssReading
 {
     bool hasFix = false;
@@ -45,4 +47,5 @@ private:
     Stream *stream_ = nullptr;
     TinyGPSPlus gps_;
     uint32_t maxFixAgeMs_ = 2000UL;
+    uint8_t rxBuffer_[NuraConstants::Sensors::kGnssSerialRxBufferBytes] = {0U};
 };

@@ -66,7 +66,8 @@ constexpr float kAttitudeAccelCorrectionMaxNormG = 1.3f;
 constexpr float kAttitudeAccelCorrectionGain = 0.8f;
 constexpr uint32_t kAttitudeMaxDeltaMs = 100UL;
 constexpr uint32_t kGnssTaskPeriodMs = 50UL;
-constexpr uint16_t kGnssPollByteBudget = 128U;
+constexpr uint16_t kGnssPollByteBudget = 256U;
+constexpr uint16_t kGnssSerialRxBufferBytes = 1024U;
 constexpr uint32_t kGnssMaxFixAgeMs = 2000UL;
 constexpr uint32_t kLowGSampleLogIntervalMs = 1000UL;
 constexpr uint32_t kHighGSampleLogIntervalMs = 1000UL;
@@ -166,7 +167,7 @@ namespace LoRa
 {
 constexpr long kFlightFrequencyHz = 922300000L;
 constexpr uint32_t kFlightSpiFrequencyHz = 250000UL;
-constexpr int kFlightTxPowerDbm = 2;
+constexpr int kFlightTxPowerDbm = 10;
 constexpr uint8_t kFlightInitAttempts = 10U;
 constexpr uint32_t kFlightInitRetryDelayMs = 250UL;
 constexpr uint32_t kFlightInitPreBeginSettleMs = 150UL;
@@ -203,7 +204,7 @@ constexpr bool kPyroOutputImplemented = true;
 #endif
 constexpr uint32_t kAccelFallbackMaxSampleAgeMs = 50UL;
 
-constexpr float kLaunchAccelThresholdG = 3.5f;
+constexpr float kLaunchAccelThresholdG = 2.0f;
 constexpr uint8_t kLaunchConfirmSamples = 5U;
 
 constexpr float kBurnoutAccelThresholdG = 1.5f;

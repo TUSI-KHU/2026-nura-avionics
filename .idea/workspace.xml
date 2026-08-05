@@ -21,10 +21,11 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="update">
+    <list default="true" id="e3a7e141-3ff8-4808-b9bf-9797c33ef8a5" name="Changes" comment="HWE 문제 해결완">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include/nura_constants.h" beforeDir="false" afterPath="$PROJECT_DIR$/include/nura_constants.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pcb/.history" beforeDir="false" afterPath="$PROJECT_DIR$/pcb/.history" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pcb/avionics_final_260706.kicad_prl" beforeDir="false" afterPath="$PROJECT_DIR$/pcb/avionics_final_260706.kicad_prl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pcb/avionics_final_260706.kicad_pro" beforeDir="false" afterPath="$PROJECT_DIR$/pcb/avionics_final_260706.kicad_pro" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pcb/~avionics_final_260706.kicad_pcb.lck" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/pcb_old_version/.history" beforeDir="false" afterPath="$PROJECT_DIR$/pcb_old_version/.history" afterDir="false" />
     </list>
@@ -548,7 +549,6 @@
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="port on teensy4.1" />
     <MESSAGE value="add sensor calibration logic on hal &amp;&amp;&#10;calibration demand on sensors.md" />
     <MESSAGE value="add uniform sensor test (not included proj. target)" />
     <MESSAGE value="lora unit test complete. &#10;(근데 사실 패킷구조 정의 이런건 하나도 안함... ㅎㅎ)&#10;그냥 잘 돌아가는데까지 어마무시한 시간이 걸렸습니다.&#10;이제 전압 플로팅같은건 없이 안정화는 되었으니깐, 패킷구조 정의할거구요, 나머지 로직도 짤거에요.&#10;참고로 그냥 LORA.h 기본파일 쓰면 안되고 mode bit 수정해야 잘되네요?? 하하 샤갈" />
@@ -573,6 +573,7 @@
     <MESSAGE value="레거시 hal제거, 파이로2번 간섭으로 임시 비활성화,pcb업로" />
     <MESSAGE value="시험발사용 프로젝트 fork 추가" />
     <MESSAGE value="update" />
-    <option name="LAST_COMMIT_MESSAGE" value="update" />
+    <MESSAGE value="HWE 문제 해결완" />
+    <option name="LAST_COMMIT_MESSAGE" value="HWE 문제 해결완" />
   </component>
 </project>

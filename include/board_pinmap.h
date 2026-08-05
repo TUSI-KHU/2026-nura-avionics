@@ -137,7 +137,7 @@ struct UbloxM6 final
 
     static constexpr uint8_t rxPin = 15U;
     static constexpr uint8_t txPin = 14U;
-    static constexpr uint32_t baud = 9600UL;
+    static constexpr uint32_t baud = 38400UL;
 };
 
 struct MicroSD final

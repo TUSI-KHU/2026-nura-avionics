@@ -4,6 +4,9 @@ bool UbloxM6GNSSHAL::begin(HardwareSerial &serial,
                            uint32_t baudRate,
                            uint32_t maxFixAgeMs)
 {
+#if defined(ARDUINO_TEENSY41)
+    static_cast<HardwareSerialIMXRT &>(serial).addMemoryForRead(rxBuffer_, sizeof(rxBuffer_));
+#endif
     serial.begin(baudRate);
     return attach(serial, maxFixAgeMs);
 }

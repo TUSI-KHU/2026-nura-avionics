@@ -22,10 +22,21 @@ const char *GNSSTask::name() const
 bool GNSSTask::init()
 {
     gpsState_.data = GpsData{};
+    lastStatusLogMs_ = 0U;
+    lastLoggedCharsProcessed_ = 0U;
     for (uint8_t attempt = 0U; attempt < NuraConstants::Sensors::kSensorInitRetryAttempts; ++attempt)
     {
         if (gnss_.begin(serial_, baudRate_, config_.gnssMaxFixAgeMs()))
         {
+            if (Serial)
+            {
+                Serial.print("[0] gps uart initialized baud=");
+                Serial.print(baudRate_);
+                Serial.print(" rx=");
+                Serial.print(BoardPinMap::UbloxM6::rxPin);
+                Serial.print(" tx=");
+                Serial.println(BoardPinMap::UbloxM6::txPin);
+            }
             return true;
         }
         if ((attempt + 1U) < NuraConstants::Sensors::kSensorInitRetryAttempts)
@@ -45,6 +56,8 @@ bool GNSSTask::tick(uint32_t nowMs)
     {
         updateState(sample);
     }
+
+    logStatus(sample, nowMs);
 
     return true;
 }
@@ -69,4 +82,68 @@ void GNSSTask::updateState(const UbloxM6GnssReading &sample)
     gpsState_.data.passedChecksum = sample.passedChecksum;
     gpsState_.data.failedChecksum = sample.failedChecksum;
     gpsState_.data.lastUpdatedMs = sample.sampleMs;
+}
+
+void GNSSTask::logStatus(const UbloxM6GnssReading &sample, uint32_t nowMs)
+{
+    if ((nowMs - lastStatusLogMs_) < NuraConstants::Diagnostics::kGnssPrintPeriodMs)
+    {
+        return;
+    }
+
+    const bool receivedSinceLastLog = sample.charsProcessed > lastLoggedCharsProcessed_;
+    lastStatusLogMs_ = nowMs;
+    lastLoggedCharsProcessed_ = sample.charsProcessed;
+
+    if (!Serial)
+    {
+        return;
+    }
+
+    const char *status = "UART_SILENT";
+    if (sample.charsProcessed > 0U && !receivedSinceLastLog)
+    {
+        status = "UART_STALLED";
+    }
+    else if (sample.charsProcessed > 0U && sample.passedChecksum == 0U)
+    {
+        status = "BYTES_NO_VALID_NMEA";
+    }
+    else if (sample.hasFix)
+    {
+        status = "FIX";
+    }
+    else if (sample.passedChecksum > 0U)
+    {
+        status = "NMEA_OK_NO_FIX";
+    }
+
+    Serial.print("[");
+    Serial.print(nowMs);
+    Serial.print("] gps status=");
+    Serial.print(status);
+    Serial.print(" chars=");
+    Serial.print(sample.charsProcessed);
+    Serial.print(" nmea_ok=");
+    Serial.print(sample.passedChecksum);
+    Serial.print(" nmea_bad=");
+    Serial.print(sample.failedChecksum);
+    Serial.print(" fix=");
+    Serial.print(sample.hasFix ? "true" : "false");
+    Serial.print(" sats=");
+    Serial.print(sample.satellites);
+
+    if (sample.hasFix)
+    {
+        Serial.print(" age_ms=");
+        Serial.print(sample.locationAgeMs);
+        Serial.print(" lat=");
+        Serial.print(sample.latitudeDeg, 7);
+        Serial.print(" lon=");
+        Serial.print(sample.longitudeDeg, 7);
+        Serial.print(" alt_m=");
+        Serial.print(sample.altitudeM, 1);
+    }
+
+    Serial.println();
 }

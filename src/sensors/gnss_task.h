@@ -23,10 +23,13 @@ public:
 
 private:
     void updateState(const UbloxM6GnssReading &sample);
+    void logStatus(const UbloxM6GnssReading &sample, uint32_t nowMs);
 
     IGnss &gnss_;
     GpsState &gpsState_;
     const IAppConfig &config_;
     HardwareSerial &serial_;
     uint32_t baudRate_;
+    uint32_t lastStatusLogMs_ = 0U;
+    uint32_t lastLoggedCharsProcessed_ = 0U;
 };
