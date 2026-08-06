@@ -3,9 +3,9 @@
 Status: Bench-only test feature
 Target: GCS integration and state-machine bench testing
 
-## Purpose
+## Purpose:
 
-Allow the GCS reset control to request a bench-only reset of the avionics flight
+Allow the GCS resest control to request a bench-only reset of the avionics flight
 state machine after a desktop or benchtop test has driven the FSM into recovery
 states.
 
