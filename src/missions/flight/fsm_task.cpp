@@ -1,6 +1,9 @@
 #include "fsm_task.h"
 
+#include <Arduino.h>
 #include <math.h>
+
+#include "board_pinmap.h"
 
 FlightStateMachineTask::FlightStateMachineTask(FlightState &flightState,
                                                AbortState &abortState,
@@ -74,6 +77,13 @@ bool FlightStateMachineTask::tick(uint32_t nowMs)
     {
         return true;
     }
+
+#if defined(NURA_BENCH_SERIAL_COMMANDS)
+    if (tickBenchSerialFlow(nowMs))
+    {
+        return true;
+    }
+#endif
 
     switch (flightState_.state)
     {
@@ -206,6 +216,108 @@ bool FlightStateMachineTask::tickBenchAutoFlow(uint32_t nowMs)
 
     return false;
 }
+
+#if defined(NURA_BENCH_SERIAL_COMMANDS)
+bool FlightStateMachineTask::tickBenchSerialFlow(uint32_t nowMs)
+{
+    while (Serial.available() > 0)
+    {
+        const char ch = static_cast<char>(Serial.read());
+        if (ch == '\n' || ch == '\r')
+        {
+            if (benchLineLen_ == 1U)
+            {
+                if (benchLine_[0] == 's' || benchLine_[0] == 'S')
+                {
+                    transitionToBenchNext(nowMs);
+                }
+                else if (benchLine_[0] == 'a' || benchLine_[0] == 'A')
+                {
+                    benchAccelNormG_ += 0.5f;
+                    if (benchAccelNormG_ > 8.0f)
+                    {
+                        benchAccelNormG_ = 0.0f;
+                    }
+                    benchAccelSampleMs_ = nowMs;
+                    LOGW(logger_, nowMs, "bench", "fake accel up");
+                }
+                else if (benchLine_[0] == 'z' || benchLine_[0] == 'Z')
+                {
+                    benchAccelNormG_ -= 0.5f;
+                    if (benchAccelNormG_ < 0.0f)
+                    {
+                        benchAccelNormG_ = 0.0f;
+                    }
+                    benchAccelSampleMs_ = nowMs;
+                    LOGW(logger_, nowMs, "bench", "fake accel down");
+                }
+                else if (benchLine_[0] == 'h' || benchLine_[0] == 'H')
+                {
+                    LOGW(logger_, nowMs, "bench", "s=step a=accel+ z=accel-");
+                }
+            }
+            benchLineLen_ = 0U;
+            benchLine_[0] = '\0';
+        }
+        else if (benchLineLen_ < (sizeof(benchLine_) - 1U))
+        {
+            benchLine_[benchLineLen_++] = ch;
+            benchLine_[benchLineLen_] = '\0';
+        }
+    }
+    return false;
+}
+
+void FlightStateMachineTask::transitionToBenchNext(uint32_t nowMs)
+{
+    State next = flightState_.state;
+    switch (flightState_.state)
+    {
+    case State::SAFE:
+        next = State::ARMED;
+        break;
+    case State::ARMED:
+        next = State::LAUNCH;
+        break;
+    case State::LAUNCH:
+        next = State::COAST;
+        break;
+    case State::COAST:
+        next = State::APOGEE;
+        break;
+    case State::APOGEE:
+        next = State::DROGUE;
+        break;
+    case State::DROGUE:
+        next = State::DEPLOY;
+        break;
+    case State::DEPLOY:
+        next = State::GROUND;
+        break;
+    default:
+        break;
+    }
+
+    if (next == flightState_.state)
+    {
+        return;
+    }
+
+    if (next == State::LAUNCH)
+    {
+        benchAccelNormG_ = 3.0f;
+        benchAccelSampleMs_ = nowMs;
+    }
+    else if (next == State::COAST)
+    {
+        benchAccelNormG_ = 1.0f;
+        benchAccelSampleMs_ = nowMs;
+    }
+
+    LOGW(logger_, nowMs, "bench", "step fsm");
+    transitionTo(next, nowMs);
+}
+#endif
 
 uint32_t FlightStateMachineTask::periodMs() const
 {
@@ -947,6 +1059,21 @@ bool FlightStateMachineTask::consumeFlightAccelSample(uint32_t nowMs,
                                                       AccelSource &lastSeenSource,
                                                       AccelSample &sample) const
 {
+#if defined(NURA_BENCH_SERIAL_COMMANDS)
+    benchAccelSampleMs_ = nowMs;
+    AccelSample bench;
+    bench.source = AccelSource::HIGH_G;
+    bench.sampleMs = benchAccelSampleMs_;
+    bench.normG = benchAccelNormG_;
+    if (bench.source == lastSeenSource && bench.sampleMs == lastSeenMs)
+    {
+        return false;
+    }
+    lastSeenSource = bench.source;
+    lastSeenMs = bench.sampleMs;
+    sample = bench;
+    return true;
+#else
     AccelSample candidate;
     if (!lowGAccelSample(nowMs, candidate) && !highGAccelSample(nowMs, candidate))
     {
@@ -962,6 +1089,7 @@ bool FlightStateMachineTask::consumeFlightAccelSample(uint32_t nowMs,
     lastSeenMs = candidate.sampleMs;
     sample = candidate;
     return true;
+#endif
 }
 
 bool FlightStateMachineTask::highGAccelSample(uint32_t nowMs, AccelSample &sample) const

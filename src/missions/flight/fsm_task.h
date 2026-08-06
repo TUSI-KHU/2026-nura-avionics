@@ -89,6 +89,10 @@ private:
     void tickDrogue(uint32_t nowMs);
     void tickDeploy(uint32_t nowMs);
     bool tickBenchAutoFlow(uint32_t nowMs);
+#if defined(NURA_BENCH_SERIAL_COMMANDS)
+    bool tickBenchSerialFlow(uint32_t nowMs);
+    void transitionToBenchNext(uint32_t nowMs);
+#endif
     void transitionTo(State next, uint32_t nowMs);
     bool consumeBenchResetRequest(uint32_t nowMs);
     bool initializePyroOutput(uint32_t nowMs);
@@ -152,6 +156,12 @@ private:
 
     uint8_t launchConfirmCount_ = 0U;
     uint8_t burnoutConfirmCount_ = 0U;
+#if defined(NURA_BENCH_SERIAL_COMMANDS)
+    mutable float benchAccelNormG_ = 1.0f;
+    mutable uint32_t benchAccelSampleMs_ = 0U;
+    char benchLine_[16] = {0};
+    uint8_t benchLineLen_ = 0U;
+#endif
     uint8_t apogeeConfirmCount_ = 0U;
     uint8_t descentConfirmCount_ = 0U;
     uint8_t attitudeFallbackConfirmCount_ = 0U;
