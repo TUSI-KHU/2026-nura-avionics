@@ -16,8 +16,14 @@ uint8_t digit(char value)
 uint8_t compileMonth()
 {
     static constexpr char kMonths[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
-    const char *month = strstr(kMonths, __DATE__);
-    return month == nullptr ? 1U : static_cast<uint8_t>(((month - kMonths) / 3) + 1);
+    for (uint8_t month = 0U; month < 12U; ++month)
+    {
+        if (strncmp(__DATE__, kMonths + (month * 3U), 3U) == 0)
+        {
+            return static_cast<uint8_t>(month + 1U);
+        }
+    }
+    return 1U;
 }
 
 uint8_t compileDay()
@@ -59,6 +65,22 @@ void buildDateTime(uint16_t *date, uint16_t *time)
     {
         *time = FS_TIME(compileHour(), compileMinute(), compileSecond());
     }
+}
+
+void buildCompileTimeStem(char *stem, size_t length)
+{
+    if (stem == nullptr || length == 0U)
+    {
+        return;
+    }
+
+    snprintf(stem,
+             length,
+             "%02u%02u%02u%02u",
+             static_cast<unsigned int>(compileMonth()),
+             static_cast<unsigned int>(compileDay()),
+             static_cast<unsigned int>(compileHour()),
+             static_cast<unsigned int>(compileMinute()));
 }
 
 void traceSdFailure(const char *reason)
@@ -289,9 +311,24 @@ uint32_t SdFlightLogStorage::sessionId() const
 
 bool SdFlightLogStorage::openNextFile()
 {
+    char compileTimeStem[9] = {};
+    buildCompileTimeStem(compileTimeStem, sizeof(compileTimeStem));
+
     for (uint16_t index = 0U; index < 1000U; ++index)
     {
-        snprintf(path_, sizeof(path_), "%s/FL%03u.NLG", directory_, index);
+        if (index == 0U)
+        {
+            snprintf(path_, sizeof(path_), "%s/%s.NLG", directory_, compileTimeStem);
+        }
+        else
+        {
+            snprintf(path_,
+                     sizeof(path_),
+                     "%s/%s_%03u.NLG",
+                     directory_,
+                     compileTimeStem,
+                     static_cast<unsigned int>(index));
+        }
         if (SD.sdfs.exists(path_))
         {
             continue;

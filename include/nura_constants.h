@@ -177,11 +177,9 @@ constexpr uint8_t kFlightSpiMode = 0x00U; // Teensy SPI_MODE0.
 constexpr bool kFlightProbeSpiMode = false;
 constexpr float kFlightTcxoVoltage = 0.0f; // 0 V assumes an XTAL, not a DIO3-controlled TCXO.
 constexpr bool kFlightUseRegulatorLdo = false;
-#if defined(NURA_BENCH_ENABLE_UPLINK)
+// Production telemetry must return to RX so authenticated flight commands can
+// be received. Bench-only builds may still disable the entire radio task.
 constexpr bool kFlightDownlinkOnly = false;
-#else
-constexpr bool kFlightDownlinkOnly = true; // RX/uplink validation is a later stability phase.
-#endif
 
 constexpr int kSpreadingFactor = 7;
 constexpr long kSignalBandwidthHz = 125000L;
@@ -233,12 +231,13 @@ constexpr uint8_t kBaroFaultAttitudeFallbackConfirmSamples = 5U;
 constexpr uint32_t kBaroFaultAttitudeFallbackMaxSampleAgeMs = 150UL;
 
 constexpr uint32_t kApogeeTimeoutMs = 11000UL;
-constexpr uint32_t kMainTimeoutMs = 30000UL;
+// Team-verified degraded main-deploy delay; valid only with a latched barometer fault.
+constexpr uint32_t kMainBarometerFaultTimeoutMs = 6000UL;
 
 constexpr uint32_t kPyroFireDurationMs = 4000UL;
 constexpr uint32_t kDrogueBackupDelayMs = 2000UL;
-constexpr uint32_t kDrogueMinTimeMs = 3000UL;
-constexpr float kMainDeployAltitudeM = 300.0f;
+// Team-confirmed primary main-deploy threshold, in pad-relative meters AGL.
+constexpr float kMainDeployAltitudeM = 200.0f;
 constexpr uint8_t kMainDeployConfirmSamples = 3U;
 constexpr uint8_t kLandingStableWindowSamples = 50U;
 constexpr float kLandingStableAltitudeRangeM = 1.0f;

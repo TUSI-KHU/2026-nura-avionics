@@ -755,6 +755,105 @@ bool checkAbortToSafe()
     return pass("abort_to_safe");
 }
 
+bool checkProductionSafeWaitsForArm()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
+    fsm.init();
+    fsm.tick(0U);
+
+    for (uint32_t nowMs = kTickMs; nowMs <= 5000U; nowMs += kTickMs)
+    {
+        fsm.tick(nowMs);
+    }
+
+    if (flight.state != State::SAFE || flight.armExecuted)
+    {
+        return fail("safe_waits_for_arm", "production FSM armed without an uplink request");
+    }
+    return pass("safe_waits_for_arm");
+}
+
+bool checkArmRequestFromSafe()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    RecordingPyroOutput pyro;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic, &pyro);
+    fsm.init();
+    fsm.tick(0U);
+    const uint8_t allOffBeforeArm = pyro.allOffCount;
+
+    flight.armRequested = true;
+    flight.armRequestSeq = 0x3344U;
+    fsm.tick(kTickMs);
+
+    if (flight.state != State::ARMED ||
+        flight.armRequested ||
+        !flight.armExecuted ||
+        flight.armExecutedSeq != 0x3344U ||
+        flight.armRejected)
+    {
+        return fail("arm_request_safe", "FSM did not record exactly one SAFE -> ARMED execution");
+    }
+    if (pyro.drogueEnabled || pyro.mainEnabled ||
+        pyro.drogueOnCount != 0U || pyro.mainOnCount != 0U ||
+        pyro.allOffCount != allOffBeforeArm)
+    {
+        return fail("arm_request_safe", "ARM transition changed a pyro output");
+    }
+    return pass("arm_request_safe");
+}
+
+bool checkArmAbortRaceRejected()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    RecordingPyroOutput pyro;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic, &pyro);
+    fsm.init();
+    fsm.tick(0U);
+
+    flight.armRequested = true;
+    flight.armRequestSeq = 77U;
+    abort.status.active = true;
+    fsm.tick(kTickMs);
+
+    if (flight.state != State::SAFE ||
+        flight.armRequested ||
+        flight.armExecuted ||
+        !flight.armRejected ||
+        flight.armRejectedSeq != 77U)
+    {
+        return fail("arm_abort_race", "abort race did not cancel the queued ARM request");
+    }
+    if (pyro.drogueEnabled || pyro.mainEnabled ||
+        pyro.drogueOnCount != 0U || pyro.mainOnCount != 0U)
+    {
+        return fail("arm_abort_race", "rejected ARM request changed a pyro output");
+    }
+    return pass("arm_abort_race");
+}
+
 bool checkForceDeployFromCoast()
 {
     FakeConfig config;
@@ -966,7 +1065,10 @@ bool checkPyroOutputSequence()
         return fail("pyro_output_sequence", "drogue retry pulse did not complete");
     }
 
-    const uint32_t deployMs = drogueMs + NuraConstants::Flight::kMainTimeoutMs;
+    telemetry.barometer.fault = true;
+    telemetry.barometer.valid = false;
+    telemetry.barometer.faultFlags = BARO_FAULT_READ_FAIL;
+    const uint32_t deployMs = drogueMs + NuraConstants::Flight::kMainBarometerFaultTimeoutMs;
     fsm.tick(deployMs);
     if (flight.state != State::DEPLOY || !pyro.mainEnabled || pyro.mainOnCount != 1U)
     {
@@ -980,6 +1082,84 @@ bool checkPyroOutputSequence()
     }
 
     return pass("pyro_output_sequence");
+}
+
+bool checkMainDeployPolicy()
+{
+    FakeConfig config;
+    FakePanicHandler panic;
+    Logger logger;
+    FlightState flight;
+    AbortState abort;
+    ImuState imu;
+    HighGImuState highG;
+    TelemetryState telemetry;
+    FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
+    fsm.init();
+    fsm.tick(0U);
+
+    constexpr uint32_t kDrogueMs = 1000U;
+    flight.state = State::DROGUE;
+    flight.stateEnteredMs = kDrogueMs;
+    flight.drogueMs = kDrogueMs;
+    telemetry.barometer.valid = true;
+    telemetry.barometer.referenceValid = true;
+    telemetry.barometer.fault = false;
+    telemetry.barometer.altitudeM = NuraConstants::Flight::kMainDeployAltitudeM + 50.0f;
+    telemetry.barometer.lastUpdatedMs = kDrogueMs +
+                                        NuraConstants::Flight::kMainBarometerFaultTimeoutMs +
+                                        kBaroPeriodMs;
+    fsm.tick(telemetry.barometer.lastUpdatedMs);
+    if (flight.state != State::DROGUE)
+    {
+        return fail("main_deploy_policy", "healthy barometer incorrectly enabled timer deployment");
+    }
+
+    for (uint8_t sample = 0U; sample < NuraConstants::Flight::kMainDeployConfirmSamples; ++sample)
+    {
+        telemetry.barometer.altitudeM = NuraConstants::Flight::kMainDeployAltitudeM;
+        telemetry.barometer.lastUpdatedMs += kBaroPeriodMs;
+        fsm.tick(telemetry.barometer.lastUpdatedMs);
+    }
+    if (flight.state != State::DEPLOY)
+    {
+        return fail("main_deploy_policy", "200 m barometer threshold did not deploy main");
+    }
+
+    FlightState faultFlight;
+    AbortState faultAbort;
+    ImuState faultImu;
+    HighGImuState faultHighG;
+    TelemetryState faultTelemetry;
+    FlightStateMachineTask faultFsm(faultFlight,
+                                    faultAbort,
+                                    faultHighG,
+                                    faultImu,
+                                    faultTelemetry,
+                                    logger,
+                                    config,
+                                    panic);
+    faultFsm.init();
+    faultFsm.tick(0U);
+    faultFlight.state = State::DROGUE;
+    faultFlight.stateEnteredMs = kDrogueMs;
+    faultFlight.drogueMs = kDrogueMs;
+    faultTelemetry.barometer.fault = true;
+    faultTelemetry.barometer.faultFlags = BARO_FAULT_READ_FAIL;
+
+    faultFsm.tick(kDrogueMs + NuraConstants::Flight::kMainBarometerFaultTimeoutMs - 1U);
+    if (faultFlight.state != State::DROGUE)
+    {
+        return fail("main_deploy_policy", "barometer-fault timer deployed before six seconds");
+    }
+
+    faultFsm.tick(kDrogueMs + NuraConstants::Flight::kMainBarometerFaultTimeoutMs);
+    if (faultFlight.state != State::DEPLOY)
+    {
+        return fail("main_deploy_policy", "barometer-fault six-second fallback did not deploy main");
+    }
+
+    return pass("main_deploy_policy");
 }
 
 bool checkBuzzerStateTransitionPatterns()
@@ -1003,6 +1183,8 @@ bool checkBuzzerStateTransitionPatterns()
         return fail("buzzer_patterns", "INIT to SAFE did not start the first medium tone");
     }
 
+    flight.armRequested = true;
+    flight.armRequestSeq = 1U;
     fsm.tick(kTickMs);
     fsm.tick(NuraConstants::Buzzer::kInitSafeBeepMs);
     if (buzzer.currentFrequencyHz != 0U)
@@ -1107,6 +1289,8 @@ bool checkBenchAutoFlow()
     ImuState imu;
     HighGImuState highG;
     TelemetryState telemetry;
+    telemetry.barometer.fault = true;
+    telemetry.barometer.faultFlags = BARO_FAULT_READ_FAIL;
     FlightStateMachineTask fsm(flight, abort, highG, imu, telemetry, logger, config, panic);
     fsm.init();
 
@@ -1116,7 +1300,7 @@ bool checkBenchAutoFlow()
                            NuraConstants::Flight::kApogeeTimeoutMs +
                            NuraConstants::Flight::kDrogueBackupDelayMs +
                            NuraConstants::Flight::kPyroFireDurationMs +
-                           NuraConstants::Flight::kMainTimeoutMs +
+                           NuraConstants::Flight::kMainBarometerFaultTimeoutMs +
                            NuraConstants::BenchIntegration::kFsmAutoGroundDelayMs +
                            1000U;
 
@@ -1142,7 +1326,12 @@ int main()
 {
     bool ok = true;
 
-#if defined(NURA_BENCH_FSM_AUTOFLOW)
+#if defined(NURA_ARM_UPLINK_TEST_ONLY)
+    ok = checkProductionSafeWaitsForArm() && ok;
+    ok = checkArmRequestFromSafe() && ok;
+    ok = checkArmAbortRaceRejected() && ok;
+    return ok ? 0 : 1;
+#elif defined(NURA_BENCH_FSM_AUTOFLOW)
     ok = checkBenchAutoFlow() && ok;
     return ok ? 0 : 1;
 #else
@@ -1163,7 +1352,11 @@ int main()
     ok = checkLowGFallbackBurnout() && ok;
     ok = checkLowGPreferredOverHighG() && ok;
     ok = checkPyroOutputSequence() && ok;
+    ok = checkMainDeployPolicy() && ok;
     ok = checkBuzzerStateTransitionPatterns() && ok;
+    ok = checkProductionSafeWaitsForArm() && ok;
+    ok = checkArmRequestFromSafe() && ok;
+    ok = checkArmAbortRaceRejected() && ok;
     ok = checkAbortToSafe() && ok;
     ok = checkForceDeployFromCoast() && ok;
     ok = checkForceDeployRejectedOnPad() && ok;

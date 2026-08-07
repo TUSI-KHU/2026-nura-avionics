@@ -14,11 +14,17 @@ bool FlightControllerApp::setup(uint32_t nowMs)
     delay(NuraConstants::App::kBoardPowerSettleDelayMs);
     nowMs = millis();
 
-    // 필수 로깅 저장소는 외부 센서 버스 초기화보다 먼저 잡아둔다. 현재 PCB에서
-    // SDIO mount가 SPI/I2C 장치 bring-up 이후 간헐 실패하는 증상이 있어 순서를 고정한다.
-#if !defined(NURA_BENCH_DISABLE_FLIGHT_LOG_TASK)
+    // microSD는 필수 저장소다. 외부 센서 버스보다 먼저 mount하고, 카드가 없거나
+    // 파일 준비가 실패하면 다른 저장소의 상태와 관계없이 boot를 중단한다.
     (void)flightLogStorage_.begin();
-#endif
+    if (!sdLogStorage_.healthy())
+    {
+        nowMs = millis();
+        LOGE(logger_, nowMs, "flight_log", "required microSD unavailable");
+        flushBootLogs();
+        panicHandler_.panic("sd_card");
+        return false;
+    }
 
     pinMode(BoardPinMap::LSM6DSO32::csPin, OUTPUT);
     pinMode(BoardPinMap::H3LIS331DL::csPin, OUTPUT);

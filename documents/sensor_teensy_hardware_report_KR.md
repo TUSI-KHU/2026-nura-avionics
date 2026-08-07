@@ -259,7 +259,8 @@
 
 - `src/hal/sx127x_lora_hal.cpp`가 SPI1, RST, DIO0, RXE/TXE를 직접 제어한다.
 - 수신은 RXE=1/TXE=0, 송신은 RXE=0/TXE=1이며 패킷 완료 후 수신으로 돌아온다.
-- 현재 `downlinkOnly = true`가 기본이라 uplink 안정화는 후속 단계로 남아 있다.
+- 현재 production 기본값은 `downlinkOnly = false`이며, 송신 완료 후 RX로 복귀해
+  인증된 `ARM_FLIGHT` 업링크를 수신한다.
 
 ### 실무 주의사항
 

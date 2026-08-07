@@ -104,6 +104,7 @@ private:
     void pyroAllOff(uint32_t nowMs);
     void setDroguePyro(bool enabled, uint32_t nowMs);
     void setMainPyro(bool enabled, uint32_t nowMs);
+    bool consumeArmRequest(uint32_t nowMs);
     bool consumeForceRecoveryDeployRequest(uint32_t nowMs);
     bool forceRecoveryDeployAllowed() const;
     void recordDecision(FlightDecisionKind kind,

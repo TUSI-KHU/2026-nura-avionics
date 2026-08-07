@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include "board_pinmap.h"
+#include "missions/telemetry/arm_command_policy.h"
 #include "nura_constants.h"
 
 namespace
@@ -236,6 +237,25 @@ bool TelemetryTask::receiveControl(uint32_t nowMs)
 
 void TelemetryTask::enqueueDeferredCommandAcks()
 {
+    if (pendingArmAckValid_ &&
+        flightState_.armExecuted &&
+        flightState_.armExecutedSeq == pendingArmAck_.commandSeq &&
+        flightState_.state == State::ARMED &&
+        enqueueAck(pendingArmAck_, nura::ACK_EXECUTED, nura::RESULT_OK, nura::REJECT_NONE))
+    {
+        pendingArmAckValid_ = false;
+    }
+    else if (pendingArmAckValid_ &&
+             flightState_.armRejected &&
+             flightState_.armRejectedSeq == pendingArmAck_.commandSeq &&
+             enqueueAck(pendingArmAck_,
+                        nura::ACK_REJECTED,
+                        nura::RESULT_BAD_STATE,
+                        nura::REJECT_STATE_REJECTED))
+    {
+        pendingArmAckValid_ = false;
+    }
+
     if (pendingForceDeployAckValid_ &&
         flightState_.forceRecoveryDeployExecuted &&
         flightState_.forceRecoveryDeployExecutedSeq == pendingForceDeployAck_.commandSeq &&
@@ -376,6 +396,10 @@ void TelemetryTask::handleCommand(const nura::ParsedFrame &frame, const nura::Co
 
     switch (command.commandId)
     {
+    case nura::COMMAND_ARM_FLIGHT:
+        handleArmCommand(command, nowMs);
+        break;
+
     case nura::COMMAND_FORCE_DEPLOY_RECOVERY:
         if (!NuraConstants::Flight::kPyroOutputImplemented)
         {
@@ -428,6 +452,31 @@ void TelemetryTask::handleCommand(const nura::ParsedFrame &frame, const nura::Co
         enqueueAck(command, nura::ACK_REJECTED, nura::RESULT_NOT_SUPPORTED, nura::REJECT_UNKNOWN_COMMAND);
         break;
     }
+}
+
+void TelemetryTask::handleArmCommand(const nura::ControlPayload &command, uint32_t nowMs)
+{
+    (void)nowMs;
+    const bool transitionAckPending = pendingArmAckValid_ || pendingBenchResetAckValid_;
+    const ArmCommandValidation validation =
+        validateArmFlightCommand(command, flightState_, abortState_, transitionAckPending);
+    if (!validation.accepted())
+    {
+        enqueueAck(command, nura::ACK_REJECTED, validation.result, validation.reason);
+        return;
+    }
+
+    flightState_.armRequested = true;
+    flightState_.armRequestSeq = command.commandSeq;
+    flightState_.armExecuted = false;
+    flightState_.armExecutedSeq = 0U;
+    flightState_.armRejected = false;
+    flightState_.armRejectedSeq = 0U;
+    pendingArmAck_ = command;
+    pendingArmAckValid_ = true;
+    enqueueAck(command, nura::ACK_ACCEPTED, nura::RESULT_OK, nura::REJECT_NONE);
+    rememberCommand(command);
+    LOGW(logger_, nowMs, "telemetry", "arm command requested");
 }
 
 void TelemetryTask::handleBenchResetCommand(const nura::ControlPayload &command, uint32_t nowMs)

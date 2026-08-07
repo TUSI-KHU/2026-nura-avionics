@@ -31,6 +31,73 @@ bool expectRejected(const uint8_t *frame, size_t length, const char *caseName)
     }
     return true;
 }
+
+bool checkArmGoldenVector()
+{
+    static constexpr uint8_t kArmFrame[] = {
+        0xaa, 0x55, 0x23, 0x41, 0x52, 0x55, 0x4e, 0x34, 0x12, 0x01, 0x04,
+        0x44, 0x33, 0xd4, 0xc3, 0xb2, 0xa1, 0x31, 0xd4, 0x00, 0x00, 0x01,
+        0x00, 0x02, 0x00, 0xcf, 0x9d, 0x6d, 0x96, 0x41, 0xa0, 0x11, 0x0a,
+        0x13, 0xd5, 0x1b, 0x51, 0xd9, 0xde, 0x6e, 0xcd, 0xd2, 0x3d};
+    static_assert(sizeof(kArmFrame) == nura::kFrameOverhead + nura::kControlPayloadLen,
+                  "ARM golden frame length drifted");
+
+    nura::ParsedFrame parsed;
+    if (!nura::decodeFrame(kArmFrame,
+                           sizeof(kArmFrame),
+                           kVehicleId,
+                           nura::FrameDirection::UPLINK,
+                           kAuthKey,
+                           parsed))
+    {
+        fprintf(stderr, "ARM golden frame rejected\n");
+        return false;
+    }
+
+    nura::ControlPayload command;
+    if (!nura::decodeControlPayload(parsed.payload, parsed.payloadLen, command) ||
+        parsed.seq != 0x1234U ||
+        command.subtype != nura::CONTROL_CMD ||
+        command.commandId != nura::COMMAND_ARM_FLIGHT ||
+        command.commandSeq != 0x3344U ||
+        command.nonce != 0xA1B2C3D4UL ||
+        command.validUntilMs != 54321UL ||
+        command.param0 != nura::FLIGHT_SAFE ||
+        command.param1 != nura::FLIGHT_ARMED ||
+        !nura::verifyControlAuthTag(command, parsed.seq, kAuthKey))
+    {
+        fprintf(stderr, "ARM golden payload contract mismatch\n");
+        return false;
+    }
+
+    uint8_t encodedPayload[nura::kControlPayloadLen];
+    uint8_t encodedFrame[nura::kMaxFrameLen];
+    const size_t encodedLength = nura::encodeControlPayload(command, encodedPayload, sizeof(encodedPayload))
+                                     ? nura::encodeFrame(nura::MESSAGE_CONTROL,
+                                                         kVehicleId,
+                                                         parsed.seq,
+                                                         nura::FrameDirection::UPLINK,
+                                                         kAuthKey,
+                                                         encodedPayload,
+                                                         sizeof(encodedPayload),
+                                                         encodedFrame,
+                                                         sizeof(encodedFrame))
+                                     : 0U;
+    if (encodedLength != sizeof(kArmFrame) ||
+        memcmp(encodedFrame, kArmFrame, sizeof(kArmFrame)) != 0)
+    {
+        fprintf(stderr, "ARM golden frame did not round-trip byte-for-byte\n");
+        return false;
+    }
+
+    command.authOrAck[0] ^= 0x01U;
+    if (nura::verifyControlAuthTag(command, parsed.seq, kAuthKey))
+    {
+        fprintf(stderr, "ARM control auth tamper accepted\n");
+        return false;
+    }
+    return true;
+}
 } // namespace
 
 int main()
@@ -68,7 +135,7 @@ int main()
         return 1;
     }
 
-    bool ok = true;
+    bool ok = checkArmGoldenVector();
     ok = expectRejected(frame, frameLen - 1U, "truncated") && ok;
     frame[frameLen] = 0x00U;
     ok = expectRejected(frame, frameLen + 1U, "trailing byte") && ok;

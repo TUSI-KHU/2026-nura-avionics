@@ -518,7 +518,7 @@ Scope 대상:
 기대 결과:
 
 - SD가 안정적으로 초기화.
-- `/NURA_LOG/FLxxx.NLG` 생성.
+- `/NURA_LOG/MMDDhhmm.NLG` 생성(동일 컴파일 시각 파일이 있으면 `_001` suffix).
 - Parsed log에 BOOT, state event, FAST/SLOW frame 포함.
 
 ### 5. Program/QSPI flash logging

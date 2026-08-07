@@ -427,7 +427,8 @@ Use one byte for command ID in V1 Lite.
 | 0x01 | FORCE_DEPLOY_RECOVERY | Request recovery deployment through the safety-controlled recovery action path. |
 | 0x02 | ABORT_PROPULSION_DEPRECATED | Deprecated/no-op; must return NOT_SUPPORTED or DEPRECATED and must not actuate hardware. |
 | 0x03 | SET_TELEMETRY_PROFILE | Optional; change downlink rate/profile within allowed bounds. |
-| 0x04..0x7F | Reserved for NURA |
+| 0x04 | ARM_FLIGHT | Authenticated request for the FSM-owned `SAFE(1) -> ARMED(2)` transition. |
+| 0x05..0x7F | Reserved for NURA |
 | 0x80..0xFF | Experimental; must not be enabled in flight builds |
 
 ### 10.3 FORCE_DEPLOY_RECOVERY Parameters
@@ -460,7 +461,24 @@ Implementation prohibitions:
 - Do not use deprecated propulsion abort as an actuator command.
 - Do not keep flight authentication keys in public source files.
 
-### 10.4 Command Authentication
+### 10.4 ARM_FLIGHT Parameters
+
+`ARM_FLIGHT` reuses the existing CONTROL fields without changing the fixed
+payload length:
+
+| Field | Required value |
+| --- | --- |
+| `valid_until_ms` | Non-zero avionics boot-clock deadline; reject zero as BAD_FORMAT |
+| `param0` | `FLIGHT_SAFE(1)` |
+| `param1` | `FLIGHT_ARMED(2)` |
+
+The command is accepted only while the current state is exactly SAFE, abort is
+inactive, and no ARM/reset transition is pending. Telemetry queues a request;
+it must not assign ARMED directly. Send ACK/ACCEPTED after queueing and
+ACK/EXECUTED/OK only after the FSM has entered ARMED and completed its entry
+action. Exact retransmissions receive DUPLICATE and must not execute twice.
+
+### 10.5 Command Authentication
 
 Safety-critical CONTROL/CMD packets must use the 8-byte `auth_or_ack` field as a truncated authentication tag.
 
@@ -489,7 +507,7 @@ auth_or_ack itself
 
 GCS retransmits the exact same logical command with the same `command_seq`, `nonce`, and auth tag. A new nonce means a new logical command.
 
-### 10.5 ACK Encoding in auth_or_ack
+### 10.6 ACK Encoding in auth_or_ack
 
 For CONTROL/ACK, `auth_or_ack[0..7]` is:
 
@@ -543,6 +561,10 @@ Reject reasons:
 | 9 | PROFILE_REJECTED |
 
 For FORCE_DEPLOY_RECOVERY, avionics should send ACK/ACCEPTED quickly after validation and ACK/EXECUTED after the recovery action path reports completion. If only one ACK can be sent, ACK/EXECUTED is preferred after action completion.
+
+For ARM_FLIGHT, ACK/EXECUTED is valid only when `state_after` is
+`FLIGHT_ARMED(2)`. An ACCEPTED command that loses the final safety race to an
+active abort is canceled in SAFE and receives a deferred REJECTED/BAD_STATE.
 
 ## 11. Scheduling and Priorities
 

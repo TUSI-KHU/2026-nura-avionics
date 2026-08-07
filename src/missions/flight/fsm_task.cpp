@@ -1,9 +1,10 @@
 #include "fsm_task.h"
 
-#include <Arduino.h>
 #include <math.h>
 
-#include "board_pinmap.h"
+#if defined(NURA_BENCH_SERIAL_COMMANDS)
+#include <Arduino.h>
+#endif
 
 FlightStateMachineTask::FlightStateMachineTask(FlightState &flightState,
                                                AbortState &abortState,
@@ -68,6 +69,11 @@ bool FlightStateMachineTask::tick(uint32_t nowMs)
         return true;
     }
 
+    if (consumeArmRequest(nowMs))
+    {
+        return true;
+    }
+
     if (consumeForceRecoveryDeployRequest(nowMs))
     {
         return true;
@@ -91,10 +97,6 @@ bool FlightStateMachineTask::tick(uint32_t nowMs)
         transitionTo(State::SAFE, nowMs);
         break;
     case State::SAFE:
-        if (!abortState_.status.active)
-        {
-            transitionTo(State::ARMED, nowMs);
-        }
         break;
     case State::ARMED:
         tickArmed(nowMs);
@@ -550,31 +552,50 @@ void FlightStateMachineTask::tickDrogue(uint32_t nowMs)
                             nowMs);
     }
 
-    if (newBarometerSample &&
+    const bool acceptedBarometerSample = newBarometerSample &&
+                                         !telemetryState_.barometer.fault;
+    if (acceptedBarometerSample &&
         telemetryState_.barometer.altitudeM <= NuraConstants::Flight::kMainDeployAltitudeM)
     {
         ++mainDeployConfirmCount_;
     }
-    else if (newBarometerSample)
+    else if (newBarometerSample || telemetryState_.barometer.fault)
     {
         mainDeployConfirmCount_ = 0U;
     }
 
-    const bool mainMinTimeReached = drogueElapsedMs >= NuraConstants::Flight::kDrogueMinTimeMs;
-    const bool mainAltitudeReached = mainMinTimeReached &&
-                                     mainDeployConfirmCount_ >= NuraConstants::Flight::kMainDeployConfirmSamples;
-    const bool mainTimerReached = drogueElapsedMs >= NuraConstants::Flight::kMainTimeoutMs;
+    const bool mainAltitudeReached = mainDeployConfirmCount_ >=
+                                     NuraConstants::Flight::kMainDeployConfirmSamples;
+    const bool barometerFaultTimerReached = telemetryState_.barometer.fault &&
+                                            drogueElapsedMs >= NuraConstants::Flight::kMainBarometerFaultTimeoutMs;
+    uint16_t decisionReason = static_cast<uint16_t>(DECISION_REASON_PRIMARY_SENSOR |
+                                                    DECISION_REASON_THRESHOLD_NOT_MET);
+    if (mainAltitudeReached)
+    {
+        decisionReason = static_cast<uint16_t>(DECISION_REASON_PRIMARY_SENSOR |
+                                               DECISION_REASON_THRESHOLD_MET |
+                                               DECISION_REASON_CONFIRMATION_MET);
+    }
+    else if (telemetryState_.barometer.fault)
+    {
+        decisionReason = DECISION_REASON_SENSOR_FAULT;
+        if (barometerFaultTimerReached)
+        {
+            decisionReason = static_cast<uint16_t>(decisionReason | DECISION_REASON_TIMEOUT);
+        }
+    }
+
     recordDecision(FlightDecisionKind::MAIN_DEPLOY,
-                   (mainAltitudeReached || mainTimerReached) ? FlightDecisionResult::ACCEPT : FlightDecisionResult::OBSERVE,
-                   mainAltitudeReached ? DECISION_REASON_THRESHOLD_MET : (mainTimerReached ? DECISION_REASON_TIMEOUT : DECISION_REASON_THRESHOLD_NOT_MET),
+                   (mainAltitudeReached || barometerFaultTimerReached) ? FlightDecisionResult::ACCEPT : FlightDecisionResult::OBSERVE,
+                   decisionReason,
                    nowMs,
                    telemetryState_.barometer.altitudeM,
                    NuraConstants::Flight::kMainDeployAltitudeM,
                    static_cast<float>(drogueElapsedMs),
-                   static_cast<float>(NuraConstants::Flight::kMainTimeoutMs),
+                   static_cast<float>(NuraConstants::Flight::kMainBarometerFaultTimeoutMs),
                    mainDeployConfirmCount_,
-                   0U);
-    if (mainAltitudeReached || mainTimerReached)
+                   telemetryState_.barometer.fault ? 1U : 0U);
+    if (mainAltitudeReached || barometerFaultTimerReached)
     {
         transitionTo(State::DEPLOY, nowMs);
     }
@@ -884,6 +905,34 @@ void FlightStateMachineTask::setMainPyro(bool enabled, uint32_t nowMs)
 
     pyroOutput_->setMain(enabled);
     LOGI(logger_, nowMs, "pyro", enabled ? "main on" : "main off");
+}
+
+bool FlightStateMachineTask::consumeArmRequest(uint32_t nowMs)
+{
+    if (!flightState_.armRequested)
+    {
+        return false;
+    }
+
+    const uint16_t requestSeq = flightState_.armRequestSeq;
+    if (flightState_.state != State::SAFE || abortState_.status.active)
+    {
+        flightState_.armRequested = false;
+        flightState_.armExecuted = false;
+        flightState_.armRejected = true;
+        flightState_.armRejectedSeq = requestSeq;
+        LOGW(logger_, nowMs, "fsm", "arm request rejected");
+        return false;
+    }
+
+    transitionTo(State::ARMED, nowMs);
+    flightState_.armRequested = false;
+    flightState_.armExecuted = true;
+    flightState_.armExecutedSeq = requestSeq;
+    flightState_.armRejected = false;
+    flightState_.armRejectedSeq = 0U;
+    LOGW(logger_, nowMs, "fsm", "arm request executed");
+    return true;
 }
 
 bool FlightStateMachineTask::consumeForceRecoveryDeployRequest(uint32_t nowMs)

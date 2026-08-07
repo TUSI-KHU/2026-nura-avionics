@@ -14,6 +14,12 @@ struct FlightState
     uint32_t deployMs = 0;
     bool drogueSequenceComplete = false;
     bool mainSequenceComplete = false;
+    bool armRequested = false;
+    uint16_t armRequestSeq = 0;
+    bool armExecuted = false;
+    uint16_t armExecutedSeq = 0;
+    bool armRejected = false;
+    uint16_t armRejectedSeq = 0;
     bool forceRecoveryDeployRequested = false;
     uint16_t forceRecoveryDeployRequestSeq = 0;
     bool forceRecoveryDeployExecuted = false;

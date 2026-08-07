@@ -7,7 +7,7 @@ Target controller: Teensy 4.1
 Persistent storage:
 
 - Primary: Teensy 4.1 U3 W25Q128 QSPI NOR flash, 16 MiB raw journal
-- Mirror: built-in SDIO microSD, one 16 MiB preallocated file per boot
+- Required mirror: built-in SDIO microSD, one 16 MiB preallocated file per boot
 
 ## 1. Purpose and safety boundary
 
@@ -40,6 +40,11 @@ Blocking operations are permitted only before `Scheduler::init()`:
 - first QSPI sector erase and journal-header program when no journal exists
 
 Those operations can delay boot, but cannot delay a running flight task.
+
+microSD is a mandatory boot dependency. Failure to mount the card, create the
+log directory, create the session file, or preallocate it causes an init panic
+before sensor-task initialization. A healthy program-flash journal does not
+override a failed microSD check.
 
 ## 2. Logical record stream
 
@@ -179,9 +184,12 @@ DMA path waits for DMA completion inside the call, while FIFO mode permits one
 sector to be loaded into the SDHC FIFO and completed by the controller/card in
 the background.
 
-At init, `/NURA_LOG/FLxxx.NLG` is created and preallocated to 16 MiB. This avoids
-cluster allocation during flight. The allocation metadata is synchronized
-before the scheduler starts.
+At init, `/NURA_LOG/MMDDhhmm.NLG` is created from the firmware compilation
+timestamp and preallocated to 16 MiB. For example, a compilation at August 8,
+01:00 creates `/NURA_LOG/08080100.NLG`. If that exact name already exists, the
+logger preserves it and uses `/NURA_LOG/MMDDhhmm_001.NLG`, then increments the
+suffix as needed. This avoids overwriting a prior boot from the same firmware
+build. Cluster allocation metadata is synchronized before the scheduler starts.
 
 Preallocated FAT clusters can contain old bytes, and the file cannot be safely
 truncated or closed without a potentially blocking metadata sync. Therefore the
@@ -260,9 +268,10 @@ No unbounded drain loop, `File.flush()`, FAT truncate, FAT close, or LittleFS
 sync is executed from the GROUND transition.
 
 The boot composition root prewarms both stores before sensor bring-up because
-the current PCB has shown SDIO sensitivity to later bus initialization. The
-task checks the already-open storage first and never repeats preallocation or
-journal scanning during its own `init()`.
+the current PCB has shown SDIO sensitivity to later bus initialization. It
+explicitly checks the SD backend and enters the storage panic path when the SD
+session is not healthy. The task checks the already-open storage first and
+never repeats preallocation or journal scanning during its own `init()`.
 
 ## 8. Record classes
 

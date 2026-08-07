@@ -79,6 +79,7 @@ private:
     bool forceDeployAlreadyActive() const;
     bool forceDeployRequestAllowed() const;
     uint8_t forceDeployRejectResult() const;
+    void handleArmCommand(const nura::ControlPayload &command, uint32_t nowMs);
     void handleBenchResetCommand(const nura::ControlPayload &command, uint32_t nowMs);
     nura::FastTelemetry buildFastTelemetry(uint32_t nowMs) const;
     nura::GpsTelemetry buildGpsTelemetry(uint32_t nowMs) const;
@@ -96,6 +97,7 @@ private:
     const IAppConfig &config_;
     AckQueue ackQueue_;
     RecentCommand recentCommands_[NuraConstants::Telemetry::kRecentCommandDepth];
+    nura::ControlPayload pendingArmAck_;
     nura::ControlPayload pendingForceDeployAck_;
     nura::ControlPayload pendingBenchResetAck_;
     uint8_t recentCommandWriteIndex_ = 0U;
@@ -105,6 +107,7 @@ private:
     bool radioReady_ = false;
     bool sentFast_ = false;
     bool sentGps_ = false;
+    bool pendingArmAckValid_ = false;
     bool pendingForceDeployAckValid_ = false;
     bool pendingBenchResetAckValid_ = false;
 };

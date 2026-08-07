@@ -8,7 +8,7 @@ The default receiver firmware is receive-only. It must not transmit recovery/con
 
 The ground SX1276 uses the flight link profile: 922.3 MHz, BW 125 kHz, SF7,
 CR 4/5, preamble 8, sync word `0x12`, explicit header, and LoRa PHY CRC
-enabled. These settings must match the avionics SX1262 exactly.
+enabled. These settings must match the avionics SX1276 exactly.
 
 The current ground-module bench wiring uses `RXEN=D4` and `TXEN=D3`. The
 receive-only `sx1276_ground` build drives RXEN high and TXEN low before radio
@@ -18,11 +18,12 @@ uplink/transmit path drives the RF switch.
 
 A separate `pair_test` PlatformIO environment enables automatic CONTROL/CMD transmission for the two-board bench protocol test only.
 
-## Avionics SX1262 Stabilization Notes
+## Historical Avionics SX1262 Stabilization Notes
 
-The current avionics SX1262 integration phase is downlink-only. Uplink/RX is
-intentionally disabled in `Sx1262LoRaConfig::downlinkOnly` until TX init and
-scheduler timing are stable.
+This section records the retired SX1262 bring-up phase. Current production
+avionics uses the SX1276 path with `kFlightDownlinkOnly=false`; authenticated
+uplink RX is required for `ARM_FLIGHT`. Do not use the historical downlink-only
+setting below as the current flight configuration.
 
 The avionics SX1262 SPI clock is held at 250 kHz for bring-up margin. RadioLib
 owns the SX1262 version-string probe; the firmware no longer performs a manual

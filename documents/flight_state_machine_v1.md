@@ -20,6 +20,7 @@ Included in this version:
 - Real-time apogee prediction using a nine-sample quadratic fit.
 - Uplink forced recovery deployment as an FSM-owned request path.
 - Barometer sample rejection and first degraded barometer fault policy.
+- Main deployment at 200 m AGL with a barometer-fault-only six-second fallback.
 - High-g / low-g acceleration source fallback for launch and burnout detection.
 - Constants that must be represented in code, even if their final values are
   still team-tunable.
@@ -49,13 +50,16 @@ Excluded from this version:
   literals.
 - `APOGEE` is a real state in this design. It represents the drogue pyro
   sequence state, not merely an instantaneous event.
-- Current avionics firmware auto-transitions from `SAFE` to `ARMED` after
-  initialization unless abort is active. The real energetic safety inhibit is
-  the external physical pyro/arming hardware path, not a software arming switch
-  wired into the avionics MCU in this revision.
+- Production avionics remains in `SAFE` until an authenticated, unexpired
+  `ARM_FLIGHT` uplink requests exactly `SAFE(1) -> ARMED(2)`. Telemetry queues
+  the request; only the FSM performs the transition. The external physical
+  pyro/arming hardware remains the independent energetic safety inhibit.
 - A boot/init failure intentionally remains a hard stop, but it must be audible
   and USB-friendly so the board does not look electrically dead during bench
   debugging.
+- microSD is init-critical. Missing media, mount failure, directory creation
+  failure, file creation failure, or preallocation failure prevents completion
+  of `FlightControllerApp::setup()`, even if program flash is available.
 
 ## Enum Order
 
@@ -139,12 +143,13 @@ Initial implementation constants:
 | `BARO_FAULT_ATTITUDE_FALLBACK_MAX_SAMPLE_AGE_MS` | `150` | ms | Reject stale low-g attitude samples |
 | `PYRO_FIRE_DURATION_MS` | `50` | ms | Initial constant, must be verified by ground test |
 | `DROGUE_BACKUP_DELAY_MS` | `2000` | ms | Team decision; delay between primary and backup drogue pyro |
-| `MAIN_DEPLOY_ALTITUDE_M_AGL` | `200.0` | m | Initial team decision |
+| `MAIN_DEPLOY_ALTITUDE_M_AGL` | `200.0` | m AGL | Team-confirmed primary main-deployment threshold |
+| `MAIN_DEPLOY_CONFIRM_SAMPLES` | `3` | samples | Existing noise rejection; three fresh filtered barometer samples at or below 200 m AGL |
 | `LANDING_STABLE_WINDOW_SAMPLES` | `20` | samples | Team decision; landing detector window over fresh filtered barometer AGL samples |
 | `LANDING_STABLE_ALTITUDE_RANGE_M` | `0.5` | m | Team decision; `max(window) - min(window)` must be below this, not adjacent-sample delta |
 | `LANDING_MAX_BARO_SAMPLE_GAP_MS` | `150` | ms | Derived from 50 ms barometer period; reset landing window after stale samples |
 | `APOGEE_TIMEOUT_MS` | `12000` | ms | Initial fallback, must be reviewed against simulation / flight data |
-| `MAIN_TIMEOUT_MS` | `15000` | ms | Initial fallback, must be reviewed against descent policy |
+| `MAIN_BAROMETER_FAULT_TIMEOUT_MS` | `6000` | ms after `DROGUE` entry | Team-verified failsafe value; enabled only after `barometer.fault` is latched |
 | `BENCH_FSM_AUTO_ARM_DELAY_MS` | `1000` | ms | Bench integration only; active only with `NURA_BENCH_FSM_AUTOFLOW` |
 | `BENCH_FSM_AUTO_LAUNCH_DELAY_MS` | `1000` | ms | Bench integration only; replaces missing arming/launch stimulus |
 | `BENCH_FSM_AUTO_BURNOUT_DELAY_MS` | `500` | ms | Bench integration only; lets the existing coast/apogee timers run |
@@ -165,14 +170,14 @@ Notes:
 
 | State | Entry action | Periodic action | Timeout | Fallback | Entry condition from previous state |
 | --- | --- | --- | --- | --- | --- |
-| `INIT` | Wait for board/bus settle, initialize sensors, initialize calibration, build barometer ground baseline, initialize SD logging and program-flash logging when enabled, force pyro outputs OFF. | Check initialization completion. | TODO init timeout. | `FAULT` or `SAFE`, final policy TBD. | Boot starts here. |
-| `SAFE` | Force pyro outputs OFF. Reset flight-local counters and detector state. | Auto-transition to `ARMED` unless abort is active. Sensor tasks continue globally. | None for first implementation. | None. | `INIT` completed. |
-| `ARMED` | Reset launch detector consecutive count. Reset launch timestamp. Reset coast/apogee detector scratch state. | Compute selected acceleration norm and update launch confirmation count. | Optional arming timeout TODO. | `SAFE` if abort/disarm policy is later wired into avionics. | `SAFE` completed and abort is not active. |
+| `INIT` | Wait for board/bus settle, mount and preallocate the required microSD log, initialize program-flash logging, initialize sensors/calibration, build the barometer ground baseline, and force pyro outputs OFF. | Check initialization completion. | SD preparation failure is a hard init stop. | Panic hold with the four-beep storage pattern. | Boot starts here. |
+| `SAFE` | Force pyro outputs OFF. Reset flight-local counters and detector state. | Hold SAFE while sensor and telemetry tasks continue globally; consume only a validated queued ARM request. | None. | None; rejected or unavailable uplink leaves the controller SAFE. | `INIT` completed, or active abort returned the FSM to SAFE. |
+| `ARMED` | Reset launch detector consecutive count. Reset launch timestamp. Reset coast/apogee detector scratch state. | Compute selected acceleration norm and update launch confirmation count. | Optional arming timeout TODO. | `SAFE` if abort becomes active. | FSM consumed a matching authenticated ARM request while current state was SAFE and abort was inactive. |
 | `LAUNCH` | Save `launch_time_ms`. Reset burnout confirmation count. TODO: log launch event later. | Continue selected acceleration norm monitoring and update burnout confirmation count. | Optional motor-burn timeout TODO. | `COAST` when motor-burn timeout policy is defined. | In `ARMED`, selected acceleration norm is `>= LAUNCH_ACCEL_THRESHOLD_G` for `LAUNCH_CONFIRM_SAMPLES` consecutive samples. |
 | `COAST` | Save `coast_start_ms`. Reset apogee detector scratch state, including max altitude and descent counter. | Push fresh barometer AGL samples into the nine-sample predictor, update predicted-apogee and backup-descent confirmation counts. | `APOGEE_TIMEOUT_MS`. | `APOGEE`. | In `LAUNCH`, selected acceleration norm is `< BURNOUT_ACCEL_THRESHOLD_G` for `BURNOUT_CONFIRM_SAMPLES` consecutive samples. |
 | `APOGEE` | Start drogue primary pyro pulse. Save pyro sequence start time. TODO: log drogue sequence start later. | End primary pulse after `PYRO_FIRE_DURATION_MS`; after `DROGUE_BACKUP_DELAY_MS`, fire backup pyro for `PYRO_FIRE_DURATION_MS`; keep all pyro timing non-blocking. | Pyro sequence timeout derived from backup delay plus pulse duration. | `DROGUE`. | Apogee detector asserts apogee, or `COAST` timeout fallback fires. |
-| `DROGUE` | Latch drogue sequence complete. Reset main deploy detector scratch state. | Monitor barometer AGL altitude for main deployment threshold. | `MAIN_TIMEOUT_MS`. | `DEPLOY`. | Drogue primary-plus-backup pyro sequence is complete. This does not require proof that the parachute physically opened. |
-| `DEPLOY` | Start main pyro pulse. Reset landing detector scratch state. TODO: support backup main pyro only if hardware/team policy requires it. TODO: log main deploy later. | End main pulse after `PYRO_FIRE_DURATION_MS`; after the pulse is complete, push fresh filtered barometer AGL samples into the landing detector. | None for first implementation. | None; timeout policy deferred to sensor fault / recovery policy. | In `DROGUE`, altitude AGL is `<= MAIN_DEPLOY_ALTITUDE_M_AGL`, or `MAIN_TIMEOUT_MS` fallback fires. |
+| `DROGUE` | Latch drogue sequence complete. Reset main deploy detector scratch state. | With a healthy barometer, count fresh filtered AGL samples at or below 200 m. If the barometer fault latch is set, ignore altitude and evaluate only the six-second degraded timer. | No timer while barometer is healthy. `MAIN_BAROMETER_FAULT_TIMEOUT_MS` only while faulted. | `DEPLOY` after the fault-only timer. | Drogue primary-plus-backup pyro sequence is complete. This does not require proof that the parachute physically opened. |
+| `DEPLOY` | Start main pyro pulse. Reset landing detector scratch state. TODO: support backup main pyro only if hardware/team policy requires it. TODO: log main deploy later. | End main pulse after `PYRO_FIRE_DURATION_MS`; after the pulse is complete, push fresh filtered barometer AGL samples into the landing detector. | None for first implementation. | None; timeout policy deferred to sensor fault / recovery policy. | In `DROGUE`, three fresh healthy-barometer samples are `<= MAIN_DEPLOY_ALTITUDE_M_AGL`; otherwise only a latched barometer fault may enable the six-second timer fallback. |
 | `GROUND` | Force pyro outputs OFF. TODO: close/flush logs and enter recovery telemetry mode later. | TODO: recovery GPS/telemetry behavior. | None. | None. | Main deploy sequence is complete and the landing detector is stable. |
 | `FAULT` | Force pyro outputs OFF. Set fault flag. TODO: log fault later. | Hold fault state. | None. | None. | Initialization failure or future critical fault policy. |
 
@@ -676,6 +681,73 @@ This is deliberately a late confirmation, not a prediction. It exists to avoid
 waiting all the way to the timer fallback when the rocket has clearly tipped
 over after apogee and the barometer is unavailable.
 
+## Main Deployment Decision
+
+Purpose: deploy the main parachute as the descending vehicle reaches 200 m AGL,
+while retaining a bounded degraded path if the barometer is known to have
+failed.
+
+Inputs and units:
+
+- `barometer.altitudeM`: filtered pad-relative altitude, m AGL.
+- `barometer.lastUpdatedMs`: timestamp of the latest accepted sample, ms.
+- `barometer.valid` and `barometer.referenceValid`: normal-path validity.
+- `barometer.fault`: boot-latched barometer fault decision.
+- `flightState.drogueMs`: `DROGUE` entry timestamp, ms.
+
+The decision runs only in `DROGUE`. It is forbidden in `INIT`, `SAFE`,
+`ARMED`, `LAUNCH`, `COAST`, `APOGEE`, `DEPLOY`, `GROUND`, and `FAULT`.
+
+Normal path:
+
+```text
+barometer.fault == false
+AND sample is valid, referenced, fresh, and not previously consumed
+AND filtered_altitude_agl_m <= 200.0
+for 3 consecutive fresh barometer samples
+    -> transition to DEPLOY
+```
+
+There is no additional minimum time after `DROGUE` entry. This preserves the
+team decision that reaching 200 m AGL is the primary deployment event. The
+three-sample confirmation remains to reject one-off filtered-altitude noise.
+
+Degraded path:
+
+```text
+barometer.fault == true
+AND now_ms - drogue_entry_ms >= 6000
+    -> transition to DEPLOY
+```
+
+The six-second value is a team-verified value supplied for this revision. The
+timer starts at `DROGUE` entry. It is disabled for the entire time the
+barometer fault latch is false, regardless of elapsed time or altitude. A
+single rejected, stale-looking, `NaN`, or out-of-range sample does not enable
+this fallback; the barometer task or in-flight stuck detector must first latch
+`barometer.fault` under the documented fault policy. If that latch occurs after
+six seconds have already elapsed, the fallback is accepted on the next FSM
+tick.
+
+Failure modes considered:
+
+- Healthy barometer remains above 200 m: stay in `DROGUE`; no timer deployment.
+- Isolated invalid sample: ignore it; do not count it and do not start fallback.
+- Latched read, stale, bad-value, or stuck fault: stop using altitude and use
+  only the six-second degraded timer.
+- Altitude oscillates around 200 m: require three consecutive accepted samples.
+
+Verification plan:
+
+1. Host FSM test: healthy barometer above 200 m remains in `DROGUE` beyond six
+   seconds.
+2. Host FSM test: exactly three fresh samples at 200 m enter `DEPLOY`.
+3. Host FSM test: a latched barometer fault cannot deploy before six seconds
+   and does deploy at six seconds.
+4. Next hardware session: replay a descending altitude profile, inject a
+   barometer fault, and verify transition timestamps plus physical output with
+   inert loads before any energetic test.
+
 ## Pyro Sequence
 
 All pyro control must be non-blocking. Do not use `delay()` for firing pulses.
@@ -856,6 +928,22 @@ TODO:
 - Confirm actual e-match / igniter fire duration through ground test.
 - Add continuity and battery checks in the later safety policy.
 
+## Authenticated Uplink Arming
+
+Production `SAFE -> ARMED` is command-gated. `TelemetryTask` verifies the frame,
+CONTROL authentication, non-zero unexpired deadline, exact source/target state,
+current SAFE state, inactive abort, and absence of a conflicting ARM/reset
+request. It then records `FlightState.armRequested`; it never assigns the state.
+
+On the next FSM tick, `consumeArmRequest()` rechecks SAFE and abort before calling
+`transitionTo(State::ARMED)`. Execution is recorded only after `onEnter(ARMED)`
+has completed. If abort becomes active in the acceptance-to-execution window,
+the request is canceled, SAFE is retained, and telemetry returns a deferred
+BAD_STATE rejection. ARM handling never energizes a pyro output.
+
+The complete wire contract, failure handling, and verification plan are in
+`documents/arm_uplink_state_transition_v1.md`.
+
 ## Uplink Forced Recovery Command
 
 `FORCE_DEPLOY_RECOVERY` is handled as a request into the FSM, not as a direct
@@ -925,9 +1013,11 @@ check implementation drift quickly.
 | Apogee aggregation / quality checks | `src/missions/fsm_task.cpp` | `pushApogeePrediction()`, `plusTwoSigmaApogee()` | Rejects prediction jumps, unstable prediction history, high fit residual, stale barometer gaps, and uses `mean + 2*sigma` over five accepted raw predictions. |
 | Forced recovery request | `src/missions/telemetry_task.cpp`, `src/state/flight_state.h` | `handleCommand()`, `forceDeployRequestAllowed()`, `FlightState::forceRecoveryDeployRequested` | Telemetry validates command/auth/state and records a request; it does not directly mutate the FSM state. |
 | Forced recovery execution | `src/missions/fsm_task.cpp` | `consumeForceRecoveryDeployRequest()`, `forceRecoveryDeployAllowed()` | FSM consumes the request only in `LAUNCH` or `COAST`, transitions to `APOGEE`, and records execution for ACK. |
+| Authenticated ARM validation | `src/missions/telemetry/arm_command_policy.h`, `src/missions/telemetry/telemetry_task.cpp` | `validateArmFlightCommand()`, `handleArmCommand()` | Requires non-zero unexpired deadline, exact SAFE-to-ARMED parameters, current SAFE, inactive abort, and no pending transition conflict. |
+| ARM transition ownership | `src/missions/flight/fsm_task.cpp`, `src/state/flight_state.h` | `consumeArmRequest()`, ARM request/execution/rejection fields | Only the FSM enters ARMED; abort race cancels the request; telemetry sends EXECUTED only after state is ARMED. |
 | Pyro HAL | `src/hal/pyro_output.h`, `src/hal/mosfet_pyro_hal.h`, `src/hal/mosfet_pyro_hal.cpp` | `IPyroOutput`, `MosfetPyroHAL` | MOSFET output abstraction; default dry-run, physical GPIO only with `NURA_ENABLE_PYRO_OUTPUTS`; blocks any future power-sense/pyro pin overlap. |
 | Drogue pyro sequence state | `src/missions/fsm_task.cpp` | `onEnter(State::APOGEE)`, `tickApogee()` | Non-blocking Drogue/Pyro 1 pulse, then same-channel retry pulse after `DROGUE_BACKUP_DELAY_MS`; transitions to `DROGUE` after retry off. |
-| Main deploy decision and sequence | `src/missions/fsm_task.cpp` | `tickDrogue()`, `onEnter(State::DEPLOY)`, `tickDeploy()` | `DROGUE -> DEPLOY` at `<= 200 m AGL` or timeout; non-blocking Main/Pyro 2 pulse, then marks main sequence complete. |
+| Main deploy decision and sequence | `src/missions/flight/fsm_task.cpp` | `tickDrogue()`, `onEnter(State::DEPLOY)`, `tickDeploy()` | Healthy barometer: three fresh samples at `<= 200 m AGL`. Latched barometer fault only: six-second timer from `DROGUE` entry. Then runs the non-blocking Main/Pyro 2 pulse. |
 | Landing / ground transition | `src/missions/fsm_task.cpp` | `tickDeploy()`, `consumeLandingSample()`, `landingStable()` | After main pulse completion, uses 20 fresh filtered barometer AGL samples and transitions to `GROUND` when window range is `<= 0.5 m`; timeout fallback is deferred. |
 | Telemetry state code mapping | `src/missions/telemetry_task.cpp`, `protocol/include/nura_protocol_v1_lite.h` | `currentFlightStateCode()`, `FlightStateCode` | Downlink status encodes the new state IDs. |
 | Protocol documentation state table | `documents/nura_lora_packet_protocol_v1.md` | `State encoding` section | Human-readable packet spec mirrors the code enum. |
